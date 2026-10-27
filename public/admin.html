@@ -1,0 +1,2878 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ทองย้อย · แอดมิน</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="/auth-gate.js"></script>
+<script src="/shop-hours.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  /* ===== สถานะโต๊ะ (embedded tab) — scoped under #panel-tablestatus ===== */
+
+  #panel-tablestatus{
+    --espresso-900:#2B1810;
+    --espresso-800:#3A2317;
+    --walnut-700:#6B4023;
+    --caramel-500:#B4703A;
+    --caramel-400:#C98A56;
+    --caramel-100:#F0DAC2;
+    --paper-50:#F8F2E7;
+    --card:#FFFDF8;
+    --line:#E7D9C4;
+    --ink:#2B1810;
+    --ink-soft:#7A6A5A;
+
+    --empty-bg:#EAF2E4; --empty-text:#3F6B33; --empty-dot:#5B8C4A;
+    --pending-bg:#FBEBD2; --pending-text:#9C5B12; --pending-dot:#E08A24;
+    --dining-bg:#E3ECF4; --dining-text:#2F567A; --dining-dot:#4C82AC;
+    --danger:#B84C3E; --danger-dark:#96392E;
+
+    --radius:14px;
+    --shadow: 0 2px 8px rgba(43,24,16,0.08), 0 1px 2px rgba(43,24,16,0.06);
+    --shadow-lg: 0 12px 32px rgba(43,24,16,0.22);
+
+    font-family:'Noto Sans Thai','Kanit',sans-serif;
+    color:var(--ink);
+    background:var(--paper-50);
+    margin:-16px -16px 0;
+    padding:16px;
+  }
+
+  #panel-tablestatus *{box-sizing:border-box;}
+  #panel-tablestatus .display{font-family:'Kanit','Noto Sans Thai',sans-serif;}
+
+  #panel-tablestatus .summary{display:flex;gap:18px;align-items:center;}
+  #panel-tablestatus .summary-item{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;}
+  #panel-tablestatus .summary-item .num{font-family:'Kanit';font-weight:700;font-size:20px;color:var(--espresso-900);}
+  #panel-tablestatus .summary-item .lbl{font-size:11px;color:var(--ink-soft);}
+  #panel-tablestatus .summary-item.empty .num{color:#3F6B33;}
+  #panel-tablestatus .summary-item.pending .num{color:#9C5B12;}
+
+  /* ---------- Filters ---------- */
+  #panel-tablestatus .filters{
+    display:flex;gap:8px;padding:16px 0 4px;flex-wrap:wrap;
+  }
+  #panel-tablestatus .chip{
+    border:1.5px solid var(--line);
+    background:var(--card);
+    color:var(--ink-soft);
+    font-family:'Noto Sans Thai';
+    font-weight:600;
+    font-size:13.5px;
+    padding:8px 16px;
+    border-radius:999px;
+    cursor:pointer;
+    display:flex;align-items:center;gap:7px;
+    transition:all .15s ease;
+    user-select:none;
+  }
+  #panel-tablestatus .chip .dot{width:8px;height:8px;border-radius:50%;background:var(--ink-soft);}
+  #panel-tablestatus .chip:hover{border-color:var(--caramel-500);}
+  #panel-tablestatus .chip.active{
+    background:var(--espresso-900);
+    border-color:var(--espresso-900);
+    color:#fff;
+  }
+  #panel-tablestatus .chip.active .dot{background:var(--caramel-400);}
+  #panel-tablestatus .chip .count{
+    background:rgba(0,0,0,0.06);
+    border-radius:999px;
+    padding:1px 7px;
+    font-size:11.5px;
+  }
+  #panel-tablestatus .chip.active .count{background:rgba(255,255,255,0.18);}
+
+  /* ---------- Table grid ---------- */
+  #panel-tablestatus .ts-main-wrap{padding:12px 0 60px;}
+  #panel-tablestatus .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:14px;
+    margin-top:10px;
+  }
+  #panel-tablestatus .table-card{
+    position:relative;
+    background:var(--card);
+    border:1.5px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 14px 14px;
+    cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  #panel-tablestatus .table-card:hover{transform:translateY(-2px); box-shadow:var(--shadow-lg); border-color:var(--caramel-500);}
+  #panel-tablestatus .table-card:active{transform:translateY(0);}
+  #panel-tablestatus .table-card::before, #panel-tablestatus .table-card::after{
+    content:"";
+    position:absolute;
+    top:-8px;
+    width:16px;height:16px;
+    background:var(--paper-50);
+    border-radius:50%;
+    border:1.5px solid var(--line);
+  }
+  #panel-tablestatus .table-card::before{left:-8px;}
+  #panel-tablestatus .table-card::after{right:-8px;}
+  #panel-tablestatus .table-card .tear{
+    border-top:1.5px dashed var(--line);
+    margin:10px 0 8px;
+  }
+  #panel-tablestatus .t-num{font-family:'Kanit';font-weight:700;font-size:26px;color:var(--espresso-900);line-height:1;}
+  #panel-tablestatus .t-label{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  #panel-tablestatus .status-pill{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:12px;font-weight:600;
+    padding:4px 10px;border-radius:999px;
+    margin-top:10px;
+  }
+  #panel-tablestatus .status-pill .dot{width:7px;height:7px;border-radius:50%;}
+  #panel-tablestatus .status-pill.empty{background:var(--empty-bg);color:var(--empty-text);}
+  #panel-tablestatus .status-pill.empty .dot{background:var(--empty-dot);}
+  #panel-tablestatus .status-pill.pending{background:var(--pending-bg);color:var(--pending-text);}
+  #panel-tablestatus .status-pill.pending .dot{background:var(--pending-dot);}
+
+  #panel-tablestatus .t-meta{margin-top:10px;font-size:12px;color:var(--ink-soft);display:flex;justify-content:space-between;}
+  #panel-tablestatus .t-meta .amt{font-family:'Kanit';font-weight:600;color:var(--espresso-900);font-size:14px;}
+
+  #panel-tablestatus .empty-note{text-align:center;color:var(--ink-soft);padding:60px 20px;font-size:14px;}
+  #panel-tablestatus .loading-note{text-align:center;color:var(--ink-soft);padding:60px 20px;font-size:14px;}
+
+  /* ---------- Overlay / side panel ---------- */
+  #panel-tablestatus .overlay{
+    position:fixed;inset:0;background:rgba(43,24,16,0.45);
+    opacity:0;pointer-events:none;transition:opacity .2s ease;
+    z-index:130;
+  }
+  #panel-tablestatus .overlay.show{opacity:1;pointer-events:auto;}
+
+  #panel-tablestatus .ts-drawer{
+    position:fixed;top:0;right:0;height:100%;
+    width:420px;max-width:92vw;
+    background:var(--paper-50);
+    box-shadow:-12px 0 32px rgba(0,0,0,0.25);
+    transform:translateX(100%);
+    transition:transform .25s cubic-bezier(.2,.8,.2,1);
+    z-index:131;
+    display:flex;flex-direction:column;
+  }
+  #panel-tablestatus .ts-drawer.show{transform:translateX(0);}
+  #panel-tablestatus .panel-head{
+    background:var(--espresso-900);color:#F3E8DA;
+    padding:20px 22px;display:flex;justify-content:space-between;align-items:flex-start;
+  }
+  #panel-tablestatus .panel-head h2{font-family:'Kanit';margin:0;font-size:22px;}
+  #panel-tablestatus .panel-head .sub{font-size:12.5px;color:#C9B7A4;margin-top:4px;}
+  #panel-tablestatus .icon-btn{
+    background:rgba(255,255,255,0.1);border:none;color:#F3E8DA;
+    width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #panel-tablestatus .icon-btn:hover{background:rgba(255,255,255,0.2);}
+
+  #panel-tablestatus .panel-body{flex:1;overflow-y:auto;padding:18px 22px;}
+  #panel-tablestatus .order-item{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;margin-bottom:10px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    cursor:pointer;transition:border-color .12s ease, background .12s ease;
+  }
+  #panel-tablestatus .order-item:hover{border-color:var(--danger); background:#FBF0EE;}
+  #panel-tablestatus .order-item .info{flex:1;}
+  #panel-tablestatus .order-item .name{font-weight:600;font-size:14.5px;}
+  #panel-tablestatus .order-item .price{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  #panel-tablestatus .order-item-note{margin-top:4px;color:#9c5b12;font-size:12px;line-height:1.4;}
+  #panel-tablestatus .item-status-btn{
+    font-size:11.5px;font-weight:700;border:none;border-radius:999px;
+    padding:6px 11px;cursor:pointer;white-space:nowrap;font-family:'Noto Sans Thai';
+    transition:filter .12s ease;
+  }
+  #panel-tablestatus .item-status-btn:hover{filter:brightness(0.96);}
+  #panel-tablestatus .item-status-btn:disabled{opacity:0.5;cursor:not-allowed;}
+  #panel-tablestatus .item-status-btn.cooking{background:var(--pending-bg);color:var(--pending-text);}
+  #panel-tablestatus .item-status-btn.ready{background:#EADFF5;color:#6B3FA0;}
+  #panel-tablestatus .item-status-btn.served{background:var(--dining-bg);color:var(--dining-text);}
+
+  #panel-tablestatus .no-order{
+    text-align:center;color:var(--ink-soft);padding:40px 10px;font-size:13.5px;
+  }
+
+  #panel-tablestatus .panel-totals{
+    border-top:1.5px dashed var(--line);margin-top:6px;padding-top:14px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  #panel-tablestatus .panel-totals .lbl{font-size:13px;color:var(--ink-soft);}
+  #panel-tablestatus .panel-totals .amt{font-family:'Kanit';font-weight:700;font-size:22px;color:var(--espresso-900);}
+
+  #panel-tablestatus .panel-actions{
+    padding:16px 22px 22px;
+    display:flex;flex-direction:column;gap:10px;
+    border-top:1px solid var(--line);
+    background:var(--paper-50);
+  }
+  #panel-tablestatus .panel-actions-row{display:flex;gap:10px;}
+  #panel-tablestatus .btn-checkout{
+    width:100%;
+    background:var(--espresso-900);
+    color:#F3E8DA;
+  }
+  #panel-tablestatus .btn-checkout:hover{filter:brightness(1.15);}
+  #panel-tablestatus .btn-checkout:disabled{opacity:0.4;cursor:not-allowed;}
+  #panel-tablestatus .btn{
+    flex:1;border:none;border-radius:11px;padding:13px 14px;
+    font-family:'Noto Sans Thai';font-weight:700;font-size:14.5px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
+    transition:filter .12s ease, transform .1s ease;
+  }
+  #panel-tablestatus .btn:active{transform:scale(0.98);}
+  #panel-tablestatus .btn-primary{background:var(--caramel-500);color:#fff;}
+  #panel-tablestatus .btn-primary:hover{filter:brightness(1.06);}
+  #panel-tablestatus .btn-danger{background:transparent;color:var(--danger);border:1.5px solid var(--danger);}
+  #panel-tablestatus .btn-danger:hover{background:rgba(184,76,62,0.08);}
+  #panel-tablestatus .btn-danger:disabled{opacity:0.4;cursor:not-allowed;}
+  #panel-tablestatus .btn-primary:disabled{opacity:0.4; cursor:not-allowed;}
+
+  /* ---------- Menu modal ---------- */
+  #panel-tablestatus .modal-wrap{
+    position:fixed;inset:0;z-index:140;
+    display:flex;align-items:flex-end;justify-content:center;
+  }
+  @media(min-width:640px){ #panel-tablestatus .modal-wrap{align-items:center;} }
+  #panel-tablestatus .modal{
+    background:var(--paper-50);
+    width:100%;max-width:520px;
+    max-height:85vh;
+    border-radius:18px 18px 0 0;
+    display:flex;flex-direction:column;
+    transform:translateY(100%);
+    transition:transform .25s cubic-bezier(.2,.8,.2,1);
+  }
+  @media(min-width:640px){ #panel-tablestatus .modal{border-radius:18px; transform:translateY(24px); opacity:0; transition:transform .2s ease, opacity .2s ease;} #panel-tablestatus .modal.show{transform:translateY(0); opacity:1;} }
+  #panel-tablestatus .modal.show{transform:translateY(0);}
+  #panel-tablestatus .modal-head{
+    padding:18px 20px 10px;display:flex;justify-content:space-between;align-items:center;
+  }
+  #panel-tablestatus .modal-head h3{font-family:'Kanit';margin:0;font-size:19px;}
+  #panel-tablestatus .cats{display:flex;gap:8px;padding:0 20px 14px;overflow-x:auto;}
+  #panel-tablestatus .cat-btn{
+    border:1.5px solid var(--line);background:var(--card);color:var(--ink-soft);
+    padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
+    white-space:nowrap;cursor:pointer;font-family:'Noto Sans Thai';
+  }
+  #panel-tablestatus .cat-btn.active{background:var(--espresso-900);border-color:var(--espresso-900);color:#fff;}
+  #panel-tablestatus .menu-list{overflow-y:auto;padding:0 20px 14px;flex:1;}
+  #panel-tablestatus .menu-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:12px 0;border-bottom:1px solid var(--line);
+    gap:10px;
+  }
+  #panel-tablestatus .menu-item .info .name{font-weight:600;font-size:14.5px;}
+  #panel-tablestatus .menu-item .info .price{font-size:12.5px;color:var(--caramel-500);font-weight:600;margin-top:2px;}
+  #panel-tablestatus .stepper{display:flex;align-items:center;gap:10px;}
+  #panel-tablestatus .step-btn{
+    width:30px;height:30px;border-radius:9px;border:1.5px solid var(--line);
+    background:var(--card);font-size:16px;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;color:var(--espresso-900);
+  }
+  #panel-tablestatus .step-btn:hover{border-color:var(--caramel-500);}
+  #panel-tablestatus .step-btn.add-first{background:var(--caramel-500);border-color:var(--caramel-500);color:#fff;width:auto;padding:0 14px;font-size:13px;font-family:'Noto Sans Thai';font-weight:700;}
+  #panel-tablestatus .qty-val{min-width:18px;text-align:center;font-weight:700;font-family:'Kanit';}
+  #panel-tablestatus .modal-foot{padding:14px 20px 20px;border-top:1px solid var(--line);}
+
+  /* ---------- Confirm modal ---------- */
+  #panel-tablestatus .confirm-card{
+    background:var(--card);border-radius:16px;padding:26px 24px;max-width:360px;width:90%;
+    box-shadow:var(--shadow-lg);
+  }
+  #panel-tablestatus .confirm-card h3{font-family:'Kanit';margin:0 0 8px;font-size:19px;color:var(--espresso-900);}
+  #panel-tablestatus .confirm-card p{margin:0 0 20px;font-size:13.5px;color:var(--ink-soft);line-height:1.5;}
+  #panel-tablestatus .confirm-actions{display:flex;gap:10px;}
+  #panel-tablestatus .btn-ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink);}
+  #panel-tablestatus .btn-ghost:hover{border-color:var(--ink-soft);}
+
+  #panel-tablestatus .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--espresso-900);color:#F3E8DA;
+    padding:12px 20px;border-radius:11px;font-size:13.5px;font-weight:600;
+    box-shadow:var(--shadow-lg);
+    opacity:0;pointer-events:none;transition:all .25s ease;
+    z-index:160;display:flex;align-items:center;gap:8px;
+  }
+  #panel-tablestatus .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* ---------- Checkout card ---------- */
+  #panel-tablestatus .checkout-card{
+    background:var(--card);border-radius:16px;padding:24px;max-width:380px;width:90%;
+    box-shadow:var(--shadow-lg);
+    max-height:85vh;overflow-y:auto;
+  }
+  #panel-tablestatus .checkout-card h3{font-family:'Kanit';margin:0 0 4px;font-size:19px;color:var(--espresso-900);text-align:center;}
+  #panel-tablestatus .checkout-dash{border-top:1.5px dashed var(--line);margin:12px 0;}
+  #panel-tablestatus .checkout-items{display:flex;flex-direction:column;gap:8px;}
+  #panel-tablestatus .checkout-items .ci-row{display:flex;justify-content:space-between;font-size:13.5px;gap:8px;}
+  #panel-tablestatus .checkout-items .ci-row .ci-name{color:var(--ink);}
+  #panel-tablestatus .checkout-items .ci-row .ci-qty{color:var(--ink-soft);flex-shrink:0;}
+  #panel-tablestatus .checkout-items .ci-row .ci-amt{font-family:'Kanit';font-weight:600;color:var(--espresso-900);flex-shrink:0;}
+  #panel-tablestatus .checkout-total{display:flex;justify-content:space-between;align-items:center;}
+  #panel-tablestatus .checkout-total span:first-child{font-size:14px;color:var(--ink-soft);font-weight:600;}
+  #panel-tablestatus .checkout-total span:last-child{font-family:'Kanit';font-weight:700;font-size:24px;color:var(--espresso-900);}
+  #panel-tablestatus .checkout-actions{display:flex;flex-direction:column;gap:10px;margin-top:20px;}
+
+  /* ---------- Printable receipt (hidden on screen) ---------- */
+  #panel-tablestatus .receipt-print{
+    position:fixed;top:0;left:-9999px;
+    width:80mm;
+    background:#fff;color:#000;
+    font-family:'Noto Sans Thai',sans-serif;
+    padding:14px;
+    font-size:12.5px;
+  }
+  #panel-tablestatus .receipt-print .r-head{text-align:center;}
+  #panel-tablestatus .receipt-print .r-head h2{font-family:'Kanit';margin:0;font-size:19px;letter-spacing:0.5px;}
+  #panel-tablestatus .receipt-print .r-head p{margin:4px 0 0;font-size:11px;}
+  #panel-tablestatus .receipt-print .r-dash{border-top:2px dashed #333;margin:10px 0;}
+  #panel-tablestatus .receipt-print .r-info{display:flex;justify-content:space-between;font-size:11.5px;}
+  #panel-tablestatus .receipt-print .r-info-right{text-align:right;}
+  #panel-tablestatus .receipt-print .r-table{width:100%;border-collapse:collapse;font-size:12px;}
+  #panel-tablestatus .receipt-print .r-table th{text-align:left;padding-bottom:6px;border-bottom:1px solid #000;font-family:'Noto Sans Thai';}
+  #panel-tablestatus .receipt-print .r-table th:nth-child(2), #panel-tablestatus .receipt-print .r-table td:nth-child(2){text-align:center;}
+  #panel-tablestatus .receipt-print .r-table th:nth-child(3), #panel-tablestatus .receipt-print .r-table td:nth-child(3){text-align:right;}
+  #panel-tablestatus .receipt-print .r-table td{padding:4px 0;}
+  #panel-tablestatus .receipt-print .r-net{display:flex;justify-content:space-between;font-weight:700;font-size:15px;font-family:'Kanit';}
+  #panel-tablestatus .receipt-print .r-foot{text-align:center;margin-top:10px;font-size:11px;line-height:1.6;}
+
+  @media print{
+    body.ts-printing-receipt *{ visibility:hidden; }
+    body.ts-printing-receipt .receipt-print, body.ts-printing-receipt .receipt-print *{ visibility:visible; }
+    body.ts-printing-receipt .receipt-print{ left:0; top:0; position:absolute; }
+  }
+
+  @media(max-width:520px){
+    #panel-tablestatus .filters{padding:14px 0 4px;}
+    #panel-tablestatus .ts-main-wrap{padding:8px 0 50px;}
+    #panel-tablestatus .summary{gap:12px;}
+  }
+
+  /* ===== รายการบันทึกบิล — scoped under #panel-billhistory ===== */
+  #panel-billhistory{
+    --bh-primary:#38b2ac;
+    --bh-primary-dark:#258b86;
+    --bh-price:#fbbf24;
+    --bh-bg:#f8fafc;
+    --bh-card:#ffffff;
+    --bh-ink:#1f2937;
+    --bh-soft:#64748b;
+    --bh-line:#e2e8f0;
+    --bh-shadow:0 10px 28px rgba(15,23,42,.10);
+    background:var(--bh-bg);
+    color:var(--bh-ink);
+    font-family:'Noto Sans Thai','Kanit',sans-serif;
+    margin:-16px -16px 0;
+    min-height:calc(100vh - 122px);
+    padding:0 16px 42px;
+  }
+  #panel-billhistory *{box-sizing:border-box;}
+  #panel-billhistory .bh-page{max-width:760px;margin:0 auto;}
+  #panel-billhistory .bh-nav{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0 16px;border-bottom:1px solid var(--bh-line);}
+  #panel-billhistory .bh-nav h2{font-family:'Kanit','Noto Sans Thai',sans-serif;font-size:23px;line-height:1.2;margin:0;font-weight:700;}
+  #panel-billhistory .bh-nav p{margin:3px 0 0;color:var(--bh-soft);font-size:13px;}
+  #panel-billhistory .bh-summary{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+  #panel-billhistory .bh-summary span{display:inline-flex;align-items:center;border-radius:999px;padding:4px 9px;background:#ecfdf5;color:#047857;font:700 11px 'Noto Sans Thai';}
+  #panel-billhistory .bh-summary span.cancelled{background:#fff1f2;color:#be123c;}
+  #panel-billhistory .bh-tools{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap;}
+  #panel-billhistory .bh-filter{display:inline-flex;padding:3px;border:1px solid var(--bh-line);border-radius:10px;background:#fff;}
+  #panel-billhistory .bh-filter button{border:0;border-radius:7px;background:transparent;color:var(--bh-soft);font:700 12px 'Noto Sans Thai';padding:6px 9px;cursor:pointer;white-space:nowrap;}
+  #panel-billhistory .bh-filter button:hover{color:var(--bh-primary-dark);background:#f0fdfa;}
+  #panel-billhistory .bh-filter button.active{background:var(--bh-primary);color:#fff;box-shadow:0 1px 3px rgba(15,118,110,.26);}
+  #panel-billhistory .bh-day-picker{display:flex;gap:7px;overflow-x:auto;padding:12px 1px 2px;scrollbar-width:thin;scroll-snap-type:x proximity;}
+  #panel-billhistory .bh-day-button{flex:0 0 auto;min-width:82px;border:1px solid var(--bh-line);border-radius:11px;background:#fff;color:var(--bh-soft);padding:7px 10px;font:700 12px/1.35 'Noto Sans Thai';cursor:pointer;scroll-snap-align:start;}
+  #panel-billhistory .bh-day-button span{display:block;font-size:11px;font-weight:500;color:#94a3b8;}
+  #panel-billhistory .bh-day-button:hover{border-color:var(--bh-primary);color:var(--bh-primary-dark);background:#f0fdfa;}
+  #panel-billhistory .bh-day-button.active{border-color:var(--bh-primary);background:var(--bh-primary);color:#fff;box-shadow:0 2px 6px rgba(15,118,110,.2);}
+  #panel-billhistory .bh-day-button.active span{color:#d9fffb;}
+  #panel-billhistory .bh-refresh{border:1px solid var(--bh-line);border-radius:10px;background:#fff;color:var(--bh-primary-dark);font:600 13px 'Noto Sans Thai';padding:8px 12px;cursor:pointer;white-space:nowrap;}
+  #panel-billhistory .bh-refresh:hover{border-color:var(--bh-primary);background:#f0fdfa;}
+  #panel-billhistory .bh-refresh:disabled{opacity:.55;cursor:wait;}
+  #panel-billhistory .bh-list{display:flex;flex-direction:column;gap:12px;padding:18px 0;}
+  #panel-billhistory .bh-card{background:var(--bh-card);border:1px solid #edf1f5;border-radius:14px;padding:15px 16px;box-shadow:0 3px 10px rgba(15,23,42,.045);cursor:pointer;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;}
+  #panel-billhistory .bh-card:hover{transform:translateY(-2px);box-shadow:var(--bh-shadow);border-color:#b6e5e1;}
+  #panel-billhistory .bh-card:focus-visible{outline:3px solid rgba(56,178,172,.35);outline-offset:2px;}
+  #panel-billhistory .bh-card.is-cancelled{background:#fffafb;border-color:#fecdd3;}
+  #panel-billhistory .bh-card.is-cancelled:hover{border-color:#fda4af;}
+  #panel-billhistory .bh-card-head{display:flex;align-items:center;gap:9px;min-width:0;}
+  #panel-billhistory .bh-table-pill{background:var(--bh-primary);color:#fff;border-radius:999px;padding:4px 10px;font:700 12px 'Kanit';white-space:nowrap;}
+  #panel-billhistory .bh-code{font:600 13px 'Kanit';color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #panel-billhistory .bh-cancelled-badge{margin-left:auto;border-radius:999px;background:#ffe4e6;color:#be123c;padding:4px 8px;font:700 11px 'Noto Sans Thai';white-space:nowrap;}
+  #panel-billhistory .bh-preview{color:#334155;font-size:14px;line-height:1.45;margin:11px 0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #panel-billhistory .bh-card-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;border-top:1px dashed var(--bh-line);padding-top:10px;}
+  #panel-billhistory .bh-time{font-size:12px;color:var(--bh-soft);}
+  #panel-billhistory .bh-open-note{display:block;font-size:11px;color:#94a3b8;margin-top:2px;}
+  #panel-billhistory .bh-total-pill{background:#fef3c7;color:#92400e;border-radius:999px;padding:5px 10px;font:700 14px 'Kanit';white-space:nowrap;}
+  #panel-billhistory .bh-total-pill.cancelled{background:#f1f5f9;color:#64748b;text-decoration:line-through;}
+  #panel-billhistory .bh-empty{background:#fff;border:1px dashed #cbd5e1;border-radius:14px;color:var(--bh-soft);padding:54px 20px;text-align:center;line-height:1.65;font-size:14px;}
+  #panel-billhistory .bh-empty strong{display:block;color:var(--bh-ink);font-family:'Kanit';font-size:18px;margin-bottom:4px;}
+  #panel-billhistory .bh-modal{position:fixed;inset:0;background:rgba(15,23,42,.48);display:flex;justify-content:center;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:500;}
+  #panel-billhistory .bh-modal.show{opacity:1;pointer-events:auto;}
+  #panel-billhistory .bh-sheet{width:min(100%,760px);max-height:86vh;background:#fff;border-radius:22px 22px 0 0;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .24s ease;box-shadow:0 -12px 42px rgba(15,23,42,.2);}
+  #panel-billhistory .bh-modal.show .bh-sheet{transform:translateY(0);}
+  #panel-billhistory .bh-sheet-handle{width:42px;height:4px;background:#cbd5e1;border-radius:99px;margin:10px auto 1px;flex:none;}
+  #panel-billhistory .bh-sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:14px 20px 16px;border-bottom:1px solid var(--bh-line);}
+  #panel-billhistory .bh-sheet-head h3{font:700 21px/1.2 'Kanit';margin:0;color:var(--bh-ink);}
+  #panel-billhistory .bh-sheet-head p{font-size:12px;color:var(--bh-soft);margin:4px 0 0;}
+  #panel-billhistory .bh-close{border:0;background:#f1f5f9;border-radius:50%;color:#475569;width:34px;height:34px;font-size:20px;line-height:1;cursor:pointer;flex:none;}
+  #panel-billhistory .bh-close:hover{background:#e2e8f0;}
+  #panel-billhistory .bh-sheet-body{overflow-y:auto;padding:16px 20px 10px;}
+  #panel-billhistory .bh-info{display:grid;grid-template-columns:1fr auto;gap:4px 12px;background:#f8fafc;border-radius:12px;padding:12px 14px;font-size:13px;color:#475569;}
+  #panel-billhistory .bh-info strong{color:var(--bh-ink);font-family:'Kanit';font-size:15px;}
+  #panel-billhistory .bh-section-title{font:700 15px 'Kanit';margin:20px 0 8px;color:var(--bh-ink);}
+  #panel-billhistory .bh-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:11px 0;border-bottom:1px solid #eef2f7;}
+  #panel-billhistory .bh-item-name{font-size:14px;line-height:1.35;font-weight:600;word-break:break-word;}
+  #panel-billhistory .bh-item-qty{font:12px 'Kanit';color:var(--bh-soft);margin-top:2px;}
+  #panel-billhistory .bh-item-price{font:700 14px 'Kanit';color:#334155;white-space:nowrap;align-self:center;}
+  #panel-billhistory .bh-item{align-items:center;}
+  #panel-billhistory .bh-item-right{display:flex;align-items:center;gap:10px;}
+  #panel-billhistory .bh-item-cancel{border:1px solid #fecaca;border-radius:8px;background:#fff5f5;color:#b91c1c;font:700 12px 'Noto Sans Thai';padding:6px 9px;cursor:pointer;white-space:nowrap;}
+  #panel-billhistory .bh-item-cancel:disabled{opacity:.55;cursor:wait;}
+  #panel-billhistory .bh-item.is-cancelled .bh-item-name,
+  #panel-billhistory .bh-item.is-cancelled .bh-item-price{text-decoration:line-through;color:#94a3b8;}
+  #panel-billhistory .bh-item-tag{display:inline-block;margin-left:6px;border-radius:999px;background:#ffe4e6;color:#be123c;padding:1px 7px;font:700 11px 'Noto Sans Thai';text-decoration:none;}
+  #panel-billhistory .bh-orig-total{font-size:12px;color:var(--bh-soft);text-align:right;margin:0 0 4px;}
+  #panel-billhistory .bh-total{display:flex;justify-content:space-between;align-items:center;margin:16px 0 5px;padding:15px 0 0;border-top:2px solid var(--bh-primary);font-family:'Kanit';font-size:17px;font-weight:700;}
+  #panel-billhistory .bh-total span:last-child{font-size:23px;color:var(--bh-primary-dark);}
+  #panel-billhistory .bh-total.is-cancelled{border-color:#fda4af;color:#be123c;}
+  #panel-billhistory .bh-total.is-cancelled span:last-child{color:#be123c;text-decoration:line-through;}
+  #panel-billhistory .bh-sheet-foot{padding:14px 20px calc(18px + env(safe-area-inset-bottom));border-top:1px solid var(--bh-line);}
+  #panel-billhistory .bh-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;}
+  #panel-billhistory .bh-reprint{width:100%;border:0;border-radius:11px;background:var(--bh-primary);color:#fff;font:700 15px 'Noto Sans Thai';padding:13px 16px;cursor:pointer;transition:filter .15s ease;}
+  #panel-billhistory .bh-reprint:hover{filter:brightness(.94);}
+  #panel-billhistory .bh-reprint:disabled{opacity:.55;cursor:wait;}
+  #panel-billhistory .bh-cancel{border:1px solid #fecaca;border-radius:11px;background:#fff5f5;color:#b91c1c;font:700 14px 'Noto Sans Thai';padding:13px 14px;cursor:pointer;white-space:nowrap;}
+  #panel-billhistory .bh-cancel:hover{background:#fee2e2;}
+  #panel-billhistory .bh-cancel:disabled{opacity:.55;cursor:wait;}
+  #panel-billhistory .bh-cancelled-note{margin:0;border-radius:10px;background:#fff1f2;color:#be123c;padding:11px 12px;font-size:13px;line-height:1.45;}
+  #panel-billhistory .bh-toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,18px);background:#0f766e;color:#fff;border-radius:999px;padding:10px 16px;box-shadow:0 8px 24px rgba(15,23,42,.22);font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;z-index:510;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis;}
+  #panel-billhistory .bh-toast.show{opacity:1;transform:translate(-50%,0);}
+  @media(min-width:640px){
+    #panel-billhistory .bh-modal{align-items:center;padding:24px;}
+    #panel-billhistory .bh-sheet{border-radius:22px;max-height:min(760px,86vh);transform:translateY(22px);}
+  }
+  @media(max-width:420px){
+    #panel-billhistory{margin:-16px -12px 0;padding:0 12px 34px;}
+    #panel-billhistory .bh-nav{align-items:flex-start;}
+    #panel-billhistory .bh-tools{justify-content:flex-start;}
+    #panel-billhistory .bh-nav h2{font-size:21px;}
+    #panel-billhistory .bh-sheet-body,#panel-billhistory .bh-sheet-head,#panel-billhistory .bh-sheet-foot{padding-left:16px;padding-right:16px;}
+    #panel-billhistory .bh-actions{grid-template-columns:1fr;}
+  }
+
+  /* ===== ตั้งค่าใบเสร็จ / ใบสั่งพิมพ์ ===== */
+  #panel-receipt{--rc-teal:#3f9c8f;--rc-teal-dark:#2f7d72;--rc-border:#e5ddd3;--rc-soft:#6b7280;font-family:'Noto Sans Thai',sans-serif;}
+  #panel-receipt *{box-sizing:border-box;}
+  #panel-receipt .rc-subtabs{display:inline-flex;background:#eef0f4;padding:4px;border-radius:12px;margin:0 0 18px;}
+  #panel-receipt .rc-subtabs button{border:0;background:transparent;font:700 14px 'Noto Sans Thai';padding:9px 18px;border-radius:9px;color:#5a6070;cursor:pointer;}
+  #panel-receipt .rc-subtabs button.active{background:#fff;color:#1c2438;box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  #panel-receipt .rc-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start;}
+  #panel-receipt .rc-card,#panel-receipt .rc-preview{background:#fff;border:1px solid var(--rc-border);border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  #panel-receipt .rc-card h3,#panel-receipt .rc-preview h3{font-size:15px;margin:0 0 4px;font-weight:800;color:#1c2438;}
+  #panel-receipt .rc-hint{font-size:12.5px;color:var(--rc-soft);margin:0 0 14px;line-height:1.5;}
+  #panel-receipt .rc-field{margin-bottom:12px;}
+  #panel-receipt .rc-field label{display:block;font-size:13px;font-weight:700;color:#3a3f4b;margin-bottom:6px;}
+  #panel-receipt .rc-field .sub{font-weight:400;color:var(--rc-soft);font-size:12px;}
+  #panel-receipt .rc-field input[type=text],#panel-receipt .rc-field input[type=tel],#panel-receipt .rc-field textarea{width:100%;border:1px solid var(--rc-border);border-radius:10px;padding:9px 11px;font:14px 'Noto Sans Thai';color:#22262f;background:#fff;}
+  #panel-receipt .rc-logo-upload{display:flex;align-items:flex-start;gap:10px;}
+  #panel-receipt .rc-logo-upload .img-preview-box{width:72px;height:72px;}
+  #panel-receipt .rc-logo-upload-controls{flex:1;min-width:0;}
+  #panel-receipt .rc-logo-upload-status{margin:7px 0 0;min-height:18px;font-size:12px;line-height:1.45;color:var(--rc-soft);}
+  #panel-receipt .rc-logo-upload-status.processing{color:#9a661d;font-weight:600;}
+  #panel-receipt .rc-logo-upload-status.success{color:#23746c;}
+  #panel-receipt .rc-logo-upload-status.error{color:#b3261e;}
+  #panel-receipt textarea{resize:vertical;min-height:52px;line-height:1.5;}
+  #panel-receipt .rc-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  #panel-receipt .rc-toggle{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f1efe9;gap:16px;}
+  #panel-receipt .rc-toggle:last-child{border-bottom:0;}
+  #panel-receipt .rc-toggle .label{font-size:13.5px;font-weight:600;color:#2f3340;}
+  #panel-receipt .rc-toggle .desc{font-size:12px;color:var(--rc-soft);margin-top:2px;}
+  #panel-receipt .rc-switch{position:relative;width:42px;height:24px;flex:none;}
+  #panel-receipt .rc-switch input{opacity:0;width:0;height:0;}
+  #panel-receipt .rc-slider{position:absolute;inset:0;background:#d7dae0;border-radius:999px;cursor:pointer;transition:.15s;}
+  #panel-receipt .rc-slider:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  #panel-receipt input:checked+.rc-slider{background:var(--rc-teal);}
+  #panel-receipt input:checked+.rc-slider:before{transform:translateX(18px);}
+  #panel-receipt .rc-pills{display:flex;gap:8px;}
+  #panel-receipt .rc-pills label{flex:1;text-align:center;border:1px solid var(--rc-border);border-radius:10px;padding:9px 8px;font-size:13.5px;font-weight:700;color:#4a5063;cursor:pointer;position:relative;}
+  #panel-receipt .rc-pills input{position:absolute;opacity:0;}
+  #panel-receipt .rc-pills label:has(input:checked){border-color:var(--rc-teal);background:#f0f9f7;color:var(--rc-teal-dark);}
+  #panel-receipt .rc-segment{display:flex;border:1px solid var(--rc-border);border-radius:10px;overflow:hidden;}
+  #panel-receipt .rc-segment button{flex:1;border:0;border-right:1px solid var(--rc-border);background:#fff;font:700 13px 'Noto Sans Thai';padding:9px 4px;color:#5a6070;cursor:pointer;}
+  #panel-receipt .rc-segment button:last-child{border-right:0;}
+  #panel-receipt .rc-segment button.active{background:#1c2438;color:#fff;}
+  #panel-receipt .rc-save{position:sticky;bottom:0;background:linear-gradient(to top,#faf7f2 65%,transparent);padding:16px 0 4px;display:flex;justify-content:flex-end;align-items:center;gap:10px;}
+  #panel-receipt .rc-save button{background:var(--rc-teal);color:#fff;padding:12px 26px;font:800 14.5px 'Noto Sans Thai';border-radius:11px;border:0;cursor:pointer;box-shadow:0 4px 14px rgba(63,156,143,.35);}
+  #panel-receipt .rc-save button:hover{background:var(--rc-teal-dark);}
+  #panel-receipt .rc-save-note{font-size:12.5px;color:var(--rc-soft);}
+  #panel-receipt .rc-preview-col{position:sticky;top:20px;}
+  #panel-receipt .rc-paper-wrap{background:#e9ebee;border-radius:10px;padding:20px 10px 24px;display:flex;justify-content:center;}
+  #panel-receipt .rc-paper{background:#fff;width:260px;padding:16px 15px 12px;box-shadow:0 6px 18px rgba(0,0,0,.14);font:11px/1.55 'Noto Sans Thai';color:#1a1a1a;}
+  #panel-receipt .rc-paper.narrow{width:200px;}
+  #panel-receipt .rc-center{text-align:center;}
+  #panel-receipt .rc-logo{width:38px;height:38px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;background:#f1f1f1;overflow:hidden;font-size:9px;color:#999;}
+  #panel-receipt .rc-logo img{width:100%;height:100%;object-fit:cover;}
+  #panel-receipt .rc-shop{font-weight:700;font-size:13px;}
+  #panel-receipt .rc-sub{font-size:10px;color:#444;}
+  #panel-receipt .rc-rule{border-top:1px dashed #999;margin:8px 0;}
+  #panel-receipt .rc-title{text-align:center;font-weight:700;font-size:12px;margin:4px 0 8px;}
+  #panel-receipt .rc-meta{display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;}
+  #panel-receipt .rc-items{width:100%;border-collapse:collapse;font-size:10.5px;}
+  #panel-receipt .rc-items th{text-align:left;border-bottom:1px solid #333;padding-bottom:4px;font-size:9.5px;}
+  #panel-receipt .rc-items td{padding:3px 0;vertical-align:top;}
+  #panel-receipt .rc-items .qty{text-align:center;width:28px;}
+  #panel-receipt .rc-items .amt{text-align:right;}
+  #panel-receipt .rc-total{display:flex;justify-content:space-between;font-weight:800;font-size:13px;margin-top:8px;padding-top:8px;border-top:1px solid #333;}
+  #panel-receipt .rc-foot{text-align:center;font-size:10px;margin-top:10px;}
+  #panel-receipt .rc-kitchen-item{margin-bottom:9px;font-weight:800;}
+  #panel-receipt .rc-kitchen-item .note{font-size:9.5px;font-weight:400;color:#a85f13;background:#fdf1e2;display:inline-block;padding:1px 5px;border-radius:4px;margin-top:2px;}
+  #panel-receipt .rc-cat{font-size:9px;font-weight:700;color:#888;margin:8px 0 4px;}
+  #panel-receipt .rc-fs-sm .rc-kitchen-item{font-size:10.5px;} #panel-receipt .rc-fs-md .rc-kitchen-item{font-size:13px;} #panel-receipt .rc-fs-lg .rc-kitchen-item{font-size:15.5px;} #panel-receipt .rc-fs-xl .rc-kitchen-item{font-size:19px;}
+  @media(max-width:900px){#panel-receipt .rc-layout{grid-template-columns:1fr;}#panel-receipt .rc-preview-col{position:static;order:-1;}}
+  @media(max-width:560px){#panel-receipt .rc-row2{grid-template-columns:1fr;}}
+</style>
+<link rel="stylesheet" href="/admin-theme.css?v=1">
+</head>
+<body class="admin-redesign">
+<div class="topbar">
+  <h1><span class="brand-mark" aria-hidden="true">ท</span><span>ทองย้อย <small>· แอดมิน</small></span></h1>
+  <div style="display:flex;align-items:center;gap:14px">
+    <span id="specialOpenBox" style="display:none;align-items:center;gap:8px;font-size:13px;color:#fff">
+      <span id="specialOpenText"></span>
+      <button id="specialOpenBtn" type="button" style="border:0;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;background:#fff;color:#3b2a20"></button>
+    </span>
+    <a href="/order" style="color:#fff;font-size:13px" target="_blank">ดูหน้าลูกค้า →</a>
+  </div>
+</div>
+
+<div class="tabs no-print">
+  <button class="tab-btn active" data-tab="tablestatus">สถานะโต๊ะ</button>
+  <button class="tab-btn" data-tab="menu">จัดการเมนู</button>
+  <button class="tab-btn" data-tab="qr">QR โต๊ะ</button>
+  <button class="tab-btn" data-tab="printers">เครื่องพิมพ์ครัว</button>
+  <button class="tab-btn" data-tab="receipt">ใบเสร็จ / ใบสั่งพิมพ์</button>
+  <button class="tab-btn" data-tab="billhistory">รายการบันทึกบิล</button>
+</div>
+
+<div class="wrap">
+
+  <!-- ===== เมนู ===== -->
+  <section id="panel-menu" class="panel">
+    <div class="menu-editor-filter no-print" aria-label="กรองรายการเมนูตามหมวด">
+      <span class="menu-editor-filter-label">ดูเมนูตามหมวด</span>
+      <div id="menuCategoryFilter" class="menu-editor-category-chips"></div>
+    </div>
+    <div class="item-form cloudinary-settings no-print">
+      <div class="cloudinary-head">
+        <div>
+          <h3>อัปโหลดรูปเมนู</h3>
+          <p>รูปจะถูกบีบอัดในเบราว์เซอร์ก่อน แล้วอัปโหลดตรงไปยัง Cloudinary โฟลเดอร์ <code>menujk_up</code></p>
+        </div>
+        <span class="cloudinary-badge" id="cloudinaryConfigBadge">ยังไม่ได้ตั้งค่า</span>
+      </div>
+      <div class="row">
+        <div>
+          <label for="cloudinaryCloudName">Cloud Name</label>
+          <input id="cloudinaryCloudName" type="text" autocomplete="off" spellcheck="false" placeholder="เช่น dxxxxxxxx">
+        </div>
+        <div>
+          <label for="cloudinaryUploadPreset">Unsigned Upload Preset</label>
+          <input id="cloudinaryUploadPreset" type="text" autocomplete="off" spellcheck="false" placeholder="เช่น thongyoi_menu_unsigned">
+        </div>
+      </div>
+      <div class="item-actions" style="align-items:center">
+        <span class="cloudinary-note" id="cloudinaryConfigNote">ตั้งค่าครั้งแรกก่อนเลือกอัปโหลดรูป</span>
+        <button type="button" class="btn secondary" onclick="saveCloudinarySettings()">บันทึกการเชื่อมต่อ Cloudinary</button>
+      </div>
+      <p class="cloudinary-security-note">Cloud Name และ Unsigned Preset ใช้ในหน้าเว็บได้ตามรูปแบบ Cloudinary แต่ห้ามใส่ API Secret ในหน้านี้เด็ดขาด</p>
+    </div>
+    <div id="itemList"></div>
+    <div class="item-actions no-print">
+      <button class="btn secondary" onclick="addBlankItem()">+ เพิ่มเมนูใหม่</button>
+      <button class="btn" onclick="saveMenu()">💾 บันทึกเมนู</button>
+    </div>
+  </section>
+
+  <!-- ===== QR โต๊ะ ===== -->
+  <section id="panel-qr" class="panel">
+    <div class="item-form no-print">
+      <label>จำนวนโต๊ะ</label>
+      <div class="row">
+        <div><input id="tableCount" type="number" min="1" value="1"></div>
+        <div style="flex:0"><button class="btn secondary" onclick="genQr()">อัปเดตจำนวนโต๊ะ</button></div>
+        <div style="flex:0"><button class="btn secondary" id="qrDownloadAllBtn" onclick="downloadAllQr()">⬇️ ดาวน์โหลดทั้งหมด</button></div>
+      </div>
+      <p style="font-size:12px;color:#6b6058;margin:8px 0 0">
+        ✅ QR แต่ละโต๊ะจะคงที่ตลอดไป ปริ้นแปะโต๊ะแล้วใช้ได้ยาวๆ ไม่ต้องเปลี่ยน —
+        ถ้าจะเพิ่มโต๊ะทีหลัง แค่ใส่จำนวนใหม่ที่มากขึ้นแล้วกดอัปเดต โต๊ะเดิมที่ปริ้นไปแล้วจะไม่เปลี่ยนหรือหายไปไหน
+      </p>
+    </div>
+    <div id="qrGrid" class="qr-grid"></div>
+  </section>
+
+  <!-- ===== เครื่องพิมพ์ครัว ===== -->
+  <section id="panel-printers" class="panel">
+
+    <div class="item-form no-print">
+      <h3 style="margin-top:0">ตั้งค่าทั่วไป</h3>
+      <label>ขนาดกระดาษ</label>
+      <select id="paperWidthMm">
+        <option value="80">80 มม.</option>
+        <option value="58">58 มม.</option>
+      </select>
+      <label>ชื่อร้าน (ขึ้นหัวใบสั่งพิมพ์)</label>
+      <input id="shopName" type="text">
+      <div class="item-actions">
+        <button class="btn" onclick="saveGeneralPrintSettings()">💾 บันทึกตั้งค่าทั่วไป</button>
+      </div>
+    </div>
+
+    <h3>จุดพิมพ์ครัว</h3>
+    <p style="font-size:13px;color:#6b6058">
+      เพิ่มเครื่องพิมพ์ได้หลายเครื่อง แล้วเลือกว่าแต่ละเครื่องพิมพ์เฉพาะเมนูหมวดไหน
+      เช่น เครื่องในครัวพิมพ์กับข้าว เครื่องหน้าบาร์พิมพ์เครื่องดื่ม ออเดอร์เดียวจะถูกแยกพิมพ์ไปตามเครื่องที่ถูกต้องอัตโนมัติ
+    </p>
+
+    <div id="agentBanner" class="agent-banner">กำลังเช็คสถานะตัวเชื่อมเครื่องพิมพ์...</div>
+
+    <div id="printerList"></div>
+
+    <div class="item-actions no-print">
+      <button class="btn secondary" onclick="openPrinterForm()">+ เพิ่มเครื่องพิมพ์</button>
+    </div>
+
+    <div id="printerForm" class="item-form no-print" style="display:none">
+      <label>ชื่อเครื่องพิมพ์ (เช่น เครื่องในครัว, เครื่องหน้าบาร์)</label>
+      <input id="pfName" type="text">
+      <div class="row">
+        <div>
+          <label>IP เครื่องพิมพ์</label>
+          <input id="pfIp" type="text" placeholder="192.168.1.50">
+        </div>
+        <div>
+          <label>พอร์ต (ปกติ 9100)</label>
+          <input id="pfPort" type="number" value="9100">
+        </div>
+      </div>
+      <label>หมวดเมนูที่พิมพ์ (เว้นว่าง = เครื่องหลัก พิมพ์ทุกอย่างที่ไม่มีเครื่องเจาะจง)</label>
+      <input id="pfCategories" type="text" placeholder="เช่น กับข้าว, ของทอด (คั่นด้วยจุลภาค)">
+      <div class="item-actions">
+        <button class="btn secondary" onclick="closePrinterForm()">ยกเลิก</button>
+        <button class="btn" onclick="savePrinterForm()">บันทึกเครื่องพิมพ์</button>
+      </div>
+    </div>
+
+    <h3 style="margin-top:24px">ติดตั้งตัวเชื่อมเครื่องพิมพ์ (ครั้งแรกเท่านั้น)</h3>
+    <p style="font-size:13px;color:#6b6058">
+      เว็บนี้รันอยู่บนคลาวด์ ยิงคำสั่งพิมพ์ตรงเข้าเครื่องพิมพ์ในร้านไม่ได้โดยตรง
+      ต้องใช้โปรแกรมตัวเชื่อม (print agent) รันอยู่บนคอมพิวเตอร์เครื่องหนึ่งที่ต่อ
+      WiFi/LAN วงเดียวกับเครื่องพิมพ์ทุกเครื่อง คอยดึงออเดอร์ใหม่มาพิมพ์ให้อัตโนมัติ
+      แล้วรายงานสถานะเชื่อมต่อกลับมาที่หน้านี้ให้เห็นแบบเรียลไทม์
+    </p>
+    <p><a class="btn secondary" href="/print-agent.zip">⬇️ ดาวน์โหลดตัวเชื่อมเครื่องพิมพ์ (print-agent.zip)</a></p>
+    <ol style="font-size:13px;color:#6b6058">
+      <li>เพิ่มเครื่องพิมพ์และตั้งค่า IP ด้านบนแล้วกดบันทึกก่อน</li>
+      <li>เอาไฟล์ที่ดาวน์โหลดไปแตกไว้บนคอมพิวเตอร์ที่ต่อ WiFi/LAN วงเดียวกับเครื่องพิมพ์ (ต้องลง Node.js ไว้ก่อน)</li>
+      <li>เปิด Terminal ในโฟลเดอร์นั้น รัน <code>npm install</code> แล้วรัน <code>npm start</code></li>
+      <li>โปรแกรมจะดึงรายชื่อเครื่องพิมพ์/IP/ขนาดกระดาษ/ชื่อร้านจากที่ตั้งไว้ด้านบนเองอัตโนมัติ เปิดทิ้งไว้ตลอดเวลาร้านเปิด</li>
+    </ol>
+    <p style="font-size:13px;color:#6b6058">รายละเอียดและวิธีแก้ปัญหาเพิ่มเติมอยู่ในไฟล์ README.md ที่แนบมาในซิปเดียวกัน</p>
+  </section>
+
+  <!-- ===== สถานะโต๊ะ ===== -->
+  <section id="panel-tablestatus" class="panel active">
+<div class="ts-summary-row" role="group" aria-label="สรุปสถานะโต๊ะ">
+  <div class="summary-item empty"><span class="num" id="ts-sumEmpty">0</span><span class="lbl">โต๊ะว่าง</span></div>
+  <div class="summary-item pending"><span class="num" id="ts-sumPending">0</span><span class="lbl">มีออเดอร์</span></div>
+  <div class="summary-item amount"><span class="num" id="ts-sumAmount">฿0</span><span class="lbl">ยอดค้างรวม</span></div>
+</div>
+<div data-shop-closed-notice style="display:none;margin:0 0 8px;padding:8px 12px;border-radius:8px;background:#fff4d6;color:#7a4b00;font-size:13px;text-align:center"></div>
+<div class="filters" id="ts-filters"></div>
+
+<div class="ts-main-wrap">
+  <div class="grid" id="ts-grid"></div>
+  <div class="empty-note" id="ts-emptyNote" style="display:none;">ไม่มีโต๊ะที่ตรงกับตัวกรองนี้</div>
+  <div class="loading-note" id="ts-loadingNote">กำลังโหลดข้อมูล…</div>
+</div>
+
+<div class="overlay" id="ts-overlay"></div>
+<aside class="ts-drawer" id="ts-panel">
+  <div class="ts-hint" id="ts-selectHint">
+    <div class="ts-hint-head"><span class="ts-hint-badge" aria-hidden="true">?</span><div><strong>เลือกโต๊ะ</strong><small>แตะโต๊ะเพื่อดูออเดอร์</small></div></div>
+    <div class="ts-hint-body"><span aria-hidden="true">👉</span>แตะโต๊ะทางซ้ายเพื่อเริ่มต้น</div>
+  </div>
+  <div class="panel-head">
+    <div>
+      <h2 id="ts-panelTitle">โต๊ะ 1</h2>
+      <div class="sub" id="ts-panelSub">โต๊ะว่าง</div>
+    </div>
+    <button class="icon-btn" id="ts-closePanel">✕</button>
+  </div>
+  <div class="panel-body">
+    <div id="ts-orderList"></div>
+    <div id="ts-totalsWrap"></div>
+  </div>
+  <div class="panel-actions">
+    <div class="panel-actions-row">
+      <button class="btn btn-danger" id="ts-clearTableBtn">เคลียร์โต๊ะ</button>
+      <button class="btn btn-primary" id="ts-addItemBtn">+ สั่งเพิ่ม</button>
+    </div>
+    <button class="btn btn-checkout" id="ts-checkoutBtn">คิดเงิน</button>
+  </div>
+</aside>
+
+<div class="modal-wrap" id="ts-menuModalWrap" style="display:none;">
+  <div class="modal" id="ts-menuModal">
+    <div class="modal-head">
+      <h3>สั่งเข้าโต๊ะ <span id="ts-menuTableNum"></span></h3>
+      <button class="icon-btn" id="ts-closeMenu" style="background:rgba(43,24,16,0.06); color:var(--espresso-900);">✕</button>
+    </div>
+    <div class="cats" id="ts-cats"></div>
+    <div class="menu-list" id="ts-menuList"></div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" id="ts-confirmAddBtn">เพิ่มลงออเดอร์ (<span id="ts-addCount">0</span>)</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="ts-confirmWrap" style="display:none; background:rgba(43,24,16,0.45);">
+  <div class="confirm-card">
+    <h3 id="ts-confirmTitle">เคลียร์โต๊ะ 1?</h3>
+    <p id="ts-confirmBody">รายการอาหารทั้งหมดในโต๊ะนี้จะถูกล้าง และโต๊ะจะกลับเป็นสถานะว่าง การกระทำนี้ย้อนกลับไม่ได้</p>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" id="ts-cancelClear">ยกเลิก</button>
+      <button class="btn" style="background:var(--danger); color:#fff;" id="ts-confirmClear">เคลียร์โต๊ะ</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="ts-itemConfirmWrap" style="display:none; background:rgba(43,24,16,0.45);">
+  <div class="confirm-card">
+    <h3 id="ts-itemConfirmTitle">ยกเลิกรายการนี้?</h3>
+    <p id="ts-itemConfirmBody">รายการนี้จะถูกลบออกจากออเดอร์ของโต๊ะนี้ การกระทำนี้ย้อนกลับไม่ได้</p>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" id="ts-cancelItemRemove">ไม่ยกเลิก</button>
+      <button class="btn" style="background:var(--danger); color:#fff;" id="ts-confirmItemRemove">ยกเลิกรายการ</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="ts-checkoutWrap" style="display:none; background:rgba(43,24,16,0.45);">
+  <div class="checkout-card">
+    <h3>คิดเงินโต๊ะ <span id="ts-checkoutTableNum"></span></h3>
+    <div class="checkout-dash"></div>
+    <div class="checkout-items" id="ts-checkoutItems"></div>
+    <div class="checkout-dash"></div>
+    <div class="checkout-total">
+      <span>ยอดสุทธิ</span>
+      <span id="ts-checkoutTotal">฿0</span>
+    </div>
+    <div class="checkout-actions">
+      <button class="btn btn-primary" id="ts-printReceiptBtn">พิมพ์ใบเสร็จ</button>
+      <button class="btn btn-ghost" id="ts-noPrintBtn">ไม่พิมพ์ใบเสร็จ</button>
+      <button class="btn btn-ghost" id="ts-cancelCheckout">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ใบเสร็จสำหรับปริ้นเท่านั้น (ซ่อนอยู่นอกจอ แสดงเฉพาะตอนสั่งพิมพ์) -->
+<div class="receipt-print" id="ts-receiptPrint">
+  <div class="r-head">
+    <h2>ทองย้อย</h2>
+    <p>085-529-8799</p>
+  </div>
+  <div class="r-dash"></div>
+  <div class="r-info">
+    <div>โต๊ะ: <b id="ts-rTable"></b></div>
+    <div class="r-info-right">
+      <div id="ts-rDate"></div>
+      <div id="ts-rTime"></div>
+    </div>
+  </div>
+  <div class="r-dash"></div>
+  <table class="r-table">
+    <thead><tr><th>รายการ</th><th>จำนวน</th><th>ราคา</th></tr></thead>
+    <tbody id="ts-rItems"></tbody>
+  </table>
+  <div class="r-dash"></div>
+  <div class="r-net"><span>ยอดสุทธิ</span><span id="ts-rNet"></span></div>
+  <div class="r-dash"></div>
+  <div class="r-foot">
+    <p>ขอบคุณที่แวะมาจ้า โอกาสหน้าเชิญใหม่นะ</p>
+    <p>ผิดพลาดยังไงต้องขออภัย พวกเรามือใหม่ครับ</p>
+  </div>
+</div>
+
+<div class="toast" id="ts-toast"></div>
+  </section>
+
+  <!-- ===== รายการบันทึกบิล ===== -->
+  <section id="panel-billhistory" class="panel">
+    <div class="bh-page">
+      <header class="bh-nav">
+        <div>
+          <h2>รายการบันทึกบิล</h2>
+          <p>เลือกดูเฉพาะบิลวันนี้ หรือย้อนหลัง 7 วัน · กดที่บิลเพื่อดูรายละเอียด</p>
+          <div class="bh-summary" id="bh-summary" aria-live="polite"></div>
+        </div>
+        <div class="bh-tools">
+          <div class="bh-filter" id="bh-filter" role="group" aria-label="ช่วงเวลารายการบิล">
+            <button type="button" class="active" data-bh-period="today" aria-pressed="true">วันนี้</button>
+            <button type="button" data-bh-period="seven-days" aria-pressed="false">ย้อนหลัง 7 วัน</button>
+          </div>
+          <button type="button" class="bh-refresh" id="bh-refresh">↻ รีเฟรช</button>
+        </div>
+      </header>
+      <div class="bh-day-picker" id="bh-day-picker" role="group" aria-label="เลือกดูบิลแยกตามวันที่"></div>
+      <div class="bh-list" id="bh-list" aria-live="polite">
+        <div class="bh-empty"><strong>กำลังโหลดบิล…</strong>กรุณารอสักครู่</div>
+      </div>
+    </div>
+
+    <div class="bh-modal" id="bh-modal" aria-hidden="true">
+      <section class="bh-sheet" id="bh-sheet" role="dialog" aria-modal="true" aria-labelledby="bh-title">
+        <div class="bh-sheet-handle"></div>
+        <header class="bh-sheet-head">
+          <div>
+            <h3 id="bh-title">รายละเอียดบิล</h3>
+            <p id="bh-date"></p>
+          </div>
+          <button type="button" class="bh-close" id="bh-close" aria-label="ปิด">×</button>
+        </header>
+        <div class="bh-sheet-body">
+          <div class="bh-info">
+            <span>โต๊ะ</span><strong id="bh-table">-</strong>
+            <span>เลขที่บิล</span><strong id="bh-number">-</strong>
+          </div>
+          <h4 class="bh-section-title">รายการอาหาร</h4>
+          <div id="bh-items"></div>
+          <p class="bh-orig-total" id="bh-orig-total" hidden></p>
+          <div class="bh-total"><span>ยอดสุทธิ</span><span id="bh-total">฿0.00</span></div>
+        </div>
+        <footer class="bh-sheet-foot">
+          <p class="bh-cancelled-note" id="bh-cancelled-note" hidden></p>
+          <div class="bh-actions" id="bh-actions">
+            <button type="button" class="bh-reprint" id="bh-reprint">พิมพ์ใบเสร็จย้อนหลังที่ iMin</button>
+            <button type="button" class="bh-cancel" id="bh-cancel">ยกเลิกใบเสร็จ</button>
+          </div>
+        </footer>
+      </section>
+    </div>
+    <div class="bh-toast" id="bh-toast" role="status"></div>
+  </section>
+
+  <!-- ===== ใบเสร็จ / ใบสั่งพิมพ์ ===== -->
+  <section id="panel-receipt" class="panel">
+    <p style="font-size:13px;color:#6b6058;margin:0 0 16px">ปรับข้อมูลและหน้าตาใบเสร็จลูกค้า หรือใบสั่งครัว แล้วดูตัวอย่างได้ทันที</p>
+    <div class="rc-subtabs">
+      <button id="rc-tab-receipt" class="active" type="button" onclick="rcSwitchTab('receipt')">🧾 ใบเสร็จลูกค้า</button>
+      <button id="rc-tab-kitchen" type="button" onclick="rcSwitchTab('kitchen')">🍳 ใบสั่งครัว</button>
+    </div>
+    <div class="rc-layout">
+      <div>
+        <div id="rc-panel-receipt">
+          <div class="rc-card">
+            <h3>โลโก้และข้อมูลร้าน</h3>
+            <p class="rc-hint">ข้อมูลนี้จะถูกบันทึกกับร้าน และใช้เป็นข้อมูลสำหรับพิมพ์ใบเสร็จ</p>
+            <div class="rc-field"><label>โลโก้ร้าน <span class="sub">— เว้นว่างได้</span></label>
+              <div class="rc-logo-upload">
+                <div class="img-preview-box"><img id="rcLogoUploadPreview" class="img-preview" alt="ตัวอย่างโลโก้" style="display:none"><span id="rcLogoUploadEmpty" class="img-preview-empty">🖼️ ยังไม่มีโลโก้</span></div>
+                <div class="rc-logo-upload-controls">
+                  <input id="rcLogoFile" class="menu-image-file" type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadReceiptLogo(this)">
+                  <label id="rcLogoPicker" class="menu-image-picker" for="rcLogoFile">เลือกรูปโลโก้และอัปโหลด</label>
+                  <button type="button" class="menu-image-clear" onclick="clearReceiptLogo()">ลบรูป</button>
+                  <p id="rcLogoUploadStatus" class="rc-logo-upload-status">เลือกรูป JPG, PNG หรือ WebP — ระบบบีบอัดไม่เกิน 100KB ก่อนอัปโหลด</p>
+                </div>
+              </div>
+              <input type="hidden" id="rcLogoUrl">
+            </div>
+            <div class="rc-row2">
+              <div class="rc-field"><label>ชื่อร้าน <span class="sub">(ใช้ร่วมกับใบสั่งครัว)</span></label><input type="text" id="rcShopName" oninput="rcRender()"></div>
+              <div class="rc-field"><label>เบอร์โทร</label><input type="tel" id="rcShopPhone" oninput="rcRender()"></div>
+            </div>
+            <div class="rc-field"><label>ที่อยู่ร้าน <span class="sub">(ไม่ใส่ก็ได้)</span></label><textarea id="rcShopAddress" oninput="rcRender()" placeholder="เช่น 123 ถ.สุขุมวิท กรุงเทพฯ"></textarea></div>
+            <div class="rc-field" style="margin-bottom:0"><label>เลขประจำตัวผู้เสียภาษี <span class="sub">(ไม่ใส่ก็ได้)</span></label><input type="text" id="rcTaxId" oninput="rcRender()" placeholder="เช่น 1-2345-67890-12-3"></div>
+          </div>
+          <div class="rc-card">
+            <h3>ข้อความบนใบเสร็จ</h3><p class="rc-hint">ปรับคำพูดให้เข้ากับสไตล์ร้าน</p>
+            <div class="rc-field"><label>หัวใบเสร็จ</label><input type="text" id="rcTitle" oninput="rcRender()"></div>
+            <div class="rc-field"><label>ข้อความขอบคุณท้ายบิล</label><textarea id="rcThanksText" oninput="rcRender()"></textarea></div>
+            <div class="rc-field" style="margin-bottom:0"><label>ข้อความแจ้งเตือนหากผิดพลาด</label><textarea id="rcApologyText" oninput="rcRender()"></textarea></div>
+          </div>
+          <div class="rc-card">
+            <h3>แสดง / ซ่อนข้อมูล</h3><p class="rc-hint">เลือกเฉพาะข้อมูลที่ต้องการให้พิมพ์บนใบเสร็จ</p>
+            <div class="rc-toggle"><div><div class="label">เลขที่บิล</div></div><label class="rc-switch"><input type="checkbox" id="rcShowBillNo" oninput="rcRender()"><span class="rc-slider"></span></label></div>
+            <div class="rc-toggle"><div><div class="label">วันที่ / เวลา</div></div><label class="rc-switch"><input type="checkbox" id="rcShowTime" oninput="rcRender()"><span class="rc-slider"></span></label></div>
+            <div class="rc-toggle"><div><div class="label">เลขโต๊ะ</div></div><label class="rc-switch"><input type="checkbox" id="rcShowTable" oninput="rcRender()"><span class="rc-slider"></span></label></div>
+            <div class="rc-toggle"><div><div class="label">QR รีวิว / โซเชียลท้ายบิล</div><div class="desc">เช่น ลิงก์รีวิว Google หรือ Instagram ร้าน</div></div><label class="rc-switch"><input type="checkbox" id="rcShowQr" oninput="rcRender()"><span class="rc-slider"></span></label></div>
+            <div class="rc-field" style="margin:12px 0 0"><label>ลิงก์ปลายทางของ QR</label><input type="text" id="rcQrUrl" placeholder="https://..." oninput="rcRender()"></div>
+          </div>
+          <div class="rc-card">
+            <h3>ขนาดกระดาษ</h3><p class="rc-hint">ค่าเดียวกับแท็บเครื่องพิมพ์ครัว</p>
+            <div class="rc-pills"><label><input type="radio" name="rcPaper" value="80" oninput="rcRender()"><span>80 มม.</span></label><label><input type="radio" name="rcPaper" value="58" oninput="rcRender()"><span>58 มม.</span></label></div>
+          </div>
+        </div>
+
+        <div id="rc-panel-kitchen" style="display:none">
+          <div class="rc-card"><h3>ขนาดตัวอักษรชื่อเมนู</h3><p class="rc-hint">ใช้กับใบสั่งครัวเพื่อให้อ่านง่ายในจุดทำอาหาร</p><div class="rc-segment" id="rcFontSizeGroup"><button type="button" data-size="sm" onclick="rcSetKitchenSize('sm')">เล็ก</button><button type="button" data-size="md" onclick="rcSetKitchenSize('md')">กลาง</button><button type="button" data-size="lg" onclick="rcSetKitchenSize('lg')">ใหญ่</button><button type="button" data-size="xl" onclick="rcSetKitchenSize('xl')">ใหญ่พิเศษ</button></div></div>
+          <div class="rc-card"><h3>แสดง / ซ่อนข้อมูล</h3><p class="rc-hint">เลือกข้อมูลที่จำเป็นสำหรับครัว</p>
+            <div class="rc-toggle"><div><div class="label">ราคาต่อรายการ</div><div class="desc">ปกติแนะนำปิด</div></div><label class="rc-switch"><input type="checkbox" id="rcKShowPrice" oninput="rcRender()"><span class="rc-slider"></span></label></div>
+            <div class="rc-toggle"><div><div class="label">หมายเหตุพิเศษจากลูกค้า</div><div class="desc">เช่น ไม่ใส่ผัก, เผ็ดน้อย</div></div><label class="rc-switch"><input type="checkbox" id="rcKShowNote" oninput="rcRender()"><span class="rc-slider"></span></label></div>
+            <div class="rc-toggle"><div><div class="label">เวลาที่สั่ง</div></div><label class="rc-switch"><input type="checkbox" id="rcKShowTime" oninput="rcRender()"><span class="rc-slider"></span></label></div>
+            <div class="rc-toggle"><div><div class="label">จัดกลุ่มตามหมวดเมนู</div><div class="desc">แยกเครื่องดื่มและอาหารเป็นช่วง ๆ</div></div><label class="rc-switch"><input type="checkbox" id="rcKGroupCat" oninput="rcRender()"><span class="rc-slider"></span></label></div>
+          </div>
+          <div class="rc-card"><h3>ตัวอย่างหมายเหตุลูกค้า</h3><p class="rc-hint">ใช้สำหรับพรีวิวเท่านั้น ไม่มีผลกับรายการจริง</p><div class="rc-field" style="margin-bottom:0"><input type="text" id="rcKNoteSample" value="ไม่ใส่ผัก" oninput="rcRender()"></div></div>
+        </div>
+        <div class="rc-save"><span id="rcSaveNote" class="rc-save-note"></span><button type="button" onclick="rcSaveSettings()">💾 บันทึกการตั้งค่า</button></div>
+      </div>
+
+      <aside class="rc-preview-col"><div class="rc-preview"><h3 id="rcPreviewTitle">พรีวิวใบเสร็จ</h3><p class="rc-hint">อัปเดตทันทีตามค่าที่แก้</p><div class="rc-paper-wrap">
+        <div class="rc-paper" id="rcReceiptPaper"><div class="rc-center"><div class="rc-logo" id="rcPreviewLogo">โลโก้</div><div class="rc-shop" id="rc-pv-shop">ทองย้อย</div><div class="rc-sub" id="rc-pv-address" style="display:none"></div><div class="rc-sub" id="rc-pv-phone"></div><div class="rc-sub" id="rc-pv-tax" style="display:none"></div></div><div class="rc-rule"></div><div class="rc-title" id="rc-pv-title">ใบเสร็จรับเงิน</div><div class="rc-meta" id="rc-pv-billno"><span>เลขที่บิล</span><span>#0042</span></div><div class="rc-meta" id="rc-pv-time"><span>เวลา</span><span>16 ส.ค. 69 · 19:24</span></div><div class="rc-meta" id="rc-pv-tableno"><span>โต๊ะ</span><span>5</span></div><div class="rc-rule"></div><table class="rc-items"><thead><tr><th>รายการ</th><th class="qty">จำนวน</th><th class="amt">ราคา</th></tr></thead><tbody><tr><td>ไส้อั่ว</td><td class="qty">1</td><td class="amt">45</td></tr><tr><td>ข้าวนึ่ง</td><td class="qty">2</td><td class="amt">40</td></tr><tr><td>น้ำเปล่า</td><td class="qty">2</td><td class="amt">20</td></tr></tbody></table><div class="rc-total"><span>ยอดสุทธิ</span><span>฿105</span></div><div class="rc-foot" id="rc-pv-thanks"></div><div class="rc-foot" style="color:#666;margin-top:3px" id="rc-pv-apology"></div><div id="rc-pv-qr-block" style="display:none"><div id="rc-pv-qr-canvas"></div><div class="rc-foot">สแกนรีวิว / ติดตามร้าน</div></div></div>
+        <div class="rc-paper rc-fs-md" id="rcKitchenPaper" style="display:none"><div class="rc-center"><div class="rc-shop">🔔 ใบสั่งครัว</div><div class="rc-sub">โต๊ะ 5</div><div class="rc-sub" id="rc-kv-time">19:24</div></div><div class="rc-rule"></div><div id="rc-kv-items"><div class="rc-cat" data-cat>เครื่องเคียง</div><div class="rc-kitchen-item">ไส้อั่ว × 1<div class="note" id="rc-kv-note1">ไม่ใส่ผัก</div></div><div class="rc-cat" data-cat>อาหารเหนือ</div><div class="rc-kitchen-item">ข้าวนึ่ง × 2</div><div id="rc-kv-price-line" style="font-size:10px;color:#666;display:none">รวมราคา (อ้างอิง) ฿85</div></div></div>
+      </div></div></aside>
+    </div>
+  </section>
+
+</div>
+
+<script>
+const API = '';
+let MENU = [];
+let PRINTERS = [];
+let SETTINGS = {};
+let adminMenuCategoryFilter = null; // null = every category
+const adminMenuEditing = new Set(); // menu items whose card is expanded for editing (view-only state)
+let PRINTER_STATUS = { updatedAt: null, printers: [] };
+const PRINTER_STATUS_STALE_MS = 3 * 60 * 1000; // heartbeat is 60s; allow missed reports
+const CLOUDINARY_MENU_FOLDER = 'menujk_up';
+
+// ---------- tabs ----------
+// Keep the current Admin tab in the URL without turning this into separate
+// pages.  It makes deep links, browser back/forward and refresh behave as a
+// staff member expects, while the panel itself still changes instantly.
+const ADMIN_TABS = new Set([...document.querySelectorAll('.tab-btn')].map(btn => btn.dataset.tab));
+function tabFromHash(){
+  const tab = window.location.hash.replace(/^#/, '').trim();
+  return ADMIN_TABS.has(tab) ? tab : 'tablestatus';
+}
+function selectAdminTab(tab, updateUrl = false){
+  const selected = ADMIN_TABS.has(tab) ? tab : 'tablestatus';
+  const panel = document.getElementById('panel-' + selected);
+  if(!panel) return;
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === selected));
+  document.querySelectorAll('.panel').forEach(item => item.classList.toggle('active', item === panel));
+  if(updateUrl && window.location.hash !== '#' + selected){
+    history.pushState({ adminTab:selected }, '', '#' + selected);
+  }
+  document.dispatchEvent(new CustomEvent('admin-tabchange', { detail:{ tab:selected } }));
+}
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => selectAdminTab(btn.dataset.tab, true));
+});
+window.addEventListener('popstate', () => selectAdminTab(tabFromHash(), false));
+window.addEventListener('hashchange', () => selectAdminTab(tabFromHash(), false));
+selectAdminTab(tabFromHash(), false);
+
+function escAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Cloudinary's Cloud Name and unsigned upload preset are public identifiers.
+// They are saved with the restaurant settings so the admin only enters them
+// once; an API secret must never be placed in this client-side application.
+function cloudinaryConfig() {
+  const config = SETTINGS.cloudinary || {};
+  return {
+    cloudName: String(config.cloudName || '').trim(),
+    uploadPreset: String(config.uploadPreset || '').trim(),
+    folder: CLOUDINARY_MENU_FOLDER,
+  };
+}
+function cloudinaryReady() {
+  const config = cloudinaryConfig();
+  return Boolean(config.cloudName && config.uploadPreset);
+}
+function refreshCloudinaryUi() {
+  const config = cloudinaryConfig();
+  const cloudName = document.getElementById('cloudinaryCloudName');
+  const preset = document.getElementById('cloudinaryUploadPreset');
+  const badge = document.getElementById('cloudinaryConfigBadge');
+  const note = document.getElementById('cloudinaryConfigNote');
+  if (cloudName) cloudName.value = config.cloudName;
+  if (preset) preset.value = config.uploadPreset;
+  if (!badge || !note) return;
+  badge.classList.toggle('ready', cloudinaryReady());
+  badge.textContent = cloudinaryReady() ? 'พร้อมอัปโหลด' : 'ยังไม่ได้ตั้งค่า';
+  note.textContent = cloudinaryReady()
+    ? `เชื่อมต่อ ${config.cloudName} · โฟลเดอร์ ${CLOUDINARY_MENU_FOLDER}`
+    : 'ตั้งค่า Cloud Name และ Unsigned Upload Preset ก่อนเลือกอัปโหลดรูป';
+}
+async function saveCloudinarySettings() {
+  const cloudName = document.getElementById('cloudinaryCloudName').value.trim();
+  const uploadPreset = document.getElementById('cloudinaryUploadPreset').value.trim();
+  if (!cloudName || !uploadPreset) {
+    alert('กรอก Cloud Name และ Unsigned Upload Preset ให้ครบก่อนนะครับ');
+    return;
+  }
+  if (!/^[A-Za-z0-9_-]+$/.test(cloudName)) {
+    alert('Cloud Name ใช้ได้เฉพาะตัวอักษร ตัวเลข _ และ -');
+    return;
+  }
+  try {
+    const response = await fetch(API + '/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cloudinary: { cloudName, uploadPreset, folder: CLOUDINARY_MENU_FOLDER } }),
+    });
+    if (!response.ok) throw new Error('save Cloudinary settings failed');
+    const data = await response.json();
+    SETTINGS = data.settings || { ...SETTINGS, cloudinary: { cloudName, uploadPreset, folder: CLOUDINARY_MENU_FOLDER } };
+    refreshCloudinaryUi();
+    renderList();
+    alert('บันทึกการเชื่อมต่อ Cloudinary แล้ว');
+  } catch (error) {
+    console.error('save Cloudinary settings failed', error);
+    alert('บันทึกการเชื่อมต่อ Cloudinary ไม่สำเร็จ กรุณาลองใหม่');
+  }
+}
+
+function setMenuImageStatus(i, message, state = '') {
+  const el = document.getElementById('imgUploadStatus' + i);
+  if (!el) return;
+  el.textContent = message;
+  el.className = `menu-image-status ${state}`.trim();
+}
+function setMenuImagePreview(i, url) {
+  const img = document.getElementById('imgPreview' + i);
+  const empty = document.getElementById('imgEmpty' + i);
+  if (!img || !empty) return;
+  url = (url || '').trim();
+  if (!url) {
+    img.style.display = 'none';
+    img.removeAttribute('src');
+    empty.textContent = '🖼️ ยังไม่มีรูป';
+    empty.style.display = 'flex';
+    return;
+  }
+  empty.textContent = '⏳ กำลังโหลด...';
+  empty.style.display = 'flex';
+  img.style.display = 'none';
+  img.src = url;
+}
+async function uploadMenuImage(i, input) {
+  const sourceFile = input && input.files ? input.files[0] : null;
+  if (!sourceFile) return;
+  const config = cloudinaryConfig();
+  if (!cloudinaryReady()) {
+    setMenuImageStatus(i, 'ตั้งค่า Cloudinary ด้านบนก่อน แล้วกดบันทึกการเชื่อมต่อ', 'error');
+    input.value = '';
+    return;
+  }
+  if (!sourceFile.type.startsWith('image/')) {
+    setMenuImageStatus(i, 'กรุณาเลือกไฟล์รูปภาพ JPG, PNG หรือ WebP', 'error');
+    input.value = '';
+    return;
+  }
+  if (typeof window.imageCompression !== 'function') {
+    setMenuImageStatus(i, 'โหลดระบบบีบอัดภาพไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองใหม่', 'error');
+    input.value = '';
+    return;
+  }
+
+  const picker = document.getElementById('imgPicker' + i);
+  const previousImage = MENU[i] && MENU[i].image ? MENU[i].image : '';
+  input.disabled = true;
+  if (picker) picker.setAttribute('aria-disabled', 'true');
+  let previewUrl = '';
+  let uploaded = false;
+  try {
+    setMenuImageStatus(i, 'กำลังบีบอัดภาพ…', 'processing');
+    const compressed = await window.imageCompression(sourceFile, {
+      maxSizeMB: 0.1,
+      maxWidthOrHeight: 800,
+      useWebWorker: true,
+      maxIteration: 15,
+      initialQuality: 0.85,
+      fileType: 'image/webp',
+      libURL: 'https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js',
+    });
+    previewUrl = URL.createObjectURL(compressed);
+    setMenuImagePreview(i, previewUrl);
+    setMenuImageStatus(i, `บีบอัดแล้ว ${Math.max(1, Math.round(compressed.size / 1024))}KB · กำลังอัปโหลด…`, 'processing');
+
+    const form = new FormData();
+    form.append('file', compressed, `menu-${Date.now()}.webp`);
+    form.append('upload_preset', config.uploadPreset);
+    form.append('folder', config.folder);
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(config.cloudName)}/image/upload`, {
+      method: 'POST', body: form,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.secure_url) {
+      throw new Error((result.error && result.error.message) || 'Cloudinary upload failed');
+    }
+
+    MENU[i].image = result.secure_url;
+    uploaded = true;
+    setMenuImagePreview(i, result.secure_url);
+    setMenuImageStatus(i, 'อัปโหลดสำเร็จ · กำลังบันทึก URL ลงฐานข้อมูล…', 'processing');
+    await saveMenu({ silent: true });
+    setMenuImageStatus(i, 'อัปโหลดและบันทึกรูปเมนูแล้ว', 'success');
+  } catch (error) {
+    console.error('Cloudinary menu image upload failed', error);
+    if (uploaded) {
+      setMenuImageStatus(i, 'รูปอัปโหลดแล้ว แต่บันทึกลงฐานข้อมูลไม่สำเร็จ กรุณากดบันทึกเมนูอีกครั้ง', 'error');
+    } else {
+      setMenuImagePreview(i, previousImage);
+      setMenuImageStatus(i, `อัปโหลดไม่สำเร็จ: ${error.message || 'ลองใหม่อีกครั้ง'}`, 'error');
+    }
+  } finally {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    input.disabled = false;
+    if (picker) picker.removeAttribute('aria-disabled');
+    input.value = '';
+  }
+}
+async function clearMenuImage(i) {
+  if (!MENU[i] || !MENU[i].image) return;
+  const previousImage = MENU[i].image;
+  MENU[i].image = '';
+  setMenuImagePreview(i, '');
+  setMenuImageStatus(i, 'กำลังลบรูปออกจากข้อมูลเมนู…', 'processing');
+  try {
+    await saveMenu({ silent: true });
+    setMenuImageStatus(i, 'ลบรูปออกจากข้อมูลเมนูแล้ว (ไฟล์เดิมยังอยู่ใน Cloudinary)', 'success');
+  } catch (error) {
+    MENU[i].image = previousImage;
+    setMenuImagePreview(i, previousImage);
+    setMenuImageStatus(i, 'บันทึกการลบรูปไม่สำเร็จ กรุณากดบันทึกเมนูอีกครั้ง', 'error');
+  }
+}
+
+// ---------- เมนู ----------
+async function loadMenu() {
+  const res = await fetch(API + '/api/menu');
+  MENU = await res.json();
+  renderList();
+}
+
+function menuCategories() {
+  return [...new Set(MENU.map(i => (i.category || '').trim()).filter(Boolean))];
+}
+
+function renderCategoryDatalist() {
+  let dl = document.getElementById('categoryList');
+  if (!dl) {
+    dl = document.createElement('datalist');
+    dl.id = 'categoryList';
+    document.body.appendChild(dl);
+  }
+  dl.innerHTML = menuCategories().map(c => `<option value="${escAttr(c)}">`).join('');
+}
+
+function renderMenuCategoryFilter() {
+  const el = document.getElementById('menuCategoryFilter');
+  if (!el) return;
+  const categories = menuCategories();
+  // Avoid keeping an old filter selected after its last menu item is removed.
+  if (adminMenuCategoryFilter && !categories.includes(adminMenuCategoryFilter)) {
+    adminMenuCategoryFilter = null;
+  }
+  const chip = (label, category) => `
+    <button type="button" class="${adminMenuCategoryFilter === category ? 'active' : ''}"
+      data-menu-category="${escAttr(category || '')}">${escAttr(label)}</button>`;
+  el.innerHTML = chip('ทั้งหมด', null) + categories.map(category => chip(category, category)).join('');
+  el.querySelectorAll('button[data-menu-category]').forEach(button => {
+    button.addEventListener('click', () => {
+      adminMenuCategoryFilter = button.dataset.menuCategory || null;
+      renderList();
+    });
+  });
+}
+
+// Accept old data saved as either `mustTry` or `must_try`, including string values.
+// Every later save normalises the field to the boolean `mustTry` used by the order page.
+function isMustTry(item) {
+  return Boolean(item) && (item.mustTry === true || item.mustTry === 'true' ||
+    item.must_try === true || item.must_try === 'true');
+}
+
+function setMenuMustTry(i, enabled, checkbox) {
+  if (!MENU[i]) return;
+  MENU[i].mustTry = Boolean(enabled);
+  delete MENU[i].must_try;
+  const control = checkbox && checkbox.closest('.must-try-toggle');
+  if (control) control.classList.toggle('is-selected', Boolean(enabled));
+}
+
+async function setMenuAvailability(i, available, checkbox) {
+  const item = MENU[i];
+  if (!item || !item.id) return;
+
+  const previous = item.available !== false;
+  item.available = Boolean(available);
+  checkbox.disabled = true;
+
+  try {
+    const response = await fetch(API + '/api/menu', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set-availability', id: item.id, available: item.available })
+    });
+    if (!response.ok) throw new Error('update availability failed');
+
+    const data = await response.json();
+    // Keep the full server record, so a stale page cannot retain old details.
+    MENU[i] = { ...MENU[i], ...(data.item || {}) };
+  } catch (error) {
+    console.error('Menu availability update failed', error);
+    item.available = previous;
+    checkbox.checked = previous;
+    alert('บันทึกสถานะเมนูไม่สำเร็จ กรุณาลองใหม่');
+  } finally {
+    checkbox.disabled = false;
+  }
+}
+
+function renderList() {
+  renderCategoryDatalist();
+  renderMenuCategoryFilter();
+  const el = document.getElementById('itemList');
+  if (!MENU.length) {
+    el.innerHTML = '<div class="empty-state">ยังไม่มีเมนู กด "+ เพิ่มเมนูใหม่" เพื่อเริ่มเลย</div>';
+    return;
+  }
+  const visibleItems = MENU.map((item, i) => ({ item, i })).filter(({ item }) =>
+    !adminMenuCategoryFilter || (item.category || '').trim() === adminMenuCategoryFilter
+  );
+  if (!visibleItems.length) {
+    el.innerHTML = '<div class="empty-state">ยังไม่มีเมนูในหมวดนี้</div>';
+    return;
+  }
+  el.innerHTML = visibleItems.map(({ item, i }) => `
+    <div class="item-form${adminMenuEditing.has(item) ? ' is-editing' : ''}">
+      <div class="row">
+        <div>
+          <label>ชื่อเมนู</label>
+          <input value="${escAttr(item.name)}" oninput="MENU[${i}].name = this.value">
+        </div>
+        <div>
+          <label>ราคา (บาท)</label>
+          <input type="number" value="${escAttr(item.price)}" oninput="MENU[${i}].price = Number(this.value)">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>หมวด</label>
+          <input list="categoryList" value="${escAttr(item.category)}" oninput="MENU[${i}].category = this.value">
+        </div>
+        <div>
+          <label>รูปภาพเมนู</label>
+          <div class="menu-image-upload">
+            <div class="img-preview-box">
+              <img id="imgPreview${i}" class="img-preview" alt="${escAttr(item.name) || 'รูปเมนู'}" src="${escAttr(item.image)}"
+                   style="display:${item.image ? 'block' : 'none'}"
+                   onload="this.style.display='block'; document.getElementById('imgEmpty${i}').style.display='none'"
+                   onerror="this.style.display='none'; document.getElementById('imgEmpty${i}').style.display='flex'; document.getElementById('imgEmpty${i}').textContent='⚠️ โหลดไม่ได้'">
+              <div id="imgEmpty${i}" class="img-preview-empty" style="display:${item.image ? 'none' : 'flex'}">🖼️ ยังไม่มีรูป</div>
+            </div>
+            <div class="menu-image-upload-controls">
+              <input id="imgFile${i}" class="menu-image-file" type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadMenuImage(${i}, this)">
+              <label id="imgPicker${i}" class="menu-image-picker" for="imgFile${i}">เลือกภาพและอัปโหลด</label>
+              ${item.image ? `<button type="button" class="menu-image-clear" onclick="clearMenuImage(${i})">ลบรูป</button>` : ''}
+              <p id="imgUploadStatus${i}" class="menu-image-status">${cloudinaryReady() ? 'เลือกภาพ JPG, PNG หรือ WebP เพื่อบีบอัดและอัปโหลด' : 'ตั้งค่า Cloudinary ด้านบนก่อนอัปโหลด'}</p>
+            </div>
+          </div>
+          <p class="img-spec-hint">📐 ระบบบีบอัดเป็น WebP อัตโนมัติ: ไม่เกิน 100KB และด้านยาวสุด 800px เพื่อให้หน้าเมนูโหลดไว</p>
+        </div>
+      </div>
+      <label>รายละเอียด</label>
+      <input value="${escAttr(item.desc)}" oninput="MENU[${i}].desc = this.value">
+      <div class="menu-flags">
+        <label class="must-try-toggle ${isMustTry(item) ? 'is-selected' : ''}">
+          <input type="checkbox" ${isMustTry(item) ? 'checked' : ''}
+            onchange="setMenuMustTry(${i}, this.checked, this)">
+          <span><strong>✨ ต้องลอง</strong><small>เมนูนี้จะแสดงป้ายสีเด่นบนรูปในหน้าสั่งอาหาร เพื่อให้ลูกค้าเห็นทันที</small></span>
+        </label>
+        <label class="avail-toggle">
+          <input type="checkbox" ${item.available !== false ? 'checked' : ''} onchange="setMenuAvailability(${i}, this.checked, this)">
+          <span>มีขายอยู่ <small>(ยกเลิกติ๊กถ้าของหมดชั่วคราว)</small></span>
+        </label>
+      </div>
+      <div class="item-actions">
+        <button class="btn danger" onclick="removeItem(${i})">ลบเมนูนี้</button>
+      </div>
+      <button type="button" class="menu-edit-toggle" aria-expanded="${adminMenuEditing.has(item) ? 'true' : 'false'}" onclick="toggleMenuEdit(${i}, this)">${adminMenuEditing.has(item) ? 'เสร็จสิ้น' : 'แก้ไข'}</button>
+    </div>
+  `).join('');
+}
+
+function toggleMenuEdit(i, btn) {
+  const item = MENU[i];
+  if (!item) return;
+  const open = !adminMenuEditing.has(item);
+  if (open) adminMenuEditing.add(item); else adminMenuEditing.delete(item);
+  const card = btn.closest('.item-form');
+  if (card) card.classList.toggle('is-editing', open);
+  btn.textContent = open ? 'เสร็จสิ้น' : 'แก้ไข';
+  btn.setAttribute('aria-expanded', String(open));
+}
+
+function addBlankItem() {
+  MENU.push({ id: 'm' + Date.now(), name: '', price: 0, category: '', image: '', desc: '', available: true, mustTry: false });
+  adminMenuEditing.add(MENU[MENU.length - 1]);
+  renderList();
+}
+
+function removeItem(i) {
+  MENU.splice(i, 1);
+  renderList();
+}
+
+async function saveMenu({ silent = false } = {}) {
+  const menuForSave = MENU.map(item => {
+    const { must_try, ...normalised } = item;
+    return { ...normalised, mustTry: isMustTry(item) };
+  });
+  const response = await fetch(API + '/api/menu', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(menuForSave)
+  });
+  if (!response.ok) throw new Error('save menu failed');
+  MENU = menuForSave;
+  if (!silent) alert('บันทึกเมนูแล้ว');
+}
+
+// ---------- QR โต๊ะ ----------
+// QR content is always just origin + "/order?table=N" — deterministic and
+// permanent for a given table number. Re-rendering (or increasing the table
+// count later) never changes an already-printed table's QR code.
+function renderQrGrid(n) {
+  const grid = document.getElementById('qrGrid');
+  grid.innerHTML = '';
+  for (let t = 1; t <= n; t++) {
+    const box = document.createElement('div');
+    box.innerHTML = `<div style="font-size:13px;margin-bottom:6px">โต๊ะ ${t}</div><div class="qr-${t}"></div>` +
+      `<div class="no-print" style="display:flex;gap:6px;justify-content:center;margin-top:8px">` +
+      `<button class="btn secondary" style="font-size:12px;padding:5px 10px" onclick="sendQrToCounter(${t}, this)">🖨️ ปริ้น</button>` +
+      `<button class="btn secondary" style="font-size:12px;padding:5px 10px" onclick="downloadOneQr(${t})">⬇️ ดาวน์โหลด</button>` +
+      `</div>`;
+    grid.appendChild(box);
+    new QRCode(box.querySelector('.qr-' + t), {
+      text: location.origin + '/order?table=' + t,
+      width: 110, height: 110
+    });
+  }
+}
+
+// ---------- QR download (table number baked into the saved image) ----------
+// Builds one PNG image per table: the QR code plus a "โต๊ะ N" label rendered
+// directly onto the canvas (not just shown as a caption in the admin UI), so
+// the exported file is ready to print/display at the table on its own.
+async function buildQrDownloadCanvas(t) {
+  // Render a fresh, high-resolution QR offscreen for export — independent of
+  // the smaller 110px QR shown on screen, so the saved PNG stays crisp.
+  const qrSize = 240;
+  const hidden = document.createElement('div');
+  hidden.style.position = 'fixed';
+  hidden.style.left = '-9999px';
+  document.body.appendChild(hidden);
+  new QRCode(hidden, {
+    text: location.origin + '/order?table=' + t,
+    width: qrSize, height: qrSize
+  });
+  const src = hidden.querySelector('canvas') || hidden.querySelector('img');
+  if (!src) { hidden.remove(); throw new Error('QR not rendered for table ' + t); }
+
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.load("bold 44px 'Noto Sans Thai'"); await document.fonts.ready; } catch {}
+  }
+
+  const pad = 28;
+  const labelH = 70;
+  const canvas = document.createElement('canvas');
+  canvas.width = qrSize + pad * 2;
+  canvas.height = qrSize + pad * 2 + labelH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(src, pad, pad, qrSize, qrSize);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = "bold 40px 'Noto Sans Thai', 'Kanit', sans-serif";
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('โต๊ะ ' + t, canvas.width / 2, pad + qrSize + labelH / 2);
+  hidden.remove();
+  return canvas;
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function downloadOneQr(t) {
+  const canvas = await buildQrDownloadCanvas(t);
+  canvas.toBlob((blob) => triggerDownload(blob, `qr-table-${t}.png`), 'image/png');
+}
+
+// Sends a "print this table's QR" job to the drink-counter printer. The
+// /counter-print page (open on the iMin device) picks it up within a few
+// seconds and prints it. Separate queue (/api/qr-print-jobs) — does not touch
+// orders, kitchen tickets or receipts.
+async function sendQrToCounter(t, btn) {
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'กำลังส่งไปเครื่อง...';
+  let ok = false;
+  try {
+    const res = await fetch('/api/qr-print-jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create', table: t })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    ok = true;
+    btn.textContent = '✅ ส่งแล้ว';
+  } catch (err) {
+    console.error(err);
+    btn.textContent = '❌ ส่งไม่สำเร็จ';
+    alert('ส่งงานพิมพ์ไปเครื่อง iMin ไม่สำเร็จ ลองใหม่อีกครั้ง');
+  }
+  setTimeout(() => { btn.textContent = original; btn.disabled = false; }, ok ? 2500 : 1500);
+}
+
+// Prints a single table's QR through the computer's own print dialog, so
+// staff can send it to whatever printer (USB, WiFi, network) is set up on
+// that machine — not limited to the kitchen receipt printers elsewhere in
+// admin. Opened synchronously (before any await) so browsers don't block it
+// as a popup, then filled in once the high-res QR canvas is ready.
+function printOneQr(t) {
+  const printWin = window.open('', '_blank', 'width=420,height=560');
+  if (!printWin) {
+    alert('เบราว์เซอร์บล็อกหน้าต่างปริ้น กรุณาอนุญาตป๊อปอัปสำหรับเว็บนี้แล้วลองใหม่');
+    return;
+  }
+  printWin.document.write('<!DOCTYPE html><html><head><title>กำลังเตรียมพิมพ์...</title></head><body></body></html>');
+  buildQrDownloadCanvas(t).then((canvas) => {
+    const dataUrl = canvas.toDataURL('image/png');
+    printWin.document.open();
+    printWin.document.write(`<!DOCTYPE html><html><head><title>พิมพ์ QR โต๊ะ ${t}</title>
+      <style>
+        @page { margin: 10mm; }
+        html,body{margin:0;height:100%;display:flex;align-items:center;justify-content:center;background:#fff;}
+        img{width:80mm;height:auto;}
+      </style></head>
+      <body><img src="${dataUrl}" alt="QR โต๊ะ ${t}"></body></html>`);
+    printWin.document.close();
+    const img = printWin.document.querySelector('img');
+    const doPrint = () => { printWin.focus(); printWin.print(); };
+    if (img.complete) doPrint(); else img.onload = doPrint;
+  }).catch((err) => {
+    console.error(err);
+    printWin.close();
+    alert('เตรียมไฟล์พิมพ์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+  });
+}
+
+async function downloadAllQr() {
+  const btn = document.getElementById('qrDownloadAllBtn');
+  const n = Number(document.getElementById('tableCount').value) || 1;
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'กำลังเตรียมไฟล์...';
+  try {
+    const zip = new JSZip();
+    for (let t = 1; t <= n; t++) {
+      const canvas = await buildQrDownloadCanvas(t);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      zip.file(`qr-table-${t}.png`, blob);
+    }
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    triggerDownload(zipBlob, 'qr-all-tables.zip');
+  } catch (err) {
+    console.error(err);
+    alert('ดาวน์โหลดไม่สำเร็จ ลองอัปเดตจำนวนโต๊ะแล้วลองใหม่อีกครั้ง');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function genQr() {
+  const n = Number(document.getElementById('tableCount').value) || 1;
+  fetch(API + '/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tableCount: n })
+  });
+  renderQrGrid(n);
+}
+
+// ---------- ตั้งค่าทั่วไป + เครื่องพิมพ์ ----------
+async function loadSettings() {
+  const res = await fetch(API + '/api/settings');
+  SETTINGS = await res.json();
+  document.getElementById('tableCount').value = SETTINGS.tableCount || 1;
+  document.getElementById('paperWidthMm').value = String(SETTINGS.paperWidthMm || 80);
+  document.getElementById('shopName').value = SETTINGS.shopName || '';
+  refreshCloudinaryUi();
+  PRINTERS = Array.isArray(SETTINGS.printers) ? SETTINGS.printers : [];
+  renderPrinterList();
+  renderList();
+  // Show the existing, already-permanent table QR codes right away — no
+  // need to click a button just to see the ones you already printed.
+  renderQrGrid(SETTINGS.tableCount || 1);
+}
+
+async function saveGeneralPrintSettings() {
+  const body = {
+    paperWidthMm: Number(document.getElementById('paperWidthMm').value),
+    shopName: document.getElementById('shopName').value
+  };
+  await fetch(API + '/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  alert('บันทึกตั้งค่าทั่วไปแล้ว');
+}
+
+function activePrinterAgents() {
+  const now = Date.now();
+  const agents = Array.isArray(PRINTER_STATUS.agents) && PRINTER_STATUS.agents.length
+    ? PRINTER_STATUS.agents
+    : (PRINTER_STATUS.updatedAt ? [PRINTER_STATUS] : []);
+  return agents.filter(agent => agent && agent.updatedAt && now - new Date(agent.updatedAt).getTime() <= PRINTER_STATUS_STALE_MS);
+}
+
+// Turns a heartbeat timestamp into a human-readable age. Missing or unparsable timestamps
+// are reported as "never connected" instead of producing NaN.
+function heartbeatAge(value, now = Date.now()) {
+  const time = value ? new Date(value).getTime() : NaN;
+  if (!Number.isFinite(time)) return { valid: false, ageMs: Infinity, label: 'ไม่เคยเชื่อมต่อ' };
+  const ageMs = Math.max(0, now - time);
+  const minutes = Math.floor(ageMs / 60000);
+  if (minutes < 1) return { valid: true, ageMs, label: 'เมื่อสักครู่' };
+  if (minutes < 60) return { valid: true, ageMs, label: minutes + ' นาทีที่แล้ว' };
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return { valid: true, ageMs, label: 'ประมาณ ' + hours + ' ชั่วโมงที่แล้ว' };
+  return { valid: true, ageMs, label: 'ประมาณ ' + Math.round(ageMs / 86400000) + ' วันที่แล้ว' };
+}
+
+function statusFor(printer) {
+  const agents = activePrinterAgents();
+  if (!agents.length) {
+    const heartbeat = heartbeatAge(PRINTER_STATUS.updatedAt);
+    return { cls: 'unknown', label: !heartbeat.valid
+      ? 'ยังไม่มีข้อมูล — ยังไม่ได้เปิดตัวเชื่อมเครื่องพิมพ์บนคอม'
+      : 'ตัวเชื่อมเครื่องพิมพ์ไม่ได้เปิดอยู่ (สัญญาณล่าสุด ' + heartbeat.label + ')' };
+  }
+  const matches = agents.flatMap(agent => (agent.printers || []).filter(p => p.ip === printer.ip));
+  if (!matches.length) return { cls: 'unknown', label: 'รอข้อมูลจากตัวเชื่อม...' };
+  const match = matches.find(p => p.ok) || matches[0];
+  if (match.ok) return { cls: 'ok', label: 'เชื่อมต่อแล้ว' };
+  return { cls: 'bad', label: 'เชื่อมต่อไม่ได้' + (match.error ? ' — ' + match.error : '') };
+}
+
+function renderPrinterList() {
+  const el = document.getElementById('printerList');
+  if (!PRINTERS.length) {
+    el.innerHTML = '<div class="empty-state">ยังไม่มีเครื่องพิมพ์ กด "+ เพิ่มเครื่องพิมพ์" เพื่อเริ่มเลย</div>';
+  } else {
+    el.innerHTML = PRINTERS.map((p, i) => {
+      const st = statusFor(p);
+      return `
+      <div class="printer-box">
+        <div class="row" style="align-items:center">
+          <div>
+            <strong>${escAttr(p.name || 'เครื่องพิมพ์')}</strong>
+            <div style="font-size:12px;color:#6b6058">${escAttr(p.ip)}:${escAttr(p.port || 9100)}${p.categories && p.categories.length ? ' — พิมพ์เฉพาะ: ' + escAttr(p.categories.join(', ')) : ' — เครื่องหลัก (พิมพ์ทุกอย่างที่ไม่มีเครื่องเจาะจง)'}</div>
+          </div>
+          <div class="item-actions" style="margin-top:0">
+            <button class="btn secondary" onclick="removePrinter(${i})">ลบ</button>
+          </div>
+        </div>
+        <div class="printer-status-line">
+          <span class="status-dot ${st.cls}"></span>
+          <span class="status-text ${st.cls}">${escAttr(st.label)}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+let editingIndex = null;
+function openPrinterForm() {
+  editingIndex = null;
+  document.getElementById('pfName').value = '';
+  document.getElementById('pfIp').value = '';
+  document.getElementById('pfPort').value = 9100;
+  document.getElementById('pfCategories').value = '';
+  document.getElementById('printerForm').style.display = 'block';
+}
+
+function closePrinterForm() {
+  document.getElementById('printerForm').style.display = 'none';
+}
+
+function savePrinterForm() {
+  const name = document.getElementById('pfName').value.trim();
+  const ip = document.getElementById('pfIp').value.trim();
+  const port = Number(document.getElementById('pfPort').value) || 9100;
+  const categories = document.getElementById('pfCategories').value
+    .split(',').map(s => s.trim()).filter(Boolean);
+  if (!name || !ip) { alert('ใส่ชื่อเครื่องพิมพ์และ IP ก่อนนะครับ'); return; }
+  const printer = { id: 'p' + Date.now(), name, ip, port, categories };
+  PRINTERS.push(printer);
+  closePrinterForm();
+  renderPrinterList();
+  persistPrinters();
+}
+
+function removePrinter(i) {
+  PRINTERS.splice(i, 1);
+  renderPrinterList();
+  persistPrinters();
+}
+
+async function persistPrinters() {
+  await fetch(API + '/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ printers: PRINTERS })
+  });
+}
+
+// ---------- สถานะเชื่อมต่อเครื่องพิมพ์ (ใหม่) ----------
+async function pollPrinterStatus() {
+  try {
+    const res = await fetch(API + '/api/printer-status');
+    PRINTER_STATUS = await res.json();
+  } catch (e) {
+    PRINTER_STATUS = { updatedAt: null, printers: [] };
+  }
+  const banner = document.getElementById('agentBanner');
+  if (!PRINTERS.length) {
+    banner.className = 'agent-banner';
+    banner.textContent = 'ยังไม่ได้เพิ่มเครื่องพิมพ์ — เพิ่มเครื่องพิมพ์ด้านล่างก่อน';
+  } else if (!activePrinterAgents().length) {
+    banner.className = 'agent-banner bad';
+    banner.textContent = '⚠️ ยังไม่พบตัวเชื่อมเครื่องพิมพ์ทำงานอยู่ — เปิดโปรแกรม "เปิดระบบพิมพ์ครัว" บนคอมที่ต่อกับเครื่องพิมพ์ก่อน';
+  } else {
+    const agents = activePrinterAgents();
+    const allOk = PRINTERS.every(printer => agents.some(agent => (agent.printers || []).some(p => p.ip === printer.ip && p.ok)));
+    const labels = [...new Set(agents.map(agent => agent.hostname || agent.instanceId).filter(Boolean))];
+    banner.className = 'agent-banner ' + (allOk ? 'ok' : 'bad');
+    const message = allOk
+      ? '✅ ตัวเชื่อมเครื่องพิมพ์ทำงานอยู่ เชื่อมต่อเครื่องพิมพ์ได้ครบทุกเครื่อง'
+      : '⚠️ ตัวเชื่อมเครื่องพิมพ์ทำงานอยู่ แต่มีบางเครื่องเชื่อมต่อไม่ได้ (ดูจุดสีแดงด้านล่าง)';
+    banner.textContent = message + ' · พบ agent ' + agents.length + ' ตัว: ' + labels.join(', ');
+  }
+  renderPrinterList();
+}
+
+// ---------- ตั้งค่าใบเสร็จ / ใบสั่งพิมพ์ ----------
+let rcActiveTab = 'receipt';
+let rcKitchenSize = 'md';
+
+function rcSwitchTab(tab) {
+  rcActiveTab = tab;
+  document.getElementById('rc-tab-receipt').classList.toggle('active', tab === 'receipt');
+  document.getElementById('rc-tab-kitchen').classList.toggle('active', tab === 'kitchen');
+  document.getElementById('rc-panel-receipt').style.display = tab === 'receipt' ? 'block' : 'none';
+  document.getElementById('rc-panel-kitchen').style.display = tab === 'kitchen' ? 'block' : 'none';
+  document.getElementById('rcReceiptPaper').style.display = tab === 'receipt' ? 'block' : 'none';
+  document.getElementById('rcKitchenPaper').style.display = tab === 'kitchen' ? 'block' : 'none';
+  document.getElementById('rcPreviewTitle').textContent = tab === 'receipt' ? 'พรีวิวใบเสร็จ' : 'พรีวิวใบสั่งครัว';
+}
+
+function rcSetKitchenSize(size) {
+  rcKitchenSize = size;
+  document.querySelectorAll('#rcFontSizeGroup button').forEach(button => button.classList.toggle('active', button.dataset.size === size));
+  const paper = document.getElementById('rcKitchenPaper');
+  paper.classList.remove('rc-fs-sm', 'rc-fs-md', 'rc-fs-lg', 'rc-fs-xl');
+  paper.classList.add('rc-fs-' + size);
+  rcRender();
+}
+
+function setReceiptLogoStatus(message, state = '') {
+  const status = document.getElementById('rcLogoUploadStatus');
+  if (!status) return;
+  status.textContent = message;
+  status.className = `rc-logo-upload-status ${state}`.trim();
+}
+
+function setReceiptLogoPreview(url) {
+  const image = document.getElementById('rcLogoUploadPreview');
+  const empty = document.getElementById('rcLogoUploadEmpty');
+  if (!image || !empty) return;
+  if (!url) {
+    image.style.display = 'none';
+    image.removeAttribute('src');
+    empty.textContent = '🖼️ ยังไม่มีโลโก้';
+    empty.style.display = 'flex';
+    return;
+  }
+  image.style.display = 'block';
+  image.src = url;
+  empty.style.display = 'none';
+}
+
+async function uploadReceiptLogo(input) {
+  const sourceFile = input && input.files ? input.files[0] : null;
+  if (!sourceFile) return;
+  const config = cloudinaryConfig();
+  if (!cloudinaryReady()) {
+    setReceiptLogoStatus('ตั้งค่า Cloudinary ที่แท็บจัดการเมนูก่อน แล้วกดบันทึกการเชื่อมต่อ', 'error');
+    input.value = '';
+    return;
+  }
+  if (!sourceFile.type.startsWith('image/')) {
+    setReceiptLogoStatus('กรุณาเลือกไฟล์รูปภาพ JPG, PNG หรือ WebP', 'error');
+    input.value = '';
+    return;
+  }
+  if (typeof window.imageCompression !== 'function') {
+    setReceiptLogoStatus('โหลดระบบบีบอัดภาพไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองใหม่', 'error');
+    input.value = '';
+    return;
+  }
+  const picker = document.getElementById('rcLogoPicker');
+  const previousUrl = document.getElementById('rcLogoUrl').value || '';
+  input.disabled = true;
+  if (picker) picker.setAttribute('aria-disabled', 'true');
+  let previewUrl = '';
+  try {
+    setReceiptLogoStatus('กำลังบีบอัดภาพ…', 'processing');
+    const compressed = await window.imageCompression(sourceFile, {
+      maxSizeMB: 0.1,
+      maxWidthOrHeight: 800,
+      useWebWorker: true,
+      maxIteration: 15,
+      initialQuality: 0.85,
+      fileType: 'image/webp',
+      libURL: 'https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js',
+    });
+    previewUrl = URL.createObjectURL(compressed);
+    setReceiptLogoPreview(previewUrl);
+    setReceiptLogoStatus(`บีบอัดแล้ว ${Math.max(1, Math.round(compressed.size / 1024))}KB · กำลังอัปโหลด…`, 'processing');
+    const form = new FormData();
+    form.append('file', compressed, `receipt-logo-${Date.now()}.webp`);
+    form.append('upload_preset', config.uploadPreset);
+    form.append('folder', config.folder);
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(config.cloudName)}/image/upload`, { method: 'POST', body: form });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.secure_url) {
+      throw new Error((result.error && result.error.message) || 'Cloudinary upload failed');
+    }
+    document.getElementById('rcLogoUrl').value = result.secure_url;
+    rcRender();
+    setReceiptLogoStatus('อัปโหลดสำเร็จ · กำลังบันทึกการตั้งค่า…', 'processing');
+    const saved = await rcSaveSettings();
+    if (!saved) throw new Error('บันทึกการตั้งค่าไม่สำเร็จ');
+    setReceiptLogoStatus('อัปโหลดและบันทึกโลโก้แล้ว', 'success');
+  } catch (error) {
+    document.getElementById('rcLogoUrl').value = previousUrl;
+    rcRender();
+    setReceiptLogoStatus(`อัปโหลดไม่สำเร็จ: ${error.message || 'ลองใหม่อีกครั้ง'}`, 'error');
+  } finally {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    input.disabled = false;
+    if (picker) picker.removeAttribute('aria-disabled');
+    input.value = '';
+  }
+}
+
+async function clearReceiptLogo() {
+  const logoUrl = document.getElementById('rcLogoUrl');
+  if (!logoUrl.value) return;
+  const previousUrl = logoUrl.value;
+  logoUrl.value = '';
+  rcRender();
+  setReceiptLogoStatus('กำลังลบโลโก้ออกจากการตั้งค่า…', 'processing');
+  const saved = await rcSaveSettings();
+  if (saved) {
+    setReceiptLogoStatus('ลบโลโก้ออกจากการตั้งค่าแล้ว (ไฟล์เดิมยังอยู่ใน Cloudinary)', 'success');
+  } else {
+    logoUrl.value = previousUrl;
+    rcRender();
+    setReceiptLogoStatus('ลบโลโก้ไม่สำเร็จ ลองใหม่อีกครั้ง', 'error');
+  }
+}
+
+function rcLoadSettings() {
+  const receipt = SETTINGS.receipt || {};
+  const kitchen = SETTINGS.kitchen || {};
+  document.getElementById('rcLogoUrl').value = receipt.logoUrl || '';
+  document.getElementById('rcShopName').value = SETTINGS.shopName || '';
+  document.getElementById('rcShopPhone').value = receipt.shopPhone || '';
+  document.getElementById('rcShopAddress').value = receipt.shopAddress || '';
+  document.getElementById('rcTaxId').value = receipt.taxId || '';
+  document.getElementById('rcTitle').value = receipt.title || 'ใบเสร็จรับเงิน';
+  document.getElementById('rcThanksText').value = receipt.thanksText || '';
+  document.getElementById('rcApologyText').value = receipt.apologyText || '';
+  document.getElementById('rcShowBillNo').checked = receipt.showBillNo !== false;
+  document.getElementById('rcShowTime').checked = receipt.showTime !== false;
+  document.getElementById('rcShowTable').checked = receipt.showTable !== false;
+  document.getElementById('rcShowQr').checked = Boolean(receipt.showQr);
+  document.getElementById('rcQrUrl').value = receipt.qrUrl || '';
+  const paperWidth = String(SETTINGS.paperWidthMm || 80);
+  document.querySelectorAll('input[name="rcPaper"]').forEach(input => { input.checked = input.value === paperWidth; });
+  rcKitchenSize = kitchen.fontSize || 'md';
+  document.getElementById('rcKitchenPaper').classList.remove('rc-fs-sm', 'rc-fs-md', 'rc-fs-lg', 'rc-fs-xl');
+  document.getElementById('rcKitchenPaper').classList.add('rc-fs-' + rcKitchenSize);
+  document.querySelectorAll('#rcFontSizeGroup button').forEach(button => button.classList.toggle('active', button.dataset.size === rcKitchenSize));
+  document.getElementById('rcKShowPrice').checked = Boolean(kitchen.showPrice);
+  document.getElementById('rcKShowNote').checked = kitchen.showNote !== false;
+  document.getElementById('rcKShowTime').checked = kitchen.showTime !== false;
+  document.getElementById('rcKGroupCat').checked = kitchen.groupByCategory !== false;
+  rcRender();
+}
+
+function rcRender() {
+  const byId = id => document.getElementById(id);
+  byId('rc-pv-shop').textContent = byId('rcShopName').value || 'ชื่อร้าน';
+  byId('rc-pv-title').textContent = byId('rcTitle').value || 'ใบเสร็จรับเงิน';
+  const updateText = (field, target, prefix = '') => {
+    const value = byId(field).value.trim();
+    const element = byId(target);
+    element.style.display = value ? 'block' : 'none';
+    element.textContent = value ? prefix + value : '';
+  };
+  updateText('rcShopPhone', 'rc-pv-phone');
+  updateText('rcShopAddress', 'rc-pv-address');
+  updateText('rcTaxId', 'rc-pv-tax', 'เลขผู้เสียภาษี ');
+  updateText('rcThanksText', 'rc-pv-thanks');
+  updateText('rcApologyText', 'rc-pv-apology');
+  byId('rc-pv-billno').style.display = byId('rcShowBillNo').checked ? 'flex' : 'none';
+  byId('rc-pv-time').style.display = byId('rcShowTime').checked ? 'flex' : 'none';
+  byId('rc-pv-tableno').style.display = byId('rcShowTable').checked ? 'flex' : 'none';
+  const logoUrl = byId('rcLogoUrl').value.trim();
+  byId('rcPreviewLogo').innerHTML = logoUrl ? `<img src="${escAttr(logoUrl)}" alt="โลโก้ร้าน">` : 'โลโก้';
+  setReceiptLogoPreview(logoUrl);
+  const paperSize = (document.querySelector('input[name="rcPaper"]:checked') || {}).value || '80';
+  byId('rcReceiptPaper').classList.toggle('narrow', paperSize === '58');
+  byId('rcKitchenPaper').classList.toggle('narrow', paperSize === '58');
+  byId('rc-kv-price-line').style.display = byId('rcKShowPrice').checked ? 'block' : 'none';
+  byId('rc-kv-time').style.display = byId('rcKShowTime').checked ? 'block' : 'none';
+  document.querySelectorAll('#rc-kv-items [data-cat]').forEach(element => { element.style.display = byId('rcKGroupCat').checked ? 'block' : 'none'; });
+  byId('rc-kv-note1').style.display = byId('rcKShowNote').checked ? 'inline-block' : 'none';
+  byId('rc-kv-note1').textContent = byId('rcKNoteSample').value || 'ไม่ใส่ผัก';
+  const showQr = byId('rcShowQr').checked;
+  const qrUrl = byId('rcQrUrl').value.trim();
+  const qrBlock = byId('rc-pv-qr-block');
+  qrBlock.style.display = showQr && qrUrl ? 'block' : 'none';
+  const canvas = byId('rc-pv-qr-canvas');
+  if (showQr && qrUrl && canvas.dataset.lastUrl !== qrUrl) {
+    canvas.innerHTML = '';
+    new QRCode(canvas, { text: qrUrl, width: 64, height: 64 });
+    canvas.dataset.lastUrl = qrUrl;
+  } else if (!showQr || !qrUrl) {
+    canvas.innerHTML = '';
+    canvas.dataset.lastUrl = '';
+  }
+}
+
+async function rcSaveSettings() {
+  const paperWidthMm = Number((document.querySelector('input[name="rcPaper"]:checked') || {}).value || 80);
+  const shopName = document.getElementById('rcShopName').value.trim() || 'ร้าน';
+  const receipt = {
+    logoUrl: document.getElementById('rcLogoUrl').value.trim(),
+    shopPhone: document.getElementById('rcShopPhone').value.trim(),
+    shopAddress: document.getElementById('rcShopAddress').value.trim(),
+    taxId: document.getElementById('rcTaxId').value.trim(),
+    title: document.getElementById('rcTitle').value.trim() || 'ใบเสร็จรับเงิน',
+    thanksText: document.getElementById('rcThanksText').value,
+    apologyText: document.getElementById('rcApologyText').value,
+    showBillNo: document.getElementById('rcShowBillNo').checked,
+    showTime: document.getElementById('rcShowTime').checked,
+    showTable: document.getElementById('rcShowTable').checked,
+    showQr: document.getElementById('rcShowQr').checked,
+    qrUrl: document.getElementById('rcQrUrl').value.trim(),
+  };
+  const kitchen = {
+    fontSize: rcKitchenSize,
+    showPrice: document.getElementById('rcKShowPrice').checked,
+    showNote: document.getElementById('rcKShowNote').checked,
+    showTime: document.getElementById('rcKShowTime').checked,
+    groupByCategory: document.getElementById('rcKGroupCat').checked,
+  };
+  const note = document.getElementById('rcSaveNote');
+  note.textContent = 'กำลังบันทึก…';
+  let saved = false;
+  try {
+    const response = await fetch(API + '/api/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shopName, paperWidthMm, receipt, kitchen }),
+    });
+    if (!response.ok) throw new Error('save settings failed');
+    SETTINGS = { ...SETTINGS, shopName, paperWidthMm, receipt, kitchen };
+    document.getElementById('shopName').value = shopName;
+    document.getElementById('paperWidthMm').value = String(paperWidthMm);
+    note.textContent = 'บันทึกแล้ว ✓';
+    saved = true;
+  } catch (error) {
+    console.error('save receipt settings failed', error);
+    note.textContent = 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง';
+  }
+  setTimeout(() => { note.textContent = ''; }, 2500);
+  return saved;
+}
+
+// ---------- init ----------
+// ---- "เปิดพิเศษวันนี้" (วันจันทร์ปิดตามปกติ) ----
+// Shown only on Mondays. The switch is saved on the server for today's date only, so other
+// devices start refreshing automatically (within ~5 minutes) and it ends by itself at midnight.
+(function () {
+  const box = document.getElementById('specialOpenBox');
+  const text = document.getElementById('specialOpenText');
+  const btn = document.getElementById('specialOpenBtn');
+  function render() {
+    const info = window.shopDayInfo();
+    box.style.display = info.closedDay ? 'inline-flex' : 'none';
+    text.textContent = info.special ? 'วันนี้เปิดพิเศษ' : 'วันจันทร์ปิดตามปกติ';
+    btn.textContent = info.special ? 'ยกเลิกเปิดพิเศษ' : 'เปิดพิเศษวันนี้';
+  }
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      await window.setShopSpecialToday(!window.shopDayInfo().special);
+    } catch (e) {
+      alert('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+    } finally {
+      btn.disabled = false;
+      render();
+    }
+  });
+  document.addEventListener('shop-special-change', render);
+  render();
+  if (window.shopDayInfo().closedDay) window.syncShopSpecial();
+})();
+
+loadMenu();
+loadSettings().then(() => {
+  // The kitchen-printer status is NOT refreshed automatically (the print agent is not used).
+  // It is loaded once when the "เครื่องพิมพ์ครัว" tab is opened.
+  if (document.getElementById('panel-printers').classList.contains('active')) pollPrinterStatus();
+  document.addEventListener('admin-tabchange', function(e){ if (e.detail && e.detail.tab === 'printers') pollPrinterStatus(); }); // หยุดดึงอัตโนมัตินอกเวลา 11:00-21:00
+  rcLoadSettings();
+});
+</script>
+
+<!-- ===== สถานะโต๊ะ — embedded logic, isolated in its own scope ===== -->
+<script>
+(function(){
+
+/* ---------------- Config ---------------- */
+const REFRESH_MS = 30000;
+
+/* ---------------- State (loaded from real API) ---------------- */
+let MENU = [];        // [{cat, items:[{id,name,price,category}]}]
+let MENU_FLAT = [];   // flat real menu items
+let TABLES = [];      // [{id, items:[{orderId,itemIndex,name,price,qty,status}], openedAt}]
+let currentFilter = "all";
+let activeTableId = null;
+let menuQty = {};     // menuItemId -> qty selected in modal (before confirm)
+let activeCat = null;
+let pendingClearId = null;
+let pendingRemove = null; // {orderId, itemIndex, name}
+let pollTimer = null;
+let loaded = false;
+
+const ITEM_STATUS = {
+  cooking:{label:"รอทำ", next:"ready"},
+  ready:{label:"ทำเสร็จ", next:"served"},
+  served:{label:"เสิร์ฟแล้ว", next:null},
+};
+
+/* ---------------- Helpers ---------------- */
+function tableStatus(t){
+  return t.items.length===0 ? "empty" : "pending";
+}
+function tableTotal(t){
+  return t.items.reduce((s,i)=>s+i.price*i.qty,0);
+}
+function statusLabel(s){
+  return s==="empty" ? "โต๊ะว่าง" : "มีออเดอร์";
+}
+function fmtTime(ts){
+  if(!ts) return "";
+  const mins = Math.max(1, Math.round((Date.now()-ts)/60000));
+  return mins < 60 ? `${mins} นาทีที่แล้ว` : `${Math.round(mins/60)} ชม.ที่แล้ว`;
+}
+function fmtBaht(n){ return Number(n||0).toLocaleString('th-TH'); }
+function isNumberedTable(id){ return /^\d+$/.test(String(id == null ? '' : id).trim()); }
+function tableLabel(id){
+  const value = String(id == null ? '-' : id).trim();
+  return isNumberedTable(value) ? `โต๊ะ ${value}` : value || '-';
+}
+function escapeHtml(value){
+  return String(value == null ? '' : value)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+/* ---------------- Data loading from real API ---------------- */
+async function loadMenu(){
+  const res = await fetch('/api/menu');
+  const items = await res.json();
+  MENU_FLAT = (Array.isArray(items) ? items : []).filter(i=>i.available !== false);
+  const cats = [...new Set(MENU_FLAT.map(i=>(i.category||'').trim()).filter(Boolean))];
+  if(cats.length){
+    MENU = cats.map(cat=>({
+      cat,
+      items: MENU_FLAT.filter(i=>(i.category||'').trim()===cat)
+    }));
+  } else {
+    MENU = [{ cat:"เมนูทั้งหมด", items: MENU_FLAT }];
+  }
+  if(!activeCat && MENU.length) activeCat = MENU[0].cat;
+}
+
+async function loadTables(){
+  const res = await fetch('/api/table-status', { headers: { 'X-Jinko-Client': '2' } });
+  const data = await res.json();
+  TABLES = (data.tables || []).map(t=>({
+    id: t.table,
+    openedAt: t.openedAt ? new Date(t.openedAt).getTime() : null,
+    items: (t.items || []).map(it=>({
+      orderId: it.orderId,
+      itemIndex: it.itemIndex,
+      name: it.name,
+      price: it.price,
+      qty: it.qty,
+      status: it.status || "cooking",
+    })),
+  }));
+}
+
+/* ---------------- Filters ---------------- */
+const FILTERS = [
+  {key:"all", label:"ทั้งหมด"},
+  {key:"pending", label:"มีออเดอร์"},
+  {key:"empty", label:"โต๊ะว่าง"},
+];
+function renderFilters(){
+  const wrap = document.getElementById("ts-filters");
+  wrap.innerHTML = "";
+  FILTERS.forEach(f=>{
+    const count = f.key==="all" ? TABLES.length : TABLES.filter(t=>tableStatus(t)===f.key).length;
+    const chip = document.createElement("button");
+    chip.className = "chip" + (currentFilter===f.key ? " active":"");
+    chip.innerHTML = (f.key!=="all" ? `<span class="dot" style="background:${dotColor(f.key)}"></span>`:"") + `${f.label} <span class="count">${count}</span>`;
+    chip.onclick = ()=>{ currentFilter = f.key; renderAll(); };
+    wrap.appendChild(chip);
+  });
+}
+function dotColor(status){
+  return status==="empty" ? "var(--empty-dot)" : "var(--pending-dot)";
+}
+
+/* ---------------- Grid ---------------- */
+function tableSvg(title){
+  const text = escapeHtml(title);
+  const size = text.length>3 ? (text.length>6 ? 15 : 22) : 34;
+  return `<svg class="tsv" viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="ch" x="40" y="5" width="40" height="17" rx="8"/><rect class="ch" x="40" y="98" width="40" height="17" rx="8"/><rect class="ch" x="5" y="40" width="17" height="40" rx="8"/><rect class="ch" x="98" y="40" width="17" height="40" rx="8"/><rect class="tp" x="22" y="22" width="76" height="76" rx="18"/><rect class="ti" x="31" y="31" width="58" height="58" rx="11"/><text class="tx" x="60" y="60" text-anchor="middle" dominant-baseline="central" style="font-size:${size}px">${text}</text></svg>`;
+}
+function renderGrid(){
+  const grid = document.getElementById("ts-grid");
+  const note = document.getElementById("ts-emptyNote");
+  grid.innerHTML = "";
+  const list = TABLES.filter(t=> currentFilter==="all" || tableStatus(t)===currentFilter);
+  note.style.display = (loaded && !list.length) ? "block" : "none";
+
+  list.forEach(t=>{
+    const status = tableStatus(t);
+    const label = tableLabel(t.id);
+    const cardTitle = isNumberedTable(t.id) ? String(t.id).trim() : label;
+    const lines = t.items.length;
+    const preview = t.items.slice(0,2).map(i=>`${i.name} ×${i.qty}`).join(" · ") + (lines>2 ? ` +${lines-2}` : "");
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "table-card " + status;
+    card.setAttribute("aria-label", `${label} ${statusLabel(status)}` + (lines ? ` ${lines} รายการ ยอด ${fmtBaht(tableTotal(t))} บาท` : ""));
+    card.onclick = ()=>openPanel(t.id);
+    card.innerHTML = `
+      ${tableSvg(cardTitle)}
+      <span class="status-pill ${status}"><span class="dot"></span>${statusLabel(status)}</span>
+      <div class="t-preview">${lines ? escapeHtml(preview) : "แตะเพื่อสั่งเข้าโต๊ะ"}</div>
+      <div class="t-meta">
+        <span>${lines ? `${lines} รายการ` : ""}</span>
+        <span class="amt">${lines ? `฿${fmtBaht(tableTotal(t))}` : ""}</span>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+/* ---------------- Summary ---------------- */
+function renderSummary(){
+  document.getElementById("ts-sumEmpty").textContent = TABLES.filter(t=>tableStatus(t)==="empty").length;
+  document.getElementById("ts-sumPending").textContent = TABLES.filter(t=>tableStatus(t)==="pending").length;
+  document.getElementById("ts-sumAmount").textContent = "฿" + fmtBaht(TABLES.reduce((s,t)=>s+tableTotal(t),0));
+}
+
+/* ---------------- Panel ---------------- */
+function openPanel(id){
+  activeTableId = id;
+  renderPanel();
+  document.getElementById("ts-overlay").classList.add("show");
+  document.getElementById("ts-panel").classList.add("show");
+}
+function closePanelFn(){
+  document.getElementById("ts-overlay").classList.remove("show");
+  document.getElementById("ts-panel").classList.remove("show");
+  activeTableId = null;
+}
+function renderPanel(){
+  const t = TABLES.find(t=>t.id===activeTableId);
+  if(!t) return;
+  const status = tableStatus(t);
+  document.getElementById("ts-panelTitle").textContent = tableLabel(t.id);
+  document.getElementById("ts-panelSub").textContent = statusLabel(status) + (t.openedAt ? ` · เปิดโต๊ะ ${fmtTime(t.openedAt)}`:"");
+
+  const orderList = document.getElementById("ts-orderList");
+  const totalsWrap = document.getElementById("ts-totalsWrap");
+
+  if(t.items.length===0){
+    orderList.innerHTML = `<div class="no-order">ยังไม่มีออเดอร์ในโต๊ะนี้<br>กด "สั่งเพิ่ม" เพื่อเริ่มออเดอร์ให้ลูกค้า</div>`;
+    totalsWrap.innerHTML = "";
+  } else {
+    orderList.innerHTML = t.items.map((it,idx)=>`
+      <div class="order-item" data-idx="${idx}">
+        <div class="info">
+          <div class="name">${escAttr(it.name)} <span style="color:var(--ink-soft); font-weight:500;">×${it.qty}</span></div>
+          ${it.note ? `<div class="order-item-note">หมายเหตุ: ${escAttr(it.note)}</div>` : ''}
+          <div class="price">฿${fmtBaht(it.price*it.qty)}</div>
+        </div>
+        <button class="item-status-btn ${it.status}" data-idx="${idx}" ${!ITEM_STATUS[it.status] || !ITEM_STATUS[it.status].next ? "disabled" : ""}>${(ITEM_STATUS[it.status]||ITEM_STATUS.served).label} →</button>
+      </div>
+    `).join("");
+    totalsWrap.innerHTML = `
+      <div class="panel-totals">
+        <span class="lbl">ยอดรวมโต๊ะนี้</span>
+        <span class="amt">฿${fmtBaht(tableTotal(t))}</span>
+      </div>`;
+    orderList.querySelectorAll(".order-item").forEach(row=>{
+      row.addEventListener("click", (e)=>{
+        if(e.target.closest(".item-status-btn")) return;
+        const idx = Number(row.dataset.idx);
+        openItemRemoveConfirm(t.items[idx]);
+      });
+    });
+    orderList.querySelectorAll(".item-status-btn").forEach(btn=>{
+      btn.onclick = async ()=>{
+        const idx = Number(btn.dataset.idx);
+        const item = t.items[idx];
+        const next = ITEM_STATUS[item.status] ? ITEM_STATUS[item.status].next : null;
+        if(!next) return;
+        btn.disabled = true;
+        try{
+          await fetch('/api/table-status', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ action:"item-status", orderId:item.orderId, itemIndex:item.itemIndex, status:next }),
+          });
+          await refreshAll();
+        } catch(e){
+          showToast("อัปเดตสถานะไม่สำเร็จ ลองใหม่อีกครั้ง");
+        }
+      };
+    });
+  }
+
+  document.getElementById("ts-clearTableBtn").disabled = t.items.length===0;
+  document.getElementById("ts-checkoutBtn").disabled = t.items.length===0;
+}
+
+document.getElementById("ts-closePanel").onclick = closePanelFn;
+document.getElementById("ts-overlay").onclick = ()=>{ closePanelFn(); closeMenuFn(); closeConfirmFn(); closeCheckoutFn(); closeItemConfirmFn(); };
+
+/* ---------------- Clear table ---------------- */
+document.getElementById("ts-clearTableBtn").onclick = ()=>{
+  if(activeTableId==null) return;
+  pendingClearId = activeTableId;
+  document.getElementById("ts-confirmTitle").textContent = `เคลียร์ ${tableLabel(pendingClearId)}?`;
+  document.getElementById("ts-confirmWrap").style.display = "flex";
+  document.getElementById("ts-overlay").classList.add("show");
+};
+function closeConfirmFn(){
+  document.getElementById("ts-confirmWrap").style.display = "none";
+  pendingClearId = null;
+}
+document.getElementById("ts-cancelClear").onclick = closeConfirmFn;
+document.getElementById("ts-confirmClear").onclick = async ()=>{
+  const id = pendingClearId;
+  if(id==null) return;
+  const btn = document.getElementById("ts-confirmClear");
+  btn.disabled = true;
+  try{
+    await fetch('/api/table-status', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:"clear-table", table:id }),
+    });
+  } catch(e){
+    showToast("เคลียร์โต๊ะไม่สำเร็จ ลองใหม่อีกครั้ง");
+  }
+  btn.disabled = false;
+  closeConfirmFn();
+  closePanelFn();
+  document.getElementById("ts-overlay").classList.remove("show");
+  await refreshAll();
+  showToast(`เคลียร์ ${tableLabel(id)} เรียบร้อย`);
+};
+
+/* ---------------- Remove single item ---------------- */
+function openItemRemoveConfirm(item){
+  pendingRemove = item;
+  document.getElementById("ts-itemConfirmTitle").textContent = `ยกเลิก "${item.name}"?`;
+  document.getElementById("ts-itemConfirmWrap").style.display = "flex";
+  document.getElementById("ts-overlay").classList.add("show");
+}
+function closeItemConfirmFn(){
+  document.getElementById("ts-itemConfirmWrap").style.display = "none";
+  pendingRemove = null;
+}
+document.getElementById("ts-cancelItemRemove").onclick = closeItemConfirmFn;
+document.getElementById("ts-confirmItemRemove").onclick = async ()=>{
+  const item = pendingRemove;
+  if(!item) return;
+  const btn = document.getElementById("ts-confirmItemRemove");
+  btn.disabled = true;
+  try{
+    await fetch('/api/table-status', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:"remove-item", orderId:item.orderId, itemIndex:item.itemIndex }),
+    });
+    closeItemConfirmFn();
+    await refreshAll();
+    renderPanel();
+    showToast(`ยกเลิกรายการ "${item.name}" แล้ว`);
+  } catch(e){
+    showToast("ยกเลิกรายการไม่สำเร็จ ลองใหม่อีกครั้ง");
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+/* ---------------- Checkout ---------------- */
+document.getElementById("ts-checkoutBtn").onclick = ()=>{
+  const t = TABLES.find(t=>t.id===activeTableId);
+  if(!t || t.items.length===0) return;
+  document.getElementById("ts-checkoutTableNum").textContent = t.id;
+  document.getElementById("ts-checkoutItems").innerHTML = t.items.map(it=>`
+    <div class="ci-row">
+      <span class="ci-name">${it.name} <span class="ci-qty">×${it.qty}</span></span>
+      <span class="ci-amt">฿${fmtBaht(it.price*it.qty)}</span>
+    </div>
+  `).join("");
+  document.getElementById("ts-checkoutTotal").textContent = `฿${fmtBaht(tableTotal(t))}`;
+  document.getElementById("ts-checkoutWrap").style.display = "flex";
+  document.getElementById("ts-overlay").classList.add("show");
+};
+function closeCheckoutFn(){
+  document.getElementById("ts-checkoutWrap").style.display = "none";
+  document.getElementById("ts-overlay").classList.remove("show");
+}
+document.getElementById("ts-cancelCheckout").onclick = closeCheckoutFn;
+
+function populateReceipt(t){
+  const nowDate = new Date();
+  document.getElementById("ts-rTable").textContent = t.id;
+  document.getElementById("ts-rDate").textContent = "วันที่: " + nowDate.toLocaleDateString('th-TH');
+  document.getElementById("ts-rTime").textContent = "เวลา: " + nowDate.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) + " น.";
+  document.getElementById("ts-rItems").innerHTML = t.items.map(it=>`
+    <tr>
+      <td>${it.name}</td>
+      <td>${it.qty}</td>
+      <td>${fmtBaht(it.price*it.qty)}</td>
+    </tr>
+  `).join("");
+  document.getElementById("ts-rNet").textContent = `฿ ${fmtBaht(tableTotal(t))}`;
+}
+
+async function finishCheckout(t, printReceipt){
+  const response = await fetch('/api/table-status', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    // The server takes an immutable snapshot for iMin before it clears the
+    // table.  This prevents the receipt from disappearing when the browser
+    // closes or the Bridge is running in the background.
+    body: JSON.stringify({ action:"checkout", table:t.id, printReceipt }),
+  });
+  if(!response.ok) throw new Error("checkout failed");
+  closeCheckoutFn();
+  closePanelFn();
+  await refreshAll();
+  showToast(printReceipt
+    ? `คิดเงิน ${tableLabel(t.id)} แล้ว · ส่งใบเสร็จไป iMin`
+    : `คิดเงิน ${tableLabel(t.id)} เรียบร้อย`);
+}
+
+document.getElementById("ts-printReceiptBtn").onclick = async ()=>{
+  const t = TABLES.find(t=>t.id===activeTableId);
+  if(!t) return;
+  const btn = document.getElementById("ts-printReceiptBtn");
+  btn.disabled = true;
+  try{
+    await finishCheckout(t, true);
+  } catch(e){
+    showToast("ส่งใบเสร็จไม่สำเร็จ ลองใหม่อีกครั้ง");
+  } finally {
+    btn.disabled = false;
+  }
+};
+document.getElementById("ts-noPrintBtn").onclick = async ()=>{
+  const t = TABLES.find(t=>t.id===activeTableId);
+  if(!t) return;
+  const btn = document.getElementById("ts-noPrintBtn");
+  btn.disabled = true;
+  try{
+    await finishCheckout(t, false);
+  } catch(e){
+    showToast("คิดเงินไม่สำเร็จ ลองใหม่อีกครั้ง");
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+/* ---------------- Menu modal ---------------- */
+document.getElementById("ts-addItemBtn").onclick = ()=>{
+  menuQty = {};
+  activeCat = MENU[0] ? MENU[0].cat : null;
+  document.getElementById("ts-menuTableNum").textContent = activeTableId;
+  renderCats();
+  renderMenuList();
+  updateAddCount();
+  document.getElementById("ts-menuModalWrap").style.display = "flex";
+  requestAnimationFrame(()=> document.getElementById("ts-menuModal").classList.add("show"));
+};
+function closeMenuFn(){
+  document.getElementById("ts-menuModal").classList.remove("show");
+  setTimeout(()=> document.getElementById("ts-menuModalWrap").style.display = "none", 200);
+}
+document.getElementById("ts-closeMenu").onclick = closeMenuFn;
+
+function renderCats(){
+  const wrap = document.getElementById("ts-cats");
+  wrap.innerHTML = "";
+  MENU.forEach(c=>{
+    const btn = document.createElement("button");
+    btn.className = "cat-btn" + (c.cat===activeCat ? " active":"");
+    btn.textContent = c.cat;
+    btn.onclick = ()=>{ activeCat = c.cat; renderCats(); renderMenuList(); };
+    wrap.appendChild(btn);
+  });
+}
+function renderMenuList(){
+  const wrap = document.getElementById("ts-menuList");
+  const cat = MENU.find(c=>c.cat===activeCat);
+  wrap.innerHTML = "";
+  (cat ? cat.items : []).forEach(it=>{
+    const qty = menuQty[it.id] || 0;
+    const row = document.createElement("div");
+    row.className = "menu-item";
+    row.innerHTML = `
+      <div class="info">
+        <div class="name">${it.name}</div>
+        <div class="price">฿${fmtBaht(it.price)}</div>
+      </div>
+      <div class="stepper" data-id="${it.id}">
+        ${qty===0
+          ? `<button class="step-btn add-first">+ เพิ่ม</button>`
+          : `<button class="step-btn minus">−</button><span class="qty-val">${qty}</span><button class="step-btn plus">+</button>`
+        }
+      </div>
+    `;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll(".add-first").forEach(btn=>{
+    btn.onclick = (e)=>{
+      const id = e.target.closest(".stepper").dataset.id;
+      menuQty[id] = 1;
+      renderMenuList(); updateAddCount();
+    };
+  });
+  wrap.querySelectorAll(".plus").forEach(btn=>{
+    btn.onclick = (e)=>{
+      const id = e.target.closest(".stepper").dataset.id;
+      menuQty[id] = (menuQty[id]||0) + 1;
+      renderMenuList(); updateAddCount();
+    };
+  });
+  wrap.querySelectorAll(".minus").forEach(btn=>{
+    btn.onclick = (e)=>{
+      const id = e.target.closest(".stepper").dataset.id;
+      menuQty[id] = Math.max(0,(menuQty[id]||0) - 1);
+      if(menuQty[id]===0) delete menuQty[id];
+      renderMenuList(); updateAddCount();
+    };
+  });
+}
+function updateAddCount(){
+  const total = Object.values(menuQty).reduce((a,b)=>a+b,0);
+  document.getElementById("ts-addCount").textContent = total;
+  document.getElementById("ts-confirmAddBtn").disabled = total===0;
+}
+document.getElementById("ts-confirmAddBtn").onclick = async ()=>{
+  const items = Object.entries(menuQty).map(([id,qty])=>{
+    const m = MENU_FLAT.find(i=>String(i.id)===String(id));
+    return m ? { id:m.id, name:m.name, price:m.price, category:m.category||"", qty } : null;
+  }).filter(Boolean);
+  if(!items.length || activeTableId==null) return;
+  const btn = document.getElementById("ts-confirmAddBtn");
+  btn.disabled = true;
+  try{
+    await fetch('/api/orders', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ table: activeTableId, items, note:"" }),
+    });
+    closeMenuFn();
+    await refreshAll();
+    renderPanel();
+    showToast(`เพิ่มออเดอร์เข้า ${tableLabel(activeTableId)} แล้ว`);
+  } catch(e){
+    showToast("สั่งไม่สำเร็จ ลองใหม่อีกครั้ง");
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+/* ---------------- Toast ---------------- */
+let toastTimer;
+function showToast(msg){
+  const el = document.getElementById("ts-toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> el.classList.remove("show"), 2200);
+}
+
+/* ---------------- Init / refresh ---------------- */
+function renderAll(){
+  renderFilters();
+  renderGrid();
+  renderSummary();
+}
+async function refreshAll(){
+  try{
+    await loadTables();
+    loaded = true;
+    document.getElementById("ts-loadingNote").style.display = "none";
+    renderAll();
+    if(activeTableId!=null && document.getElementById("ts-panel").classList.contains("show")){
+      renderPanel();
+    }
+  } catch(e){
+    console.error(e);
+  }
+}
+async function init(){
+  try{
+    await Promise.all([loadMenu(), loadTables()]);
+    loaded = true;
+    document.getElementById("ts-loadingNote").style.display = "none";
+  } catch(e){
+    console.error(e);
+    document.getElementById("ts-loadingNote").textContent = "โหลดข้อมูลไม่สำเร็จ ลองรีเฟรชหน้าใหม่";
+    return;
+  }
+  renderAll();
+  pollTimer = setInterval(function(){ if (window.isShopOpen() && document.getElementById('panel-tablestatus').classList.contains('active')) refreshAll(); }, REFRESH_MS);
+  document.addEventListener('admin-tabchange', function(e){ if (e.detail && e.detail.tab === 'tablestatus') refreshAll(); }); // หยุดดึงอัตโนมัตินอกเวลา 11:00-21:00
+}
+init();
+
+})();
+
+/* ---------------- รายการบันทึกบิล (ย้อนหลัง 7 วัน) ---------------- */
+(()=>{
+  const panel = document.getElementById('panel-billhistory');
+  if(!panel) return;
+
+  const list = document.getElementById('bh-list');
+  const refreshBtn = document.getElementById('bh-refresh');
+  const filter = document.getElementById('bh-filter');
+  const dayPicker = document.getElementById('bh-day-picker');
+  const modal = document.getElementById('bh-modal');
+  const closeBtn = document.getElementById('bh-close');
+  const reprintBtn = document.getElementById('bh-reprint');
+  const cancelBtn = document.getElementById('bh-cancel');
+  const actions = document.getElementById('bh-actions');
+  const cancelledNote = document.getElementById('bh-cancelled-note');
+  const summaryEl = document.getElementById('bh-summary');
+  const toast = document.getElementById('bh-toast');
+  let bills = [];
+  let billSummary = { validBills:0, cancelledBills:0, validTotal:0 };
+  let selectedBill = null;
+  let toastTimer;
+  let loadingBills = false;
+  let billPeriod = 'today';
+  const bangkokDayFormat = new Intl.DateTimeFormat('en-CA', {
+    timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit',
+  });
+
+  const escapeHtml = (value) => String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
+  function money(value){
+    return `฿${(Number(value) || 0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+  }
+  function tableLabel(value){
+    const table = String(value == null ? '-' : value).trim();
+    return /^\d+$/.test(table) ? `โต๊ะ ${table.padStart(2,'0')}` : `โต๊ะ ${table}`;
+  }
+  function dateTime(value){
+    const date = new Date(value);
+    if(Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString('th-TH', {
+      timeZone:'Asia/Bangkok', day:'2-digit', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit', hour12:false,
+    }).replace(',', ' ·');
+  }
+  function billPreview(bill){
+    const names = (Array.isArray(bill.items) ? bill.items : [])
+      .map(item => String(item.name || '').trim()).filter(Boolean);
+    if(!names.length) return 'ไม่มีรายละเอียดรายการ';
+    const unique = [...new Set(names)];
+    return unique.length > 2 ? `${unique.slice(0,2).join(', ')} และอีก ${unique.length - 2} รายการ` : unique.join(', ');
+  }
+  function isCancelled(bill){
+    return Boolean(bill && (bill.cancelled === true || bill.cancelledAt || bill.status === 'cancelled'));
+  }
+  function bangkokDay(value){
+    const date = new Date(value);
+    if(Number.isNaN(date.getTime())) return '';
+    const parts = bangkokDayFormat.formatToParts(date).reduce((result, part) => {
+      if(part.type !== 'literal') result[part.type] = part.value;
+      return result;
+    }, {});
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  }
+  function shiftDay(dayKey, offset){
+    const [year, month, day] = String(dayKey).split('-').map(Number);
+    const shifted = new Date(Date.UTC(year, month - 1, day + offset));
+    return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2,'0')}-${String(shifted.getUTCDate()).padStart(2,'0')}`;
+  }
+  function dayLabel(dayKey){
+    const [year, month, day] = String(dayKey).split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('th-TH', {
+      timeZone:'UTC', weekday:'short', day:'numeric', month:'short',
+    });
+  }
+  function sevenDayKeys(){
+    const today = bangkokDay(new Date());
+    return Array.from({length:7}, (_, index) => shiftDay(today, index - 6));
+  }
+  function renderDayPicker(){
+    if(!dayPicker) return;
+    const today = bangkokDay(new Date());
+    dayPicker.innerHTML = sevenDayKeys().map(dayKey => {
+      const count = bills.filter(bill => bangkokDay(billDate(bill)) === dayKey).length;
+      const active = billPeriod === dayKey;
+      const label = dayKey === today ? 'วันนี้' : dayLabel(dayKey);
+      return `<button type="button" class="bh-day-button ${active ? 'active' : ''}" data-bh-day="${dayKey}" aria-pressed="${active}">${escapeHtml(label)}<span>${count} บิล</span></button>`;
+    }).join('');
+  }
+  function billDate(bill){
+    // A cancelled bill remains on the date it was issued, rather than moving to the day
+    // someone later cancelled it. This matches how daily sales are reconciled.
+    return bill && (bill.settledAt || bill.createdAt);
+  }
+  function visibleBills(){
+    if(billPeriod === 'seven-days') return bills;
+    const today = bangkokDay(new Date());
+    const selectedDay = billPeriod === 'today' ? today : billPeriod;
+    return bills.filter(bill => bangkokDay(billDate(bill)) === selectedDay);
+  }
+  function periodLabel(){
+    if(billPeriod === 'today') return 'วันนี้';
+    if(billPeriod === 'seven-days') return 'ย้อนหลัง 7 วัน';
+    return dayLabel(billPeriod);
+  }
+  function updateFilterUi(){
+    filter.querySelectorAll('[data-bh-period]').forEach(button => {
+      const active = button.dataset.bhPeriod === billPeriod;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    renderDayPicker();
+  }
+  function summaryFromBills(items){
+    const valid = items.filter(bill => !isCancelled(bill));
+    return {
+      validBills: valid.length,
+      cancelledBills: items.length - valid.length,
+      validTotal: valid.reduce((sum, bill) => sum + (Number(bill.total) || 0), 0),
+    };
+  }
+  function renderSummary(){
+    const summary = summaryFromBills(visibleBills());
+    const validBills = Math.max(0, Number(summary.validBills) || 0);
+    const cancelledBills = Math.max(0, Number(summary.cancelledBills) || 0);
+    const prefix = periodLabel();
+    summaryEl.innerHTML = `<span>บิลที่มีผล${prefix} ${validBills} ใบ</span><span class="cancelled">ยกเลิก ${cancelledBills} ใบ</span>`;
+  }
+  function showToast(message){
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>toast.classList.remove('show'), 2800);
+  }
+  function setEmpty(title, detail){
+    list.innerHTML = `<div class="bh-empty"><strong>${escapeHtml(title)}</strong>${escapeHtml(detail)}</div>`;
+  }
+  function renderBills(){
+    updateFilterUi();
+    renderSummary();
+    const items = visibleBills();
+    if(!items.length){
+      const title = billPeriod === 'today' ? 'ยังไม่มีบิลวันนี้' : `ยังไม่มีบิลในช่วง ${periodLabel()}`;
+      const detail = billPeriod === 'today'
+        ? 'เลือก “ย้อนหลัง 7 วัน” เพื่อดูบิลก่อนหน้า หรือเมื่อกดคิดเงิน บิลใหม่จะปรากฏที่นี่'
+        : 'เมื่อกดคิดเงิน รายละเอียดบิลจะถูกบันทึกไว้ที่นี่โดยอัตโนมัติ';
+      setEmpty(title, detail);
+      return;
+    }
+    list.innerHTML = items.map(bill => {
+      const cancelled = isCancelled(bill);
+      return `
+      <article class="bh-card ${cancelled ? 'is-cancelled' : ''}" data-bill-id="${escapeHtml(bill.id)}" role="button" tabindex="0" aria-label="ดูรายละเอียดบิล ${escapeHtml(bill.billNo || bill.id)}${cancelled ? ' ที่ยกเลิกแล้ว' : ''}">
+        <div class="bh-card-head">
+          <span class="bh-table-pill">${escapeHtml(tableLabel(bill.table))}</span>
+          <span class="bh-code">${escapeHtml(bill.billNo || bill.id)}</span>
+          ${cancelled ? '<span class="bh-cancelled-badge">ยกเลิกแล้ว</span>' : ''}
+        </div>
+        <p class="bh-preview">${escapeHtml(billPreview(bill))}</p>
+        <div class="bh-card-foot">
+          <div class="bh-time">${escapeHtml(cancelled ? `ยกเลิก ${dateTime(bill.cancelledAt)}` : dateTime(bill.settledAt || bill.createdAt))}<span class="bh-open-note">แตะเพื่อดูรายละเอียด</span></div>
+          <span class="bh-total-pill ${cancelled ? 'cancelled' : ''}">${escapeHtml(money(bill.total))}</span>
+        </div>
+      </article>
+      `;
+    }).join('');
+  }
+  async function loadBills(){
+    if(loadingBills) return;
+    loadingBills = true;
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = 'กำลังโหลด…';
+    if(!bills.length) setEmpty('กำลังโหลดบิล…', 'กรุณารอสักครู่');
+    try{
+      const response = await fetch('/api/bill-history', { cache:'no-store' });
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      bills = Array.isArray(data.bills) ? data.bills : [];
+      billSummary = data.summary && typeof data.summary === 'object' ? data.summary : summaryFromBills(bills);
+      renderBills();
+    }catch(error){
+      console.error('load bill history failed', error);
+      setEmpty('โหลดรายการบันทึกบิลไม่สำเร็จ', 'กรุณากดรีเฟรชเพื่อลองใหม่อีกครั้ง');
+    }finally{
+      loadingBills = false;
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = '↻ รีเฟรช';
+    }
+  }
+  function closeModal(){
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden','true');
+    selectedBill = null;
+  }
+  function openBill(id){
+    const bill = bills.find(entry => String(entry.id) === String(id));
+    if(!bill) return;
+    selectedBill = bill;
+    const cancelled = isCancelled(bill);
+    document.getElementById('bh-title').textContent = `รายละเอียดบิล ${bill.billNo || bill.id}`;
+    document.getElementById('bh-date').textContent = dateTime(bill.settledAt || bill.createdAt);
+    document.getElementById('bh-table').textContent = tableLabel(bill.table);
+    document.getElementById('bh-number').textContent = bill.billNo || bill.id;
+    const items = Array.isArray(bill.items) ? bill.items : [];
+    const canEditItems = !cancelled && bill.actionsAvailable !== false;
+    const lineOf = (item) => {
+      const qty = Math.max(1, Number(item.qty) || 1);
+      const lineTotal = Number.isFinite(Number(item.lineTotal)) ? Number(item.lineTotal) : (Number(item.price) || 0) * qty;
+      return { qty, lineTotal };
+    };
+    const activeHtml = items.map((item, index) => {
+      const { qty, lineTotal } = lineOf(item);
+      const btn = canEditItems ? `<button type="button" class="bh-item-cancel" data-item-index="${index}">ยกเลิกรายการ</button>` : '';
+      return `<div class="bh-item"><div><div class="bh-item-name">${escapeHtml(item.name || 'รายการ')}</div><div class="bh-item-qty">จำนวน x${qty}</div></div><div class="bh-item-right"><div class="bh-item-price">${escapeHtml(money(lineTotal))}</div>${btn}</div></div>`;
+    }).join('');
+    const removed = Array.isArray(bill.cancelledItems) ? bill.cancelledItems : [];
+    const removedHtml = removed.map(item => {
+      const { qty, lineTotal } = lineOf(item);
+      return `<div class="bh-item is-cancelled"><div><div class="bh-item-name">${escapeHtml(item.name || 'รายการ')}<span class="bh-item-tag">ยกเลิกแล้ว</span></div><div class="bh-item-qty">จำนวน x${qty}</div></div><div class="bh-item-right"><div class="bh-item-price">${escapeHtml(money(lineTotal))}</div></div></div>`;
+    }).join('');
+    document.getElementById('bh-items').innerHTML = (activeHtml + removedHtml) || '<div class="bh-empty" style="padding:28px 12px">ไม่มีรายละเอียดรายการ</div>';
+    const origEl = document.getElementById('bh-orig-total');
+    const hasOriginal = removed.length > 0 && Number.isFinite(Number(bill.originalTotal));
+    origEl.hidden = !hasOriginal;
+    if(hasOriginal) origEl.textContent = `ยอดเดิม ${money(bill.originalTotal)}`;
+    document.getElementById('bh-total').textContent = money(bill.total);
+    document.querySelector('#panel-billhistory .bh-total').classList.toggle('is-cancelled', cancelled);
+    const actionsAvailable = bill.actionsAvailable !== false;
+    actions.hidden = cancelled || !actionsAvailable;
+    cancelledNote.hidden = !cancelled && actionsAvailable;
+    if(cancelled){
+      cancelledNote.textContent = `ใบเสร็จนี้ถูกยกเลิกแล้วเมื่อ ${dateTime(bill.cancelledAt)} และไม่นับรวมในจำนวนบิลที่มีผล`;
+    }else if(!actionsAvailable){
+      cancelledNote.textContent = 'รายการนี้เป็นข้อมูลก่อนเปิดระบบเก็บใบเสร็จ จึงดูยอดย้อนหลังได้ แต่ยังพิมพ์ซ้ำหรือยกเลิกจากหน้านี้ไม่ได้';
+    }else{
+      cancelledNote.textContent = '';
+      reprintBtn.disabled = false;
+      reprintBtn.textContent = 'พิมพ์ใบเสร็จย้อนหลังที่ iMin';
+      cancelBtn.disabled = false;
+      cancelBtn.textContent = 'ยกเลิกใบเสร็จ';
+    }
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden','false');
+  }
+  async function reprint(){
+    if(!selectedBill) return;
+    reprintBtn.disabled = true;
+    reprintBtn.textContent = 'กำลังส่งไป iMin…';
+    try{
+      const response = await fetch('/api/bill-history', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'reprint', id:selectedBill.id}),
+      });
+      const data = await response.json().catch(()=>({}));
+      if(!response.ok || !data.ok) throw new Error(data.error || 'reprint failed');
+      showToast(data.alreadyQueued ? 'ใบเสร็จนี้อยู่ในคิว iMin แล้ว' : 'ส่งใบเสร็จย้อนหลังไปที่ iMin แล้ว');
+      closeModal();
+    }catch(error){
+      console.error('reprint bill failed', error);
+      showToast(error.message === 'bill is cancelled' ? 'ใบเสร็จนี้ถูกยกเลิกแล้ว จึงพิมพ์ซ้ำไม่ได้' : 'ส่งใบเสร็จไม่สำเร็จ กรุณาลองใหม่');
+      reprintBtn.disabled = false;
+      reprintBtn.textContent = 'พิมพ์ใบเสร็จย้อนหลังที่ iMin';
+    }
+  }
+  async function cancelBill(){
+    if(!selectedBill || isCancelled(selectedBill)) return;
+    const billNo = selectedBill.billNo || selectedBill.id;
+    if(!window.confirm(`ยืนยันยกเลิกใบเสร็จ ${billNo} ?\nใบนี้จะยังแสดงในประวัติ แต่จะไม่นับรวมเป็นบิลที่มีผล`)) return;
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = 'กำลังยกเลิก…';
+    try{
+      const response = await fetch('/api/bill-history', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'cancel', id:selectedBill.id}),
+      });
+      const data = await response.json().catch(()=>({}));
+      if(!response.ok || !data.ok) throw new Error(data.error || 'cancel failed');
+      const updated = data.bill || { ...selectedBill, cancelled:true, cancelledAt:new Date().toISOString() };
+      bills = bills.map(bill => String(bill.id) === String(updated.id) ? updated : bill);
+      billSummary = data.summary && typeof data.summary === 'object' ? data.summary : summaryFromBills(bills);
+      renderBills();
+      openBill(updated.id);
+      showToast(data.alreadyCancelled ? 'ใบเสร็จนี้ถูกยกเลิกไว้แล้ว' : 'ยกเลิกใบเสร็จแล้ว และตัดออกจากจำนวนบิลที่มีผล');
+    }catch(error){
+      console.error('cancel bill failed', error);
+      showToast('ยกเลิกใบเสร็จไม่สำเร็จ กรุณาลองใหม่');
+      cancelBtn.disabled = false;
+      cancelBtn.textContent = 'ยกเลิกใบเสร็จ';
+    }
+  }
+
+  async function cancelItem(index, button){
+    if(!selectedBill || isCancelled(selectedBill)) return;
+    const item = (selectedBill.items || [])[index];
+    if(!item) return;
+    const name = item.name || 'รายการ';
+    const isLast = selectedBill.items.length === 1;
+    const msg = isLast
+      ? `"${name}" เป็นรายการสุดท้ายในบิล\nถ้ายกเลิก บิลนี้จะถูกยกเลิกทั้งใบ ยืนยันไหม?`
+      : `ยืนยันยกเลิก "${name}" ?\nยอดบิลจะลดลงตามรายการนี้`;
+    if(!window.confirm(msg)) return;
+    button.disabled = true;
+    try{
+      const response = await fetch('/api/bill-history', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'cancel-item', id:selectedBill.id, itemIndex:index, itemName:name}),
+      });
+      const data = await response.json().catch(()=>({}));
+      if(data.bill){
+        bills = bills.map(bill => String(bill.id) === String(data.bill.id) ? data.bill : bill);
+        billSummary = data.summary && typeof data.summary === 'object' ? data.summary : summaryFromBills(bills);
+        renderBills();
+        openBill(data.bill.id);
+      }
+      if(!response.ok || !data.ok) throw new Error(data.error || 'cancel item failed');
+      showToast(data.billCancelled ? 'ยกเลิกรายการสุดท้าย บิลนี้ถูกยกเลิกทั้งใบ' : 'ยกเลิกรายการแล้ว ยอดบิลถูกปรับลดลง');
+    }catch(error){
+      console.error('cancel item failed', error);
+      showToast(error.message === 'item not found' ? 'รายการนี้เปลี่ยนไปแล้ว โหลดข้อมูลใหม่ให้แล้ว' : 'ยกเลิกรายการไม่สำเร็จ กรุณาลองใหม่');
+      button.disabled = false;
+    }
+  }
+
+  document.getElementById('bh-items').addEventListener('click', event=>{
+    const button = event.target.closest('.bh-item-cancel');
+    if(button) cancelItem(Number(button.dataset.itemIndex), button);
+  });
+  list.addEventListener('click', event=>{
+    const card = event.target.closest('.bh-card');
+    if(card) openBill(card.dataset.billId);
+  });
+  list.addEventListener('keydown', event=>{
+    if((event.key === 'Enter' || event.key === ' ') && event.target.classList.contains('bh-card')){
+      event.preventDefault();
+      openBill(event.target.dataset.billId);
+    }
+  });
+  filter.addEventListener('click', event=>{
+    const button = event.target.closest('[data-bh-period]');
+    if(!button) return;
+    const period = button.dataset.bhPeriod;
+    if(period !== 'today' && period !== 'seven-days') return;
+    billPeriod = period;
+    closeModal();
+    renderBills();
+  });
+  dayPicker.addEventListener('click', event=>{
+    const button = event.target.closest('[data-bh-day]');
+    if(!button) return;
+    billPeriod = button.dataset.bhDay;
+    closeModal();
+    renderBills();
+  });
+  refreshBtn.addEventListener('click', loadBills);
+  closeBtn.addEventListener('click', closeModal);
+  reprintBtn.addEventListener('click', reprint);
+  cancelBtn.addEventListener('click', cancelBill);
+  modal.addEventListener('click', event=>{ if(event.target === modal) closeModal(); });
+  document.addEventListener('keydown', event=>{ if(event.key === 'Escape' && modal.classList.contains('show')) closeModal(); });
+  document.addEventListener('admin-tabchange', event=>{
+    if(event.detail && event.detail.tab === 'billhistory') loadBills();
+  });
+  if(document.getElementById('panel-billhistory').classList.contains('active')) loadBills();
+})();
+</script>
+</body>
+</html>

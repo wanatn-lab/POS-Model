@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>สั่งอาหาร</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="topbar">
+  <h1 id="shopTitle">เมนูอาหาร</h1>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button class="history-btn" onclick="openHistory()">🧾 ประวัติการสั่ง</button>
+    <span class="table-tag">โต๊ะ <span id="tableTag">-</span></span>
+  </div>
+</div>
+<div class="welcome-line" id="welcomeLine" style="background:#3B2A20"></div>
+
+<div class="search-wrap">
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input id="searchInput" type="text" placeholder="ค้นหาเมนู เช่น กระเพรา, ชาเย็น..." oninput="onSearchInput()">
+    <button id="searchClear" class="search-clear" style="display:none" onclick="clearSearch()">✕</button>
+  </div>
+</div>
+<div id="catNav" class="cat-nav"></div>
+
+<div class="wrap" style="padding-top:6px">
+  <div id="menuRoot"><div class="empty-state">🍜 กำลังโหลดเมนูอร่อยๆ ให้อยู่...</div></div>
+</div>
+
+<!-- collapsed hint / expanded cart bar -->
+<button id="cartBar" class="cart-bar2 empty" onclick="openReview()">
+  <div class="inner">แตะเมนูด้านบนเพื่อเริ่มสั่งอาหารได้เลย 👆</div>
+</button>
+
+<!-- review-before-send sheet -->
+<div id="reviewOverlay" class="sheet-overlay" onclick="if(event.target===this) closeReview()">
+  <div class="sheet-panel">
+    <div class="sheet-head">
+      <h2>ตรวจสอบออเดอร์ 🧾</h2>
+      <button class="history-close" onclick="closeReview()">✕</button>
+    </div>
+    <div id="reviewList"></div>
+    <div class="review-total-row">
+      <span>รวมทั้งหมด</span>
+      <span id="reviewTotal">฿0</span>
+    </div>
+    <div class="sheet-note">มีอะไรอยากบอกครัวไหม (ไม่ใส่ผัก, เผ็ดน้อย ฯลฯ) — ไม่บังคับ</div>
+    <input id="orderNote" type="text" placeholder="พิมพ์ตรงนี้ได้เลย...">
+    <button id="submitBtn" class="confirm-cta" onclick="submitOrder()">ส่งออเดอร์เข้าครัว 🍳</button>
+  </div>
+</div>
+
+<!-- menu detail bottom sheet -->
+<div id="menuDetailOverlay" class="sheet-overlay" onclick="if(event.target===this) closeMenuDetail()">
+  <div class="menu-detail-panel" role="dialog" aria-modal="true" aria-labelledby="menuDetailName">
+    <div class="sheet-head">
+      <h2>รายละเอียดเมนู</h2>
+      <button class="history-close" aria-label="ปิดรายละเอียดเมนู" onclick="closeMenuDetail()">✕</button>
+    </div>
+    <img id="menuDetailImage" class="menu-detail-image" alt="">
+    <h2 id="menuDetailName"></h2>
+    <p id="menuDetailDescription" class="menu-detail-description"></p>
+    <div id="menuDetailPrice" class="menu-detail-price"></div>
+  </div>
+</div>
+
+<!-- success state -->
+<div id="successOverlay" class="success-overlay">
+  <div class="success-card">
+    <div class="emoji">🎉</div>
+    <h2>ส่งออเดอร์แล้ว!</h2>
+    <p>ครัวกำลังทำอาหารให้ ✨<br>ดูสถานะออเดอร์ได้ที่ "ประวัติการสั่ง" มุมขวาบน</p>
+    <button class="btn" style="width:100%" onclick="closeSuccess()">สั่งเมนูอื่นต่อ</button>
+  </div>
+</div>
+
+<div id="historyOverlay" class="history-overlay">
+  <div class="history-panel">
+    <div class="history-panel-head">
+      <h2>ประวัติการสั่งของโต๊ะนี้</h2>
+      <button class="history-close" onclick="closeHistory()">✕</button>
+    </div>
+    <div class="history-sub">ย้อนหลัง 24 ชั่วโมงล่าสุด</div>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<div id="toastRoot"></div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const TABLE = params.get('table') || '';
+document.getElementById('tableTag').textContent = TABLE || '-';
+document.getElementById('welcomeLine').textContent = TABLE
+  ? `👋 สวัสดีครับ กำลังสั่งจากโต๊ะ ${TABLE} — แตะรูปเมนูที่ชอบเพื่อสั่งได้เลย`
+  : '⚠️ ไม่พบหมายเลขโต๊ะ กรุณาแสกน QR ที่โต๊ะใหม่อีกครั้ง';
+
+let MENU = [];
+let cart = {}; // id -> qty
+let activeCat = null; // null = ทั้งหมด
+let searchQuery = '';
+let menuDetailOpener = null;
+const menuDetailOverlay = document.getElementById('menuDetailOverlay');
+const menuDetailClose = menuDetailOverlay.querySelector('.history-close');
+
+async function loadMenu() {
+  const [menuRes, settingsRes] = await Promise.all([
+    fetch('/api/menu'),
+    fetch('/api/settings')
+  ]);
+  MENU = await menuRes.json();
+  const settings = await settingsRes.json();
+  if (settings.shopName) document.getElementById('shopTitle').textContent = settings.shopName;
+  renderCatNav();
+  renderMenu();
+}
+
+function escAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ---------- search + category filter ----------
+function onSearchInput() {
+  searchQuery = document.getElementById('searchInput').value.trim();
+  document.getElementById('searchClear').style.display = searchQuery ? 'block' : 'none';
+  renderMenu();
+}
+function clearSearch() {
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  renderMenu();
+}
+
+function renderCatNav() {
+  const cats = [...new Set(MENU.map(i => (i.category || '').trim()).filter(Boolean))];
+  const nav = document.getElementById('catNav');
+  if (cats.length < 2) { nav.innerHTML = ''; return; }
+  const chip = (label, cat) => `<a class="${activeCat === cat ? 'active' : ''}" data-cat="${cat === null ? '' : escAttr(cat)}">${escAttr(label)}</a>`;
+  nav.innerHTML = chip('ทั้งหมด', null) + cats.map(c => chip(c, c)).join('');
+  nav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    activeCat = a.dataset.cat || null;
+    renderCatNav();
+    renderMenu();
+  }));
+}
+
+function matchesSearch(item, q) {
+  if (!q) return true;
+  const hay = (item.name + ' ' + (item.desc || '')).toLowerCase();
+  return hay.includes(q.toLowerCase());
+}
+
+function isMustTry(item) {
+  return Boolean(item) && (item.mustTry === true || item.mustTry === 'true' ||
+    item.must_try === true || item.must_try === 'true');
+}
+
+function renderMenu() {
+  const root = document.getElementById('menuRoot');
+  if (!MENU.length) {
+    root.innerHTML = '<div class="empty-state">ยังไม่มีเมนูตอนนี้ 🙏</div>';
+    return;
+  }
+  const filtered = MENU.filter(i => matchesSearch(i, searchQuery) && (!activeCat || (i.category || '').trim() === activeCat));
+
+  if (!filtered.length) {
+    root.innerHTML = `<div class="empty-state">ไม่เจอเมนูที่ค้นหา 🔍<br>ลองพิมพ์คำอื่นดูนะครับ</div>`;
+    return;
+  }
+
+  // While searching or filtering to one category, skip the grouped headings —
+  // just show a flat, compact grid so results are easy to scan.
+  if (searchQuery || activeCat) {
+    root.innerHTML = `<div class="menu-grid">${filtered.map(renderCard).join('')}</div>`;
+    return;
+  }
+
+  // Single continuous grid for the whole page — category headings are
+  // full-width grid items that break the row, but cards themselves always
+  // flow 2-per-row instead of each category getting its own separate
+  // (and often half-empty-looking) grid.
+  const cats = [...new Set(MENU.map(i => (i.category || '').trim()).filter(Boolean))];
+  const groups = cats.length ? cats : [''];
+  const pieces = groups.map(cat => {
+    const items = filtered.filter(i => (i.category || '').trim() === cat);
+    if (!items.length) return '';
+    const heading = cat ? `<h2 id="cat-${escAttr(cat)}" class="cat-heading">${escAttr(cat)}</h2>` : '';
+    return heading + items.map(renderCard).join('');
+  }).join('');
+  root.innerHTML = `<div class="menu-grid">${pieces}</div>`;
+}
+
+function renderCard(item) {
+  const soldOut = item.available === false;
+  const mustTry = isMustTry(item);
+  const qty = cart[item.id] || 0;
+  const tapAdd = soldOut ? '' : `onclick="changeQty('${item.id}', 1)"`;
+  const control = soldOut ? '' : (qty > 0
+    ? `<div class="stepper-fab" onclick="event.stopPropagation()">
+         <button onclick="changeQty('${item.id}', -1)">−</button>
+         <span class="qty-num">${qty}</span>
+         <button onclick="changeQty('${item.id}', 1)">+</button>
+       </div>`
+    : `<button class="add-fab" onclick="event.stopPropagation(); changeQty('${item.id}', 1)">+</button>`);
+  return `
+    <div class="menu-card2 ${soldOut ? 'sold-out' : ''} ${mustTry ? 'must-try' : ''}">
+      <div class="thumb-wrap ${soldOut ? '' : 'tap-add'}" ${tapAdd}>
+        <img src="${escAttr(item.image)}" alt="${escAttr(item.name)}" loading="lazy" decoding="async">
+        ${mustTry ? '<span class="badge-must-try" aria-label="เมนูต้องลอง">✨ ต้องลอง</span>' : ''}
+        ${soldOut ? '<span class="badge-soldout">ของหมดวันนี้</span>' : (item.popular ? '<span class="badge-popular">ยอดนิยม 🔥</span>' : '')}
+        ${control}
+      </div>
+      <div class="body" role="button" tabindex="0" data-detail-id="${escAttr(item.id)}" onclick="openMenuDetail(this.dataset.detailId, this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openMenuDetail(this.dataset.detailId, this) }">
+        <h3>${escAttr(item.name)}</h3>
+        ${item.desc ? `<p>${escAttr(item.desc)}</p>` : ''}
+        <div class="price-row">
+          <span class="price">฿${escAttr(item.price)}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function changeQty(id, delta) {
+  const next = (cart[id] || 0) + delta;
+  if (next <= 0) delete cart[id];
+  else cart[id] = next;
+  renderMenu();
+  updateCartBar();
+}
+
+function cartItems() {
+  return Object.entries(cart).map(([id, qty]) => {
+    const item = MENU.find(i => i.id === id);
+    return item ? { id, name: item.name, price: item.price, category: item.category || '', qty } : null;
+  }).filter(Boolean);
+}
+
+function cartCountTotal() {
+  const items = cartItems();
+  const count = items.reduce((s, i) => s + i.qty, 0);
+  const total = items.reduce((s, i) => s + i.qty * i.price, 0);
+  return { count, total };
+}
+
+function updateCartBar() {
+  const { count, total } = cartCountTotal();
+  const bar = document.getElementById('cartBar');
+  if (count === 0) {
+    bar.classList.add('empty');
+    bar.innerHTML = `<div class="inner">แตะเมนูด้านบนเพื่อเริ่มสั่งอาหารได้เลย 👆</div>`;
+  } else {
+    bar.classList.remove('empty');
+    bar.innerHTML = `
+      <div class="inner">
+        <div>
+          <div class="cart-summary">${count} รายการ — แตะเพื่อตรวจสอบ</div>
+          <div class="cart-total">฿${total}</div>
+        </div>
+        <div class="cart-cta">ดูตะกร้า →</div>
+      </div>`;
+  }
+}
+
+// ---------- review sheet ----------
+function openReview() {
+  const { count } = cartCountTotal();
+  if (count === 0) return;
+  renderReview();
+  document.getElementById('reviewOverlay').classList.add('open');
+}
+function closeReview() {
+  document.getElementById('reviewOverlay').classList.remove('open');
+}
+
+function openMenuDetail(id, opener) {
+  const item = MENU.find(i => String(i.id) === String(id));
+  if (!item) return;
+  menuDetailOpener = opener || document.activeElement;
+  const menuDetailImage = document.getElementById('menuDetailImage');
+  const menuDetailName = document.getElementById('menuDetailName');
+  const menuDetailDescription = document.getElementById('menuDetailDescription');
+  const menuDetailPrice = document.getElementById('menuDetailPrice');
+  menuDetailImage.src = item.image || '';
+  menuDetailImage.alt = item.name || '';
+  menuDetailName.textContent = item.name || '';
+  menuDetailDescription.textContent = item.desc || '';
+  menuDetailPrice.textContent = `฿${item.price == null ? '' : item.price}`;
+  menuDetailOverlay.classList.add('open');
+  menuDetailClose.focus();
+}
+
+function closeMenuDetail() {
+  menuDetailOverlay.classList.remove('open');
+  if (menuDetailOpener && typeof menuDetailOpener.focus === 'function') menuDetailOpener.focus();
+  menuDetailOpener = null;
+}
+
+menuDetailOverlay.addEventListener('keydown', event => {
+  if (event.key !== 'Tab') return;
+  const focusable = [...menuDetailOverlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+    .filter(element => !element.disabled);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey ? document.activeElement === first : document.activeElement === last) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  }
+});
+
+function renderReview() {
+  const items = cartItems();
+  const list = document.getElementById('reviewList');
+  list.innerHTML = items.map(it => `
+    <div class="review-row">
+      <div style="flex:1">
+        <div class="rname">${escAttr(it.name)}</div>
+        <div class="rprice">฿${it.price} / ชิ้น</div>
+      </div>
+      <div class="rstepper">
+        <button onclick="changeQty('${it.id}', -1); renderReview();">−</button>
+        <span class="qty-num">${it.qty}</span>
+        <button onclick="changeQty('${it.id}', 1); renderReview();">+</button>
+      </div>
+      <div class="rsubtotal">฿${it.price * it.qty}</div>
+    </div>
+  `).join('');
+  const { count, total } = cartCountTotal();
+  document.getElementById('reviewTotal').textContent = `฿${total}`;
+  document.getElementById('submitBtn').disabled = count === 0;
+  if (count === 0) closeReview();
+}
+
+async function submitOrder() {
+  const items = cartItems();
+  if (!items.length) return;
+  const note = document.getElementById('orderNote').value.trim();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'กำลังส่ง...';
+  try {
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: TABLE, items, note })
+    });
+    if (!res.ok) throw new Error('failed');
+    cart = {};
+    document.getElementById('orderNote').value = '';
+    renderMenu();
+    updateCartBar();
+    closeReview();
+    document.getElementById('successOverlay').classList.add('open');
+  } catch (e) {
+    showToast('สั่งไม่สำเร็จ ลองใหม่อีกครั้งนะครับ');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'ส่งออเดอร์เข้าครัว 🍳';
+  }
+}
+
+function closeSuccess() {
+  document.getElementById('successOverlay').classList.remove('open');
+}
+
+function showToast(msg) {
+  const root = document.getElementById('toastRoot');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  root.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+// ---------- history ----------
+async function openHistory() {
+  document.getElementById('historyOverlay').classList.add('open');
+  const list = document.getElementById('historyList');
+  list.innerHTML = '<div class="empty-state">กำลังโหลด...</div>';
+  const res = await fetch('/api/orders');
+  if (!res.ok) {
+    list.innerHTML = '<div class="empty-state">ยังไม่มีประวัติการสั่งของโต๊ะนี้</div>';
+    return;
+  }
+  const orders = (await res.json()).filter(o => String(o.table) === String(TABLE))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (!orders.length) {
+    list.innerHTML = '<div class="empty-state">ยังไม่มีประวัติการสั่งของโต๊ะนี้</div>';
+    return;
+  }
+  list.innerHTML = orders.map(o => `
+    <div class="history-card">
+      <div class="history-card-top">
+        <span class="history-time">${new Date(o.createdAt).toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})}</span>
+        <span class="history-status ${o.status === 'done' ? 'done' : ''}">${o.status === 'done' ? 'เสิร์ฟแล้ว' : 'กำลังทำ'}</span>
+      </div>
+      <ul class="history-items">
+        ${o.items.map(it => `<li><span>${escAttr(it.name)} x${it.qty}</span><span>฿${it.price * it.qty}</span></li>`).join('')}
+      </ul>
+      ${o.note ? `<div class="history-note">📝 ${escAttr(o.note)}</div>` : ''}
+      <div class="history-total">รวม ฿${o.items.reduce((s, it) => s + it.price * it.qty, 0)}</div>
+    </div>
+  `).join('');
+}
+
+function closeHistory() {
+  document.getElementById('historyOverlay').classList.remove('open');
+}
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') closeMenuDetail();
+});
+
+loadMenu();
+</script>
+</body>
+</html>

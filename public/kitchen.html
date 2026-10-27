@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>จอครัว · ทองย้อย</title>
+<meta name="theme-color" content="#f3f5f7">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/kitchen-manifest.webmanifest">
+<link rel="icon" href="/kitchen-assets/icon-192.png">
+<link rel="apple-touch-icon" href="/kitchen-assets/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/kitchen-assets/kitchen.css">
+</head>
+<body>
+<div id="app" data-loaded="0">
+  <div id="offline" class="offline" role="alert" aria-live="assertive" hidden>
+    ออฟไลน์ — ข้อมูลที่เห็นอาจไม่ใช่ล่าสุด และยังกดไม่ได้ · กำลังเชื่อมต่อใหม่…
+  </div>
+
+  <div class="topbar">
+    <div class="title">ครัว · คิวออเดอร์</div>
+    <div class="pill">โต๊ะรอทำ <b id="count-tables">0</b></div>
+    <button id="wake" class="wake" hidden></button>
+    <div class="grow"></div>
+    <div id="clock" class="clock">--:--</div>
+  </div>
+
+  <div class="main">
+    <section class="pend">
+      <div class="pend-head">
+        <div class="pend-title">รอทำ</div>
+        <div class="hint">แตะวงกลม = เสร็จ · ปัดรายการไปทางซ้าย = ยกเลิก · เรียงจากรอนานที่สุด · ม่วง = สั่งเพิ่ม · ลาก ⋮⋮ หรือกด "ด่วน" เพื่อขึ้นคิวก่อน · เลื่อนลงดูคิวถัดไป (<span id="count-tickets">0</span> ใบ)</div>
+      </div>
+      <div class="gridwrap">
+        <div id="grid" class="grid"></div>
+        <div id="loading" class="empty">กำลังโหลด…</div>
+        <div id="empty-pending" class="empty" hidden>ไม่มีออเดอร์ค้าง</div>
+      </div>
+    </section>
+
+    <aside class="donecol">
+      <div class="done-title">เสร็จแล้ว</div>
+      <div id="done-list" class="done-list"></div>
+    </aside>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</div>
+<script type="module" src="/kitchen-assets/main.js"></script>
+</body>
+</html>

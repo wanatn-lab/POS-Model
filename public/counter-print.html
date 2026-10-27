@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>เคาน์เตอร์เครื่องดื่ม — ทองย้อย</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --espresso-900:#2B1810;
+    --espresso-800:#3A2317;
+    --caramel-500:#B4703A;
+    --caramel-400:#C98A56;
+    --paper-50:#F8F2E7;
+    --card:#FFFDF8;
+    --line:#E7D9C4;
+    --ink:#2B1810;
+    --ink-soft:#7A6A5A;
+    --ok-bg:#EAF2E4; --ok-text:#3F6B33; --ok-dot:#5B8C4A;
+    --warn-bg:#FBEBD2; --warn-text:#9C5B12; --warn-dot:#E08A24;
+    --bad-bg:#FBE4E1; --bad-text:#96392E; --bad-dot:#B84C3E;
+    --radius:14px;
+    --shadow: 0 2px 8px rgba(43,24,16,0.08), 0 1px 2px rgba(43,24,16,0.06);
+    --shadow-lg: 0 12px 32px rgba(43,24,16,0.22);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper-50);
+    color:var(--ink);
+    font-family:'Noto Sans Thai','Kanit',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    -webkit-user-select:none; user-select:none;
+  }
+  header.top{
+    background:var(--espresso-900);
+    color:#F3E8DA;
+    padding:16px 22px;
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
+    position:sticky;top:0;z-index:20;
+    box-shadow:0 4px 16px rgba(0,0,0,0.18);
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:36px;height:36px;border-radius:10px;
+    background:linear-gradient(135deg,var(--caramel-400),var(--caramel-500));
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Kanit';font-weight:700;color:var(--espresso-900);font-size:17px;flex-shrink:0;
+  }
+  .brand-text h1{font-family:'Kanit';font-weight:600;font-size:17px;margin:0;line-height:1.2;}
+  .brand-text p{margin:0;font-size:11.5px;color:#C9B7A4;}
+  .head-right{display:flex;align-items:center;gap:10px;}
+  .sdk-pill{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:999px;
+    background:rgba(255,255,255,0.1);color:#F3E8DA;
+  }
+  .sdk-pill .dot{width:7px;height:7px;border-radius:50%;background:#8a7a68;}
+  .sdk-pill.ok .dot{background:#7FBE6A;}
+  .sdk-pill.bad .dot{background:#E08A6A;}
+  .icon-btn{
+    background:rgba(255,255,255,0.1);border:none;color:#F3E8DA;
+    width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:16px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .icon-btn:hover{background:rgba(255,255,255,0.2);}
+
+  main{padding:16px 20px 60px;}
+  .summary-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+  .summary-row h2{font-family:'Kanit';font-size:19px;margin:0;color:var(--espresso-900);}
+  .summary-row .count-badge{
+    background:var(--caramel-500);color:#fff;font-family:'Kanit';font-weight:700;
+    font-size:13px;padding:3px 11px;border-radius:999px;margin-left:8px;
+  }
+  .last-sync{font-size:11.5px;color:var(--ink-soft);}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+  .order-card{
+    background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
+    padding:16px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+  }
+  .order-card.new-flash{animation:flash 1.4s ease;}
+  @keyframes flash{
+    0%{box-shadow:0 0 0 4px rgba(180,112,58,0.55);}
+    100%{box-shadow:var(--shadow);}
+  }
+  .oc-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+  .oc-table{font-family:'Kanit';font-weight:700;font-size:22px;color:var(--espresso-900);}
+  .oc-time{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .oc-status{
+    font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap;
+  }
+  .oc-status.printed{background:var(--ok-bg);color:var(--ok-text);}
+  .oc-status.pending{background:var(--warn-bg);color:var(--warn-text);}
+  .oc-status.failed{background:var(--bad-bg);color:var(--bad-text);}
+  .oc-status.stale{background:#ececec;color:#555;}
+  .oc-items{border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:10px 0;margin-bottom:10px;}
+  .oc-item{display:flex;justify-content:space-between;gap:8px;font-size:14.5px;padding:3px 0;}
+  .oc-item .n{font-weight:600;}
+  .oc-item .q{color:var(--ink-soft);font-weight:600;flex-shrink:0;margin-left:8px;}
+  .oc-item-note{font-size:12px;color:var(--caramel-500);line-height:1.35;margin-top:2px;}
+  .oc-note{font-size:12.5px;color:var(--caramel-500);margin-bottom:10px;}
+  .oc-actions{display:flex;gap:8px;}
+  .btn{
+    flex:1;border:none;border-radius:10px;padding:10px 12px;
+    font-family:'Noto Sans Thai';font-weight:700;font-size:13.5px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .btn-reprint{background:var(--espresso-900);color:#F3E8DA;}
+  .btn-reprint:hover{filter:brightness(1.2);}
+  .btn-reprint:active{transform:scale(0.97);}
+
+  .empty-note,.loading-note{text-align:center;color:var(--ink-soft);padding:70px 20px;font-size:14.5px;}
+
+  .overlay{position:fixed;inset:0;background:rgba(43,24,16,0.45);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:40;}
+  .overlay.show{opacity:1;pointer-events:auto;}
+  .drawer{
+    position:fixed;top:0;right:0;height:100%;width:400px;max-width:92vw;
+    background:var(--paper-50);box-shadow:-12px 0 32px rgba(0,0,0,0.25);
+    transform:translateX(100%);transition:transform .25s cubic-bezier(.2,.8,.2,1);
+    z-index:41;display:flex;flex-direction:column;
+  }
+  .drawer.show{transform:translateX(0);}
+  .drawer-head{background:var(--espresso-900);color:#F3E8DA;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;}
+  .drawer-head h2{font-family:'Kanit';margin:0;font-size:19px;}
+  .drawer-body{flex:1;overflow-y:auto;padding:18px 20px;}
+  .field{margin-bottom:18px;}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--espresso-900);}
+  .field input[type=text],.field input[type=number],.field select{
+    width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;
+    font-family:'Noto Sans Thai';font-size:14px;background:var(--card);color:var(--ink);
+  }
+  .field .hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px;line-height:1.5;}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line);}
+  .toggle-row .lbl{font-size:14px;font-weight:600;}
+  .switch{position:relative;width:44px;height:24px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider{position:absolute;inset:0;background:var(--line);border-radius:999px;cursor:pointer;transition:.2s;}
+  .slider::before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+  input:checked + .slider{background:var(--caramel-500);}
+  input:checked + .slider::before{transform:translateX(20px);}
+  .diag-box{
+    background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:12px;
+    font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin-top:8px;
+  }
+  .diag-box b{color:var(--espresso-900);}
+  .drawer-foot{padding:16px 20px 20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px;}
+  .btn-primary{background:var(--caramel-500);color:#fff;}
+  .btn-primary:hover{filter:brightness(1.06);}
+  .btn-ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink);}
+  .btn-ghost:hover{border-color:var(--ink-soft);}
+
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--espresso-900);color:#F3E8DA;padding:12px 20px;border-radius:11px;
+    font-size:13.5px;font-weight:600;box-shadow:var(--shadow-lg);
+    opacity:0;pointer-events:none;transition:all .25s ease;z-index:60;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="brand-mark">ท</div>
+    <div class="brand-text">
+      <h1 id="shopTitle">ทองย้อย</h1>
+      <p>เคาน์เตอร์เครื่องดื่ม</p>
+    </div>
+  </div>
+  <div class="head-right">
+    <span class="sdk-pill" id="sdkPill"><span class="dot"></span><span id="sdkPillText">กำลังตรวจสอบ...</span></span>
+    <button class="icon-btn" id="checkQrBtn" style="width:auto;padding:0 12px;font-size:13px">เช็คคิว QR</button>
+    <button class="icon-btn" id="openSettings">⚙</button>
+  </div>
+</header>
+
+<main>
+  <div class="summary-row">
+    <h2>คิวเครื่องดื่ม <span class="count-badge" id="queueCount">0</span></h2>
+    <span class="last-sync" id="lastSync">ยังไม่ซิงก์</span>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="empty-note" id="emptyNote" style="display:none;">ยังไม่มีออเดอร์เครื่องดื่มรอพิมพ์ 🧋</div>
+  <div class="loading-note" id="loadingNote">กำลังโหลดข้อมูล…</div>
+  <div class="empty-note" id="authBanner" style="display:none;white-space:pre-line;border:2px solid #c0392b;color:#c0392b;font-weight:600;text-align:left;"></div>
+</main>
+
+<div class="overlay" id="overlay"></div>
+<aside class="drawer" id="settingsDrawer">
+  <div class="drawer-head">
+    <h2>ตั้งค่า</h2>
+    <button class="icon-btn" id="closeSettings">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="field">
+      <label>หมวดหมู่ที่รับผิดชอบ</label>
+      <input type="text" id="fCategory" placeholder="เครื่องดื่ม">
+      <div class="hint">พิมพ์เฉพาะรายการที่หมวดหมู่ตรงกับค่านี้ (ต้องสะกดตรงกับที่ตั้งไว้ในหน้าแอดมิน &gt; จัดการเมนู)</div>
+    </div>
+    <div class="field">
+      <label>ชื่อร้าน (ขึ้นหัวใบสั่ง)</label>
+      <input type="text" id="fShopName" placeholder="ทองย้อย">
+    </div>
+    <div class="field">
+      <label>ความถี่เช็คออเดอร์ใหม่ (วินาที)</label>
+      <input type="number" id="fPollSec" min="20" max="60" value="20">
+      <div class="hint">ตั้งได้ 20–60 วินาที</div>
+    </div>
+    <div class="toggle-row">
+      <span class="lbl">พิมพ์อัตโนมัติ</span>
+      <label class="switch"><input type="checkbox" id="fAutoPrint" checked><span class="slider"></span></label>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <label>สถานะเครื่องพิมพ์ (iMin SDK)</label>
+      <div class="diag-box" id="diagBox">กำลังตรวจสอบ...</div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn btn-primary" id="testPrintBtn">🖨 ทดสอบพิมพ์</button>
+    <button class="btn btn-ghost" id="saveSettingsBtn">บันทึกการตั้งค่า</button>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<!--
+  ไลบรารี iMin JS Printer SDK — จำเป็นต้องโหลดสคริปต์นี้ก่อนถึงจะมี window.IminPrinter
+  ให้เรียกใช้ (เอกสาร iMin ไม่ได้ฉีด global มาให้เองโดยอัตโนมัติ — ต้องโหลดสคริปต์แล้ว
+  new ขึ้นมาเองในหน้าเว็บ) โหลดจากโดเมนที่ iMin ใช้กับหน้าเดโมทางการของเขาเอง
+  (https://mp.imin.sg/JSPrinter/index.html) — ถ้าอุปกรณ์ไม่มีอินเทอร์เน็ต หรือโดเมนนี้เข้าไม่ได้
+  สคริปต์จะโหลดไม่สำเร็จ แต่หน้านี้จะยังทำงานต่อได้ปกติ (แค่พิมพ์อัตโนมัติไม่ได้)
+-->
+<script src="/shop-hours.js"></script>
+<script src="https://mp.imin.sg/JSPrinter/imin-printer.js?v=20261003-4"></script>
+<script>
+/* ============================================================
+   เคาน์เตอร์เครื่องดื่ม — iMin Print Bridge
+   ทำงานตรงในเบราว์เซอร์ (ไม่ต้องมี backend เพิ่ม) โดย:
+   1) poll GET /api/orders (endpoint เดิมของระบบ) เป็นระยะ
+   2) กรองเฉพาะรายการที่ category ตรงกับที่ตั้งไว้ (ค่าเริ่มต้น "เครื่องดื่ม")
+   3) แสดงเป็นคิวบนจอเสมอ (ใช้ได้แม้ยังไม่ต่อเครื่องพิมพ์)
+   4) ถ้าเครื่องนี้เป็น iMin: new window.IminPrinter() แล้ว .connect() จะเปิดการเชื่อมต่อ
+      WebSocket ไปยัง print service ในเครื่อง (ws://127.0.0.1:8081) ที่แอป
+      iMinPrinterPlugin รันอยู่เบื้องหลัง — เชื่อมสำเร็จถึงจะสั่งพิมพ์อัตโนมัติได้
+      ถ้าเชื่อมไม่ได้ (ไม่ใช่เครื่อง iMin / ไม่ได้ติดตั้ง-เปิดแอปปลั๊กอิน) จะข้ามการพิมพ์
+      แต่ยังคงคิวไว้ให้ดูตามปกติ
+   ============================================================ */
+
+const STORAGE_KEY = "counterPrintSettings";
+const PRINTED_KEY = "counterPrintPrintedIds";
+
+const DEFAULT_SETTINGS = {
+  category: "เครื่องดื่ม",
+  shopName: "ทองย้อย",
+  pollSec: 20,
+  autoPrint: true,
+};
+
+let settings = loadSettings();
+let printedIds = loadPrinted();      // Set of order id ที่พิมพ์สำเร็จแล้ว
+let failedAttempts = {};             // order id -> จำนวนครั้งที่ลองพิมพ์แล้วไม่สำเร็จ
+let ORDERS = [];                     // ออเดอร์ล่าสุดที่ดึงมา (กรองแล้วเฉพาะที่มีรายการเครื่องดื่ม)
+let paperWidthDots = 576;            // จะอัปเดตจาก /api/settings ถ้ามี (80mm=576 / 58mm=384)
+let kitchenSettings = { showNote: true, showTime: true }; // จากแท็บ "ใบเสร็จ / ใบสั่งพิมพ์" ในแอดมิน
+let pollTimer = null;
+
+/* ---------------- Access control ----------------
+   The orders and QR queues now need a credential (device token, or a staff/owner login). This page
+   cannot hold a device credential, so when the server answers 401/403 it must not keep retrying
+   or look "just slow": it stops polling for good and says so in Thai. */
+let authBlocked = false;
+function isAuthFailure(res) {
+  return !!res && (res.status === 401 || res.status === 403);
+}
+function blockForAuth(res) {
+  if (authBlocked) return;
+  authBlocked = true;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  const banner = document.getElementById("authBanner");
+  banner.textContent =
+    "ใช้งานหน้านี้ไม่ได้ในขณะนี้ (ไม่มีสิทธิ์เข้าถึงข้อมูล · HTTP " + res.status + ")\n" +
+    "เซิร์ฟเวอร์เปิดระบบตรวจสิทธิ์แล้ว แต่หน้านี้ยังไม่มีรหัสประจำเครื่องพิมพ์ (device credential) จึงดึงคิวและสั่งพิมพ์ไม่ได้\n" +
+    "หยุดดึงข้อมูลอัตโนมัติแล้ว — กรุณาติดต่อผู้ดูแลระบบให้ตั้งค่ารหัสเครื่อง แล้วรีเฟรชหน้านี้";
+  banner.style.display = "block";
+  document.getElementById("loadingNote").style.display = "none";
+  document.getElementById("lastSync").textContent = "หยุดซิงก์ — ไม่มีสิทธิ์เข้าถึงข้อมูล";
+  showToast("ไม่มีสิทธิ์เข้าถึงข้อมูล หยุดดึงคิวแล้ว");
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_SETTINGS };
+    const saved = JSON.parse(raw);
+    return {
+      ...DEFAULT_SETTINGS,
+      ...saved,
+      // Existing browsers can have the former 15-second minimum saved.
+      // Raise it immediately so every subsequent timer uses the new minimum.
+      pollSec: Math.min(60, Math.max(20, Number(saved.pollSec) || DEFAULT_SETTINGS.pollSec)),
+    };
+  } catch { return { ...DEFAULT_SETTINGS }; }
+}
+function saveSettings() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+function loadPrinted() {
+  try {
+    const raw = localStorage.getItem(PRINTED_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch { return new Set(); }
+}
+function savePrinted() {
+  // เก็บแค่ 500 รายการล่าสุดพอ กันไฟล์บวมไม่รู้จบ
+  const arr = [...printedIds].slice(-500);
+  localStorage.setItem(PRINTED_KEY, JSON.stringify(arr));
+}
+
+function fmtBaht(n){ return Number(n||0).toLocaleString('th-TH'); }
+function fmtTime(iso){
+  try { return new Date(iso).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }); }
+  catch { return ''; }
+}
+
+/* ---------------- iMin SDK connection ---------------- */
+// instance ที่เชื่อมต่อ WebSocket กับ print service สำเร็จแล้ว (cache ไว้ใช้ซ้ำ)
+let iminSDK = null;
+// promise ของการเชื่อมต่อที่กำลังดำเนินอยู่ (กันการเชื่อมต่อซ้อนกันหลายรอบ)
+let iminConnectPromise = null;
+let iminLastFailedAt = 0;
+const IMIN_CONNECT_TIMEOUT_MS = 7000;
+const IMIN_RETRY_COOLDOWN_MS = 10000;
+
+function hasIminLibrary() {
+  return typeof window.IminPrinter !== "undefined";
+}
+
+// เชื่อมต่อจริงกับแอป iMinPrinterPlugin ผ่าน WebSocket local (ws://127.0.0.1:8081)
+// คืนค่า instance ที่พร้อมใช้งาน หรือ null ถ้าเชื่อมต่อไม่สำเร็จ (timeout ~5 วิ)
+async function ensureIminSDK() {
+  if (iminSDK) return iminSDK;
+  if (!hasIminLibrary()) return null;
+  if (!iminConnectPromise && Date.now() - iminLastFailedAt < IMIN_RETRY_COOLDOWN_MS) {
+    return null;
+  }
+  if (!iminConnectPromise) {
+    iminConnectPromise = (async () => {
+      try {
+        const printer = new window.IminPrinter();
+        const connectResult = Promise.resolve(printer.connect())
+          .then(Boolean)
+          .catch((error) => {
+            console.error("[imin connect error]", error);
+            return false;
+          });
+        const ok = await Promise.race([
+          connectResult,
+          new Promise((resolve) => setTimeout(() => resolve(false), IMIN_CONNECT_TIMEOUT_MS)),
+        ]);
+        if (!ok) iminLastFailedAt = Date.now();
+        return ok ? printer : null;
+      } catch (e) {
+        console.error("[imin connect error]", e);
+        iminLastFailedAt = Date.now();
+        return null;
+      } finally {
+        iminConnectPromise = null;
+      }
+    })();
+  }
+  const result = await iminConnectPromise;
+  if (result) iminSDK = result;
+  return result;
+}
+
+// getter แบบ sync — ใช้ได้ก็ต่อเมื่อเรียก ensureIminSDK() ให้เชื่อมต่อสำเร็จมาก่อนแล้ว
+function getIminSDK() {
+  return iminSDK;
+}
+
+async function updateSdkPill() {
+  const pill = document.getElementById("sdkPill");
+  const text = document.getElementById("sdkPillText");
+  const diag = document.getElementById("diagBox");
+
+  if (!hasIminLibrary()) {
+    pill.className = "sdk-pill bad";
+    text.textContent = "ไม่พบเครื่องพิมพ์";
+    diag.innerHTML = "<b>โหลดไลบรารี iMin Printer SDK ไม่สำเร็จ</b><br>หน้านี้ต้องโหลดสคริปต์จาก mp.imin.sg ตอนเปิดหน้าครั้งแรก — ตรวจสอบว่าเครื่องต่ออินเทอร์เน็ตอยู่ แล้วลองรีเฟรชหน้านี้ใหม่";
+    return;
+  }
+
+  text.textContent = "กำลังเชื่อมต่อ...";
+  const sdk = await ensureIminSDK();
+
+  if (sdk) {
+    pill.className = "sdk-pill ok";
+    text.textContent = "พร้อมพิมพ์ (iMin SDK)";
+    diag.innerHTML = "<b>เชื่อมต่อเครื่องพิมพ์สำเร็จ</b><br>ระบบจะสั่งพิมพ์อัตโนมัติเมื่อมีออเดอร์เครื่องดื่มใหม่เข้ามา (ถ้าเปิด \"พิมพ์อัตโนมัติ\" ไว้)";
+  } else {
+    pill.className = "sdk-pill bad";
+    text.textContent = "ไม่พบเครื่องพิมพ์";
+    diag.innerHTML = "<b>เชื่อมต่อเครื่องพิมพ์ไม่สำเร็จ</b><br>ถ้าเปิดหน้านี้บนคอม/มือถือทั่วไปเพื่อทดสอบ นี่เป็นเรื่องปกติ — คิวจะยังแสดงบนจอได้ตามปกติ<br><br>ถ้าเปิดบนเครื่อง iMin แล้วยังขึ้นแบบนี้ ให้ลองตามนี้: 1) เปิดแอป iMinPrinterPlugin ขึ้นมาสักครั้งให้แน่ใจว่ามันรันอยู่เบื้องหลัง (อย่าสวอยพ์ปิดจากหน้า recent apps) 2) ปิด-เปิดแอปปลั๊กอินใหม่แล้วรีเฟรชหน้านี้ 3) ลองรีสตาร์ทเครื่อง iMin ทั้งเครื่อง";
+  }
+}
+
+/* ---------------- Data loading ---------------- */
+async function loadPaperWidth() {
+  try {
+    const res = await fetch('/api/settings');
+    if (isAuthFailure(res)) { blockForAuth(res); return; }
+    const s = await res.json();
+    if (s.paperWidthMm) paperWidthDots = s.paperWidthMm >= 76 ? 576 : 384;
+    if (!localStorage.getItem(STORAGE_KEY) && s.shopName) {
+      settings.shopName = s.shopName;
+      saveSettings();
+    }
+    if (s.kitchen) kitchenSettings = { showNote: s.kitchen.showNote !== false, showTime: s.kitchen.showTime !== false };
+  } catch (e) { /* ใช้ค่า default ถ้าดึงไม่ได้ */ }
+}
+
+function extractDrinkItems(order) {
+  const cat = (settings.category || "").trim();
+  if (!cat) return order.items || [];
+  return (order.items || []).filter(it => (it.category || "").trim() === cat);
+}
+
+// Orders older than this are NOT printed automatically (e.g. an order that came in after the page
+// stopped polling at closing time, or tickets left over when the page is opened much later).
+// They stay in the queue marked "เก่า" and can still be printed by hand with the reprint button.
+const STALE_PRINT_MS = 60 * 60 * 1000;
+function isStaleOrder(order) {
+  const created = new Date(order.createdAt).getTime();
+  return Number.isFinite(created) && Date.now() - created > STALE_PRINT_MS;
+}
+
+async function pollOrders() {
+  if (authBlocked) return;
+  try {
+    const res = await fetch('/api/orders');
+    if (authBlocked) return; // another request was refused while this one was in flight: stay stopped
+    if (isAuthFailure(res)) { blockForAuth(res); return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const all = await res.json();
+    if (authBlocked) return;
+    const active = all.filter(o => o.status !== 'done');
+
+    // เก็บเฉพาะออเดอร์ที่มีรายการตรงหมวดหมู่ที่ตั้งไว้อย่างน้อย 1 รายการ
+    const withDrinks = active
+      .map(o => ({ ...o, drinkItems: extractDrinkItems(o) }))
+      .filter(o => o.drinkItems.length > 0)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    const isFirstLoad = document.getElementById("loadingNote").style.display !== "none";
+    const prevIds = new Set(ORDERS.map(o => o.id));
+    ORDERS = withDrinks;
+
+    document.getElementById("loadingNote").style.display = "none";
+    document.getElementById("lastSync").textContent = "ซิงก์ล่าสุด " + new Date().toLocaleTimeString('th-TH');
+
+    renderQueue(prevIds, isFirstLoad);
+
+    // สั่งพิมพ์อัตโนมัติเฉพาะออเดอร์ที่ยังไม่เคยพิมพ์สำเร็จ
+    if (settings.autoPrint) {
+      for (const order of withDrinks) {
+        if (!printedIds.has(order.id) && (failedAttempts[order.id] || 0) < 5 && !isStaleOrder(order)) {
+          await tryPrint(order, { silent: true });
+        }
+      }
+    }
+  } catch (e) {
+    document.getElementById("lastSync").textContent = "ซิงก์ล้มเหลว — จะลองใหม่รอบถัดไป";
+    console.error("[poll error]", e);
+  }
+}
+
+/* ---------------- Rendering ---------------- */
+function renderQueue(prevIds, isFirstLoad) {
+  const grid = document.getElementById("grid");
+  const emptyNote = document.getElementById("emptyNote");
+  document.getElementById("queueCount").textContent = ORDERS.length;
+  emptyNote.style.display = ORDERS.length ? "none" : "block";
+
+  grid.innerHTML = "";
+  ORDERS.forEach(order => {
+    const isNew = !isFirstLoad && !prevIds.has(order.id);
+    const status = printedIds.has(order.id)
+      ? { cls: "printed", label: "พิมพ์แล้ว" }
+      : (failedAttempts[order.id] >= 5
+          ? { cls: "failed", label: "พิมพ์ไม่สำเร็จ — กดพิมพ์ซ้ำ" }
+          : (isStaleOrder(order)
+              ? { cls: "stale", label: "เก่าเกิน 60 นาที — ไม่พิมพ์อัตโนมัติ (กดพิมพ์ซ้ำได้)" }
+              : { cls: "pending", label: "รอพิมพ์" }));
+
+    const card = document.createElement("div");
+    card.className = "order-card" + (isNew ? " new-flash" : "");
+    card.innerHTML = `
+      <div class="oc-head">
+        <div>
+          <div class="oc-table">โต๊ะ ${escHtml(order.table)}</div>
+          <div class="oc-time">${fmtTime(order.createdAt)}</div>
+        </div>
+        <span class="oc-status ${status.cls}">${status.label}</span>
+      </div>
+      <div class="oc-items">
+        ${order.drinkItems.map(it => `
+          <div class="oc-item">
+            <div>
+              <span class="n">${escHtml(it.name)}</span>
+              ${it.note ? `<div class="oc-item-note">หมายเหตุ: ${escHtml(it.note)}</div>` : ''}
+            </div>
+            <span class="q">×${it.qty}</span>
+          </div>
+        `).join("")}
+      </div>
+      ${order.note ? `<div class="oc-note">📝 หมายเหตุรวม: ${escHtml(order.note)}</div>` : ""}
+      <div class="oc-actions">
+        <button class="btn btn-reprint" data-id="${escAttr(order.id)}">🖨 พิมพ์ซ้ำ</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  grid.querySelectorAll(".btn-reprint").forEach(btn => {
+    btn.onclick = () => {
+      const order = ORDERS.find(o => o.id === btn.dataset.id);
+      if (order) tryPrint(order, { silent: false, force: true });
+    };
+  });
+}
+
+function escHtml(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+}
+
+/* ---------------- Printing ---------------- */
+async function tryPrint(order, { silent, force } = {}) {
+  const sdk = await ensureIminSDK();
+  if (!sdk) {
+    if (!silent) showToast("ไม่พบเครื่องพิมพ์ iMin บนอุปกรณ์นี้");
+    return false;
+  }
+  try {
+    printTicket(sdk, order);
+    printedIds.add(order.id);
+    delete failedAttempts[order.id];
+    savePrinted();
+    renderQueue(new Set(ORDERS.map(o => o.id)), false);
+    if (!silent) showToast(`พิมพ์โต๊ะ ${order.table} แล้ว`);
+    return true;
+  } catch (err) {
+    console.error("[print error]", err);
+    failedAttempts[order.id] = (failedAttempts[order.id] || 0) + 1;
+    if (force || !silent) showToast("พิมพ์ไม่สำเร็จ: " + err.message);
+    renderQueue(new Set(ORDERS.map(o => o.id)), false);
+    return false;
+  }
+}
+
+// จัดรูปแบบใบสั่งด้วยฟังก์ชันของ iMin JSPrinterSDK
+// (ทดสอบ printText ภาษาไทยก่อนใช้งานจริงตามที่ระบุไว้ในสเปค — ถ้าฟอนต์ไทยเพี้ยน
+//  ให้เปลี่ยนมาใช้ sdk.printSingleBitmap() แทน โดย render ตั๋วเป็นภาพผ่าน Canvas ก่อน)
+function printTicket(sdk, order) {
+  const W = paperWidthDots;
+  // iMin D4 ใช้เครื่องพิมพ์ในตัวผ่าน USB; SDK จะ default เป็น SPI ถ้าไม่ระบุ
+  sdk.initPrinter("USB");
+
+  sdk.setAlignment(1); // center
+  sdk.setTextSize(32);
+  sdk.setTextStyle(1); // bold
+  sdk.printText((settings.shopName || "ร้าน") + "\n", 1);
+
+  sdk.setTextSize(24);
+  sdk.setTextStyle(0);
+  sdk.printText("เคาน์เตอร์เครื่องดื่ม\n", 1);
+  sdk.printText("--------------------------------\n", 1);
+
+  sdk.setAlignment(0); // left
+  sdk.setTextSize(26);
+  const tableLine = kitchenSettings.showTime
+    ? `โต๊ะ ${order.table}    ${fmtTime(order.createdAt)} น.\n`
+    : `โต๊ะ ${order.table}\n`;
+  sdk.printText(tableLine, 1);
+  sdk.printText("--------------------------------\n", 1);
+
+  order.drinkItems.forEach(it => {
+    sdk.printColumnsText(
+      [String(it.name), "x" + String(it.qty)],
+      [24, 8],
+      [0, 2],
+      [24, 24],
+      W
+    );
+    if (kitchenSettings.showNote && it.note) {
+      sdk.setTextSize(20);
+      sdk.printText("  หมายเหตุ: " + String(it.note) + "\n", 1);
+      sdk.setTextSize(26);
+    }
+  });
+
+  if (kitchenSettings.showNote && order.note) {
+    sdk.printText("--------------------------------\n", 1);
+    sdk.printText("หมายเหตุรวม: " + order.note + "\n", 1);
+  }
+
+  sdk.printText("\n", 1);
+  sdk.printAndFeedPaper(60);
+  try { sdk.partialCut(); } catch (e) { /* บางรุ่นอาจไม่รองรับการตัดกระดาษ */ }
+}
+
+async function runTestPrint() {
+  const sdk = await ensureIminSDK();
+  if (!sdk) {
+    showToast("ไม่พบเครื่องพิมพ์ iMin บนอุปกรณ์นี้ — ทดสอบได้เฉพาะบนเครื่อง iMin จริง");
+    return;
+  }
+  const fakeOrder = {
+    table: "ทดสอบ",
+    createdAt: new Date().toISOString(),
+    note: "นี่คือใบทดสอบระบบ",
+    drinkItems: [
+      { name: "ชาเย็น", qty: 2 },
+      { name: "กาแฟเย็น", qty: 1 },
+    ],
+  };
+  try {
+    printTicket(sdk, fakeOrder);
+    showToast("สั่งพิมพ์ใบทดสอบแล้ว");
+  } catch (err) {
+    showToast("พิมพ์ทดสอบไม่สำเร็จ: " + err.message);
+  }
+}
+
+/* ---------------- Settings drawer ---------------- */
+function openSettingsDrawer() {
+  document.getElementById("fCategory").value = settings.category;
+  document.getElementById("fShopName").value = settings.shopName;
+  document.getElementById("fPollSec").value = settings.pollSec;
+  document.getElementById("fAutoPrint").checked = !!settings.autoPrint;
+  updateSdkPill();
+  document.getElementById("settingsDrawer").classList.add("show");
+  document.getElementById("overlay").classList.add("show");
+}
+function closeSettingsDrawer() {
+  document.getElementById("settingsDrawer").classList.remove("show");
+  document.getElementById("overlay").classList.remove("show");
+}
+document.getElementById("openSettings").onclick = openSettingsDrawer;
+document.getElementById("closeSettings").onclick = closeSettingsDrawer;
+document.getElementById("overlay").onclick = closeSettingsDrawer;
+document.getElementById("testPrintBtn").onclick = runTestPrint;
+
+document.getElementById("saveSettingsBtn").onclick = () => {
+  const newCategory = document.getElementById("fCategory").value.trim() || "เครื่องดื่ม";
+  const newPollSec = Math.max(20, Math.min(60, Number(document.getElementById("fPollSec").value) || 20));
+  settings = {
+    category: newCategory,
+    shopName: document.getElementById("fShopName").value.trim() || "ร้าน",
+    pollSec: newPollSec,
+    autoPrint: document.getElementById("fAutoPrint").checked,
+  };
+  saveSettings();
+  restartPolling();
+  closeSettingsDrawer();
+  showToast("บันทึกการตั้งค่าแล้ว");
+  pollOrders();
+};
+
+/* ---------------- Toast ---------------- */
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+}
+
+/* ---------------- Init ---------------- */
+function restartPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+  if (authBlocked) return; // no credential: do not start polling again
+  pollTimer = setInterval(function(){ if (window.isShopOpen()) pollOrders(); }, Math.max(20, settings.pollSec) * 1000); // หยุดดึงอัตโนมัตินอกเวลา 11:00-21:00
+}
+
+async function init() {
+  document.getElementById("shopTitle").textContent = settings.shopName || "ทองย้อย";
+  updateSdkPill(); // async — จะอัปเดต pill เองตอนเชื่อมต่อเสร็จ (สำเร็จหรือไม่ก็ตาม)
+  await loadPaperWidth();
+  await pollOrders();
+  restartPolling();
+}
+init();
+</script>
+<script>
+/* ---------------- พิมพ์ QR โต๊ะ (ส่งมาจากหน้าแอดมิน) ----------------
+   แยกเป็นสคริปต์ของตัวเอง ไม่ยุ่งกับลูปออเดอร์/ใบเครื่องดื่มด้านบน:
+   - ถ้าส่วนนี้พังหรือ SDK ไม่รองรับ แค่พิมพ์ QR ไม่ออก ใบเครื่องดื่มยังพิมพ์ตามปกติ
+   - ใช้คิวแยก /api/qr-print-jobs (ไม่ปนกับ /api/orders)
+   - ไม่ใช่เครื่อง iMin => ไม่ทำอะไร และงานยังค้างในคิวรอเครื่องที่ถูกต้อง */
+(function () {
+  const MAX_ATTEMPTS = 3;
+  const donePrinting = new Set(); // job id ที่พิมพ์แล้วในหน้านี้
+  const attempts = {};
+  let busy = false;
+
+  function printQrTicket(sdk, job) {
+    if (typeof sdk.printQrCode !== "function") {
+      throw new Error("SDK รุ่นนี้ไม่รองรับสั่งพิมพ์ QR");
+    }
+    // iMin D4 ใช้เครื่องพิมพ์ในตัวผ่าน USB; SDK จะ default เป็น SPI ถ้าไม่ระบุ
+    sdk.initPrinter("USB");
+    sdk.setAlignment(1); // center
+    sdk.setTextSize(30);
+    sdk.setTextStyle(1);
+    sdk.printText((settings.shopName || "ร้าน") + "\n", 1);
+    sdk.setTextSize(44);
+    sdk.printText("โต๊ะ " + job.table + "\n", 1);
+    sdk.setTextStyle(0);
+    sdk.printText("\n", 1);
+    if (typeof sdk.setQrCodeSize === "function") sdk.setQrCodeSize(8);
+    sdk.printQrCode(String(job.url), 1);
+    sdk.setTextSize(24);
+    sdk.printText("\nสแกนเพื่อสั่งอาหาร\n", 1);
+    sdk.printAndFeedPaper(60);
+    try { sdk.partialCut(); } catch (e) { /* บางรุ่นอาจไม่รองรับการตัดกระดาษ */ }
+  }
+
+  async function pollQrJobs() {
+    if (busy || authBlocked) return;
+    busy = true;
+    try {
+      const res = await fetch("/api/qr-print-jobs");
+      if (isAuthFailure(res)) { blockForAuth(res); return; }
+      if (!res.ok) return;
+      const data = await res.json();
+      for (const job of (data.jobs || [])) {
+        if (donePrinting.has(job.id) || (attempts[job.id] || 0) >= MAX_ATTEMPTS) continue;
+        const sdk = await ensureIminSDK();
+        if (!sdk) return; // ไม่ใช่เครื่อง iMin / ยังเชื่อมไม่ได้ — ปล่อยงานค้างไว้ก่อน
+        try {
+          printQrTicket(sdk, job);
+          donePrinting.add(job.id);
+          const completed = await fetch("/api/qr-print-jobs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "complete", id: job.id })
+          }).catch(() => null);
+          showToast("พิมพ์ QR โต๊ะ " + job.table + " แล้ว");
+          if (isAuthFailure(completed)) { blockForAuth(completed); return; } // job stays queued on the server
+        } catch (err) {
+          attempts[job.id] = (attempts[job.id] || 0) + 1;
+          console.error("[qr print error]", err);
+          showToast("พิมพ์ QR ไม่สำเร็จ: " + err.message);
+        }
+      }
+    } catch (e) {
+      console.error("[qr poll error]", e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  // QR jobs are not polled automatically (they are rare). They are checked once when this
+  // page opens and whenever the "เช็คคิว QR" button is pressed.
+  pollQrJobs();
+  document.getElementById("checkQrBtn").addEventListener("click", async function () {
+    await pollQrJobs();
+    showToast(authBlocked ? "ไม่มีสิทธิ์เข้าถึงคิว QR — ดูข้อความสีแดงด้านบน" : "เช็คคิว QR แล้ว");
+  });
+})();
+</script>
+</body>
+</html>

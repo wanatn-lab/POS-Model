@@ -1,0 +1,23 @@
+# Dependencies and local Cloudflare state
+node_modules/
+.wrangler/
+
+# Local configuration and credentials
+.env*
+!.env.example
+.dev.vars
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+service-account*.json
+serviceAccount*.json
+config.local.json
+
+# Local files and generated data
+.DS_Store
+Thumbs.db
+*.sqlite
+*.sqlite3
+*.db
