@@ -4,14 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>สั่งอาหาร</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/assets/capybara-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <div class="topbar">
-  <h1 id="shopTitle">เมนูอาหาร</h1>
+  <h1 id="shopTitle" data-i18n="menuTitle">เมนูอาหาร</h1>
   <div style="display:flex;align-items:center;gap:8px">
-    <button class="history-btn" onclick="openHistory()">🧾 ประวัติการสั่ง</button>
-    <span class="table-tag">โต๊ะ <span id="tableTag">-</span></span>
+    <div class="lang-toggle" role="group" aria-label="Language">
+      <button type="button" id="langTH" onclick="setLang('th')" aria-pressed="true">TH</button>
+      <button type="button" id="langEN" onclick="setLang('en')" aria-pressed="false">EN</button>
+    </div>
+    <button class="history-btn" onclick="openHistory()" data-i18n="history">🧾 ประวัติการสั่ง</button>
+    <span class="table-tag"><span data-i18n="table">โต๊ะ</span> <span id="tableTag">-</span></span>
   </div>
 </div>
 <div class="welcome-line" id="welcomeLine" style="background:#3B2A20"></div>
@@ -19,36 +27,36 @@
 <div class="search-wrap">
   <div class="search-box">
     <span class="search-icon">🔍</span>
-    <input id="searchInput" type="text" placeholder="ค้นหาเมนู เช่น กระเพรา, ชาเย็น..." oninput="onSearchInput()">
+    <input id="searchInput" type="text" data-i18n-ph="searchPh" placeholder="ค้นหาเมนู เช่น กระเพรา, ชาเย็น..." oninput="onSearchInput()">
     <button id="searchClear" class="search-clear" style="display:none" onclick="clearSearch()">✕</button>
   </div>
 </div>
 <div id="catNav" class="cat-nav"></div>
 
 <div class="wrap" style="padding-top:6px">
-  <div id="menuRoot"><div class="empty-state">🍜 กำลังโหลดเมนูอร่อยๆ ให้อยู่...</div></div>
+  <div id="menuRoot"><div class="empty-state" data-i18n="loading">🍜 กำลังโหลดเมนูอร่อยๆ ให้อยู่...</div></div>
 </div>
 
 <!-- collapsed hint / expanded cart bar -->
 <button id="cartBar" class="cart-bar2 empty" onclick="openReview()">
-  <div class="inner">แตะเมนูด้านบนเพื่อเริ่มสั่งอาหารได้เลย 👆</div>
+  <div class="inner" data-i18n="cartHint">แตะเมนูด้านบนเพื่อเริ่มสั่งอาหารได้เลย 👆</div>
 </button>
 
 <!-- review-before-send sheet -->
 <div id="reviewOverlay" class="sheet-overlay" onclick="if(event.target===this) closeReview()">
   <div class="sheet-panel">
     <div class="sheet-head">
-      <h2>ตรวจสอบออเดอร์ 🧾</h2>
+      <h2 data-i18n="reviewTitle">ตรวจสอบออเดอร์ 🧾</h2>
       <button class="history-close" onclick="closeReview()">✕</button>
     </div>
     <div id="reviewList"></div>
     <div class="review-total-row">
-      <span>รวมทั้งหมด</span>
+      <span data-i18n="total">รวมทั้งหมด</span>
       <span id="reviewTotal">฿0</span>
     </div>
-    <div class="sheet-note">มีอะไรอยากบอกครัวไหม (ไม่ใส่ผัก, เผ็ดน้อย ฯลฯ) — ไม่บังคับ</div>
-    <input id="orderNote" type="text" placeholder="พิมพ์ตรงนี้ได้เลย...">
-    <button id="submitBtn" class="confirm-cta" onclick="submitOrder()">ส่งออเดอร์เข้าครัว 🍳</button>
+    <div class="sheet-note" data-i18n="noteLabel">มีอะไรอยากบอกครัวไหม (ไม่ใส่ผัก, เผ็ดน้อย ฯลฯ) — ไม่บังคับ</div>
+    <input id="orderNote" type="text" data-i18n-ph="notePh" placeholder="พิมพ์ตรงนี้ได้เลย...">
+    <button id="submitBtn" class="confirm-cta" onclick="submitOrder()" data-i18n="submit">ส่งออเดอร์เข้าครัว 🍳</button>
   </div>
 </div>
 
@@ -56,8 +64,8 @@
 <div id="menuDetailOverlay" class="sheet-overlay" onclick="if(event.target===this) closeMenuDetail()">
   <div class="menu-detail-panel" role="dialog" aria-modal="true" aria-labelledby="menuDetailName">
     <div class="sheet-head">
-      <h2>รายละเอียดเมนู</h2>
-      <button class="history-close" aria-label="ปิดรายละเอียดเมนู" onclick="closeMenuDetail()">✕</button>
+      <h2 data-i18n="detailTitle">รายละเอียดเมนู</h2>
+      <button class="history-close" data-i18n-aria="detailClose" aria-label="ปิดรายละเอียดเมนู" onclick="closeMenuDetail()">✕</button>
     </div>
     <img id="menuDetailImage" class="menu-detail-image" alt="">
     <h2 id="menuDetailName"></h2>
@@ -70,19 +78,19 @@
 <div id="successOverlay" class="success-overlay">
   <div class="success-card">
     <div class="emoji">🎉</div>
-    <h2>ส่งออเดอร์แล้ว!</h2>
-    <p>ครัวกำลังทำอาหารให้ ✨<br>ดูสถานะออเดอร์ได้ที่ "ประวัติการสั่ง" มุมขวาบน</p>
-    <button class="btn" style="width:100%" onclick="closeSuccess()">สั่งเมนูอื่นต่อ</button>
+    <h2 data-i18n="successTitle">ส่งออเดอร์แล้ว!</h2>
+    <p data-i18n="successBody">ครัวกำลังทำอาหารให้ ✨<br>ดูสถานะออเดอร์ได้ที่ "ประวัติการสั่ง" มุมขวาบน</p>
+    <button class="btn" style="width:100%" onclick="closeSuccess()" data-i18n="successBtn">สั่งเมนูอื่นต่อ</button>
   </div>
 </div>
 
 <div id="historyOverlay" class="history-overlay">
   <div class="history-panel">
     <div class="history-panel-head">
-      <h2>ประวัติการสั่งของโต๊ะนี้</h2>
+      <h2 data-i18n="historyTitle">ประวัติการสั่งของโต๊ะนี้</h2>
       <button class="history-close" onclick="closeHistory()">✕</button>
     </div>
-    <div class="history-sub">ย้อนหลัง 24 ชั่วโมงล่าสุด</div>
+    <div class="history-sub" data-i18n="historySub">ย้อนหลัง 24 ชั่วโมงล่าสุด</div>
     <div id="historyList"></div>
   </div>
 </div>
@@ -93,15 +101,127 @@
 const params = new URLSearchParams(location.search);
 const TABLE = params.get('table') || '';
 document.getElementById('tableTag').textContent = TABLE || '-';
-document.getElementById('welcomeLine').textContent = TABLE
-  ? `👋 สวัสดีครับ กำลังสั่งจากโต๊ะ ${TABLE} — แตะรูปเมนูที่ชอบเพื่อสั่งได้เลย`
-  : '⚠️ ไม่พบหมายเลขโต๊ะ กรุณาแสกน QR ที่โต๊ะใหม่อีกครั้ง';
+
+// ---------- language (TH | EN) ----------
+// Thai stays the default and is always the fallback. Item names/descriptions/categories
+// get optional English fields (nameEn, descEn, categoryEn); when empty, Thai is shown.
+// Orders sent to the kitchen always keep the Thai item name (see cartItems).
+const I18N = {
+  th: {
+    menuTitle: 'เมนูอาหาร', history: '🧾 ประวัติการสั่ง', table: 'โต๊ะ',
+    searchPh: 'ค้นหาเมนู เช่น กระเพรา, ชาเย็น...', all: 'ทั้งหมด',
+    loading: '🍜 กำลังโหลดเมนูอร่อยๆ ให้อยู่...',
+    cartHint: 'แตะเมนูด้านบนเพื่อเริ่มสั่งอาหารได้เลย 👆',
+    reviewTitle: 'ตรวจสอบออเดอร์ 🧾', total: 'รวมทั้งหมด',
+    noteLabel: 'มีอะไรอยากบอกครัวไหม (ไม่ใส่ผัก, เผ็ดน้อย ฯลฯ) — ไม่บังคับ',
+    notePh: 'พิมพ์ตรงนี้ได้เลย...', submit: 'ส่งออเดอร์เข้าครัว 🍳', sending: 'กำลังส่ง...',
+    detailTitle: 'รายละเอียดเมนู', detailClose: 'ปิดรายละเอียดเมนู',
+    successTitle: 'ส่งออเดอร์แล้ว!',
+    successBody: 'ครัวกำลังทำอาหารให้ ✨<br>ดูสถานะออเดอร์ได้ที่ "ประวัติการสั่ง" มุมขวาบน',
+    successBtn: 'สั่งเมนูอื่นต่อ',
+    historyTitle: 'ประวัติการสั่งของโต๊ะนี้', historySub: 'ย้อนหลัง 24 ชั่วโมงล่าสุด',
+    historyLoading: 'กำลังโหลด...', historyEmpty: 'ยังไม่มีประวัติการสั่งของโต๊ะนี้',
+    statusDone: 'เสิร์ฟแล้ว', statusCooking: 'กำลังทำ', historyTotal: 'รวม',
+    emptyMenu: 'ยังไม่มีเมนูตอนนี้ 🙏',
+    noResults: 'ไม่เจอเมนูที่ค้นหา 🔍<br>ลองพิมพ์คำอื่นดูนะครับ',
+    soldOut: 'ของหมดวันนี้', popular: 'ยอดนิยม 🔥', mustTry: '✨ ต้องลอง', mustTryAria: 'เมนูต้องลอง',
+    perItem: 'ชิ้น', orderFail: 'สั่งไม่สำเร็จ ลองใหม่อีกครั้งนะครับ',
+    cartCta: 'ดูตะกร้า →',
+    welcome: n => `👋 สวัสดีครับ กำลังสั่งจากโต๊ะ ${n} — แตะรูปเมนูที่ชอบเพื่อสั่งได้เลย`,
+    noTable: '⚠️ ไม่พบหมายเลขโต๊ะ กรุณาแสกน QR ที่โต๊ะใหม่อีกครั้ง',
+    cartSummary: n => `${n} รายการ — แตะเพื่อตรวจสอบ`,
+    pageTitle: 'สั่งอาหาร'
+  },
+  en: {
+    menuTitle: 'Menu', history: '🧾 History', table: 'Table',
+    searchPh: 'Search the menu...', all: 'All',
+    loading: '🍜 Loading the menu...',
+    cartHint: 'Tap a dish above to start your order 👆',
+    reviewTitle: 'Review your order 🧾', total: 'Total',
+    noteLabel: 'Anything to tell the kitchen? (e.g. no vegetables, less spicy) — optional',
+    notePh: 'Type here...', submit: 'Send order to kitchen 🍳', sending: 'Sending...',
+    detailTitle: 'Dish details', detailClose: 'Close dish details',
+    successTitle: 'Order sent!',
+    successBody: 'The kitchen is preparing your food ✨<br>Check the status under "Order history" at the top right.',
+    successBtn: 'Order more',
+    historyTitle: 'Order history for this table', historySub: 'Last 24 hours',
+    historyLoading: 'Loading...', historyEmpty: 'No orders from this table yet',
+    statusDone: 'Served', statusCooking: 'Preparing', historyTotal: 'Total',
+    emptyMenu: 'No menu available right now 🙏',
+    noResults: 'No dishes found 🔍<br>Try a different word.',
+    soldOut: 'Sold out today', popular: 'Popular 🔥', mustTry: '✨ Must try', mustTryAria: 'Must-try dish',
+    perItem: 'each', orderFail: 'Could not send the order. Please try again.',
+    cartCta: 'View cart →',
+    welcome: n => `👋 Welcome! Ordering from table ${n}. Tap a dish to add it.`,
+    noTable: '⚠️ Table number not found. Please scan the QR code on your table again.',
+    cartSummary: n => `${n} item${n === 1 ? '' : 's'} — tap to review`,
+    pageTitle: 'Order food'
+  }
+};
+const LANG_KEY = 'jinko-order-lang';
+function detectLang() {
+  try {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (saved === 'th' || saved === 'en') return saved;
+  } catch (e) {
+    return 'th'; // storage unavailable: keep the original Thai page
+  }
+  try {
+    return String(navigator.language || 'th').toLowerCase().startsWith('th') ? 'th' : 'en';
+  } catch (e) {
+    return 'th';
+  }
+}
+let LANG = detectLang();
+let shopName = '';
+let shopNameEn = '';
+function t(key, arg) {
+  const v = (I18N[LANG] && I18N[LANG][key] !== undefined) ? I18N[LANG][key] : I18N.th[key];
+  return typeof v === 'function' ? v(arg) : v;
+}
+function hasText(v) { return String(v == null ? '' : v).trim() !== ''; }
+function itemName(item) { return LANG === 'en' && hasText(item.nameEn) ? String(item.nameEn).trim() : item.name; }
+function itemDesc(item) { return LANG === 'en' && hasText(item.descEn) ? String(item.descEn).trim() : (item.desc || ''); }
+function catLabel(cat) {
+  if (LANG !== 'en') return cat;
+  const found = MENU.find(i => (i.category || '').trim() === cat && hasText(i.categoryEn));
+  return found ? String(found.categoryEn).trim() : cat;
+}
+// Name to show for a line that came from the cart/history (those carry the Thai name).
+function displayName(id, fallback) {
+  const item = MENU.find(i => String(i.id) === String(id));
+  return item ? itemName(item) : fallback;
+}
+function setLang(next) {
+  if (next !== 'th' && next !== 'en') return;
+  LANG = next;
+  try { localStorage.setItem(LANG_KEY, next); } catch (e) { /* ignore */ }
+  applyLang();
+}
+function applyLang() {
+  document.documentElement.lang = LANG;
+  document.title = t('pageTitle');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+  document.getElementById('langTH').setAttribute('aria-pressed', String(LANG === 'th'));
+  document.getElementById('langEN').setAttribute('aria-pressed', String(LANG === 'en'));
+  const shownShopName = LANG === 'en' && hasText(shopNameEn) ? String(shopNameEn).trim() : shopName;
+  if (shownShopName) document.getElementById('shopTitle').textContent = shownShopName;
+  document.getElementById('welcomeLine').textContent = TABLE ? t('welcome', TABLE) : t('noTable');
+  if (MENU.length) { renderCatNav(); renderMenu(); }
+  updateCartBar();
+  if (document.getElementById('reviewOverlay').classList.contains('open')) renderReview();
+  if (menuDetailOverlay.classList.contains('open') && menuDetailId != null) fillMenuDetail(menuDetailId);
+  if (document.getElementById('historyOverlay').classList.contains('open')) openHistory();
+}
 
 let MENU = [];
 let cart = {}; // id -> qty
 let activeCat = null; // null = ทั้งหมด
 let searchQuery = '';
 let menuDetailOpener = null;
+let menuDetailId = null;
 const menuDetailOverlay = document.getElementById('menuDetailOverlay');
 const menuDetailClose = menuDetailOverlay.querySelector('.history-close');
 
@@ -112,9 +232,9 @@ async function loadMenu() {
   ]);
   MENU = await menuRes.json();
   const settings = await settingsRes.json();
-  if (settings.shopName) document.getElementById('shopTitle').textContent = settings.shopName;
-  renderCatNav();
-  renderMenu();
+  if (settings.shopName) shopName = settings.shopName;
+  shopNameEn = settings.shopNameEn || '';
+  applyLang();
 }
 
 function escAttr(s) {
@@ -139,7 +259,7 @@ function renderCatNav() {
   const nav = document.getElementById('catNav');
   if (cats.length < 2) { nav.innerHTML = ''; return; }
   const chip = (label, cat) => `<a class="${activeCat === cat ? 'active' : ''}" data-cat="${cat === null ? '' : escAttr(cat)}">${escAttr(label)}</a>`;
-  nav.innerHTML = chip('ทั้งหมด', null) + cats.map(c => chip(c, c)).join('');
+  nav.innerHTML = chip(t('all'), null) + cats.map(c => chip(catLabel(c), c)).join('');
   nav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
     activeCat = a.dataset.cat || null;
     renderCatNav();
@@ -149,7 +269,7 @@ function renderCatNav() {
 
 function matchesSearch(item, q) {
   if (!q) return true;
-  const hay = (item.name + ' ' + (item.desc || '')).toLowerCase();
+  const hay = [item.name, item.desc, item.nameEn, item.descEn].map(v => v || '').join(' ').toLowerCase();
   return hay.includes(q.toLowerCase());
 }
 
@@ -161,13 +281,13 @@ function isMustTry(item) {
 function renderMenu() {
   const root = document.getElementById('menuRoot');
   if (!MENU.length) {
-    root.innerHTML = '<div class="empty-state">ยังไม่มีเมนูตอนนี้ 🙏</div>';
+    root.innerHTML = `<div class="empty-state">${t('emptyMenu')}</div>`;
     return;
   }
   const filtered = MENU.filter(i => matchesSearch(i, searchQuery) && (!activeCat || (i.category || '').trim() === activeCat));
 
   if (!filtered.length) {
-    root.innerHTML = `<div class="empty-state">ไม่เจอเมนูที่ค้นหา 🔍<br>ลองพิมพ์คำอื่นดูนะครับ</div>`;
+    root.innerHTML = `<div class="empty-state">${t('noResults')}</div>`;
     return;
   }
 
@@ -187,7 +307,7 @@ function renderMenu() {
   const pieces = groups.map(cat => {
     const items = filtered.filter(i => (i.category || '').trim() === cat);
     if (!items.length) return '';
-    const heading = cat ? `<h2 id="cat-${escAttr(cat)}" class="cat-heading">${escAttr(cat)}</h2>` : '';
+    const heading = cat ? `<h2 id="cat-${escAttr(cat)}" class="cat-heading">${escAttr(catLabel(cat))}</h2>` : '';
     return heading + items.map(renderCard).join('');
   }).join('');
   root.innerHTML = `<div class="menu-grid">${pieces}</div>`;
@@ -208,14 +328,14 @@ function renderCard(item) {
   return `
     <div class="menu-card2 ${soldOut ? 'sold-out' : ''} ${mustTry ? 'must-try' : ''}">
       <div class="thumb-wrap ${soldOut ? '' : 'tap-add'}" ${tapAdd}>
-        <img src="${escAttr(item.image)}" alt="${escAttr(item.name)}" loading="lazy" decoding="async">
-        ${mustTry ? '<span class="badge-must-try" aria-label="เมนูต้องลอง">✨ ต้องลอง</span>' : ''}
-        ${soldOut ? '<span class="badge-soldout">ของหมดวันนี้</span>' : (item.popular ? '<span class="badge-popular">ยอดนิยม 🔥</span>' : '')}
+        <img src="${escAttr(item.image)}" alt="${escAttr(itemName(item))}" loading="lazy" decoding="async">
+        ${mustTry ? `<span class="badge-must-try" aria-label="${escAttr(t('mustTryAria'))}">${t('mustTry')}</span>` : ''}
+        ${soldOut ? `<span class="badge-soldout">${t('soldOut')}</span>` : (item.popular ? `<span class="badge-popular">${t('popular')}</span>` : '')}
         ${control}
       </div>
       <div class="body" role="button" tabindex="0" data-detail-id="${escAttr(item.id)}" onclick="openMenuDetail(this.dataset.detailId, this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openMenuDetail(this.dataset.detailId, this) }">
-        <h3>${escAttr(item.name)}</h3>
-        ${item.desc ? `<p>${escAttr(item.desc)}</p>` : ''}
+        <h3>${escAttr(itemName(item))}</h3>
+        ${itemDesc(item) ? `<p>${escAttr(itemDesc(item))}</p>` : ''}
         <div class="price-row">
           <span class="price">฿${escAttr(item.price)}</span>
         </div>
@@ -250,16 +370,16 @@ function updateCartBar() {
   const bar = document.getElementById('cartBar');
   if (count === 0) {
     bar.classList.add('empty');
-    bar.innerHTML = `<div class="inner">แตะเมนูด้านบนเพื่อเริ่มสั่งอาหารได้เลย 👆</div>`;
+    bar.innerHTML = `<div class="inner">${t('cartHint')}</div>`;
   } else {
     bar.classList.remove('empty');
     bar.innerHTML = `
       <div class="inner">
         <div>
-          <div class="cart-summary">${count} รายการ — แตะเพื่อตรวจสอบ</div>
+          <div class="cart-summary">${t('cartSummary', count)}</div>
           <div class="cart-total">฿${total}</div>
         </div>
-        <div class="cart-cta">ดูตะกร้า →</div>
+        <div class="cart-cta">${t('cartCta')}</div>
       </div>`;
   }
 }
@@ -288,11 +408,23 @@ function openMenuDetail(id, opener) {
   menuDetailName.textContent = item.name || '';
   menuDetailDescription.textContent = item.desc || '';
   menuDetailPrice.textContent = `฿${item.price == null ? '' : item.price}`;
+  menuDetailId = item.id;
+  fillMenuDetail(item.id); // swaps in English text when LANG is "en" and it exists
   menuDetailOverlay.classList.add('open');
   menuDetailClose.focus();
 }
 
+function fillMenuDetail(id) {
+  const item = MENU.find(i => String(i.id) === String(id));
+  if (!item) return;
+  const nameEl = document.getElementById('menuDetailName');
+  nameEl.textContent = itemName(item);
+  document.getElementById('menuDetailDescription').textContent = itemDesc(item);
+  document.getElementById('menuDetailImage').alt = itemName(item);
+}
+
 function closeMenuDetail() {
+  menuDetailId = null;
   menuDetailOverlay.classList.remove('open');
   if (menuDetailOpener && typeof menuDetailOpener.focus === 'function') menuDetailOpener.focus();
   menuDetailOpener = null;
@@ -317,8 +449,8 @@ function renderReview() {
   list.innerHTML = items.map(it => `
     <div class="review-row">
       <div style="flex:1">
-        <div class="rname">${escAttr(it.name)}</div>
-        <div class="rprice">฿${it.price} / ชิ้น</div>
+        <div class="rname">${escAttr(displayName(it.id, it.name))}</div>
+        <div class="rprice">฿${it.price} / ${t('perItem')}</div>
       </div>
       <div class="rstepper">
         <button onclick="changeQty('${it.id}', -1); renderReview();">−</button>
@@ -340,7 +472,7 @@ async function submitOrder() {
   const note = document.getElementById('orderNote').value.trim();
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
-  btn.textContent = 'กำลังส่ง...';
+  btn.textContent = t('sending');
   try {
     const res = await fetch('/api/orders', {
       method: 'POST',
@@ -355,10 +487,10 @@ async function submitOrder() {
     closeReview();
     document.getElementById('successOverlay').classList.add('open');
   } catch (e) {
-    showToast('สั่งไม่สำเร็จ ลองใหม่อีกครั้งนะครับ');
+    showToast(t('orderFail'));
   } finally {
     btn.disabled = false;
-    btn.textContent = 'ส่งออเดอร์เข้าครัว 🍳';
+    btn.textContent = t('submit');
   }
 }
 
@@ -379,29 +511,29 @@ function showToast(msg) {
 async function openHistory() {
   document.getElementById('historyOverlay').classList.add('open');
   const list = document.getElementById('historyList');
-  list.innerHTML = '<div class="empty-state">กำลังโหลด...</div>';
+  list.innerHTML = `<div class="empty-state">${t('historyLoading')}</div>`;
   const res = await fetch('/api/orders');
   if (!res.ok) {
-    list.innerHTML = '<div class="empty-state">ยังไม่มีประวัติการสั่งของโต๊ะนี้</div>';
+    list.innerHTML = `<div class="empty-state">${t('historyEmpty')}</div>`;
     return;
   }
   const orders = (await res.json()).filter(o => String(o.table) === String(TABLE))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   if (!orders.length) {
-    list.innerHTML = '<div class="empty-state">ยังไม่มีประวัติการสั่งของโต๊ะนี้</div>';
+    list.innerHTML = `<div class="empty-state">${t('historyEmpty')}</div>`;
     return;
   }
   list.innerHTML = orders.map(o => `
     <div class="history-card">
       <div class="history-card-top">
-        <span class="history-time">${new Date(o.createdAt).toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})}</span>
-        <span class="history-status ${o.status === 'done' ? 'done' : ''}">${o.status === 'done' ? 'เสิร์ฟแล้ว' : 'กำลังทำ'}</span>
+        <span class="history-time">${new Date(o.createdAt).toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'th-TH', {hour:'2-digit', minute:'2-digit'})}</span>
+        <span class="history-status ${o.status === 'done' ? 'done' : ''}">${o.status === 'done' ? t('statusDone') : t('statusCooking')}</span>
       </div>
       <ul class="history-items">
-        ${o.items.map(it => `<li><span>${escAttr(it.name)} x${it.qty}</span><span>฿${it.price * it.qty}</span></li>`).join('')}
+        ${o.items.map(it => `<li><span>${escAttr(displayName(it.id, it.name))} x${it.qty}</span><span>฿${it.price * it.qty}</span></li>`).join('')}
       </ul>
       ${o.note ? `<div class="history-note">📝 ${escAttr(o.note)}</div>` : ''}
-      <div class="history-total">รวม ฿${o.items.reduce((s, it) => s + it.price * it.qty, 0)}</div>
+      <div class="history-total">${t('historyTotal')} ฿${o.items.reduce((s, it) => s + it.price * it.qty, 0)}</div>
     </div>
   `).join('');
 }

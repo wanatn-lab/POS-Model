@@ -109,7 +109,7 @@ test("menu tab keeps every control, handler and API call", () => {
   }
   for (const handler of [
     "oninput=\"MENU[${i}].name = this.value\"", "oninput=\"MENU[${i}].price = Number(this.value)\"",
-    "oninput=\"MENU[${i}].category = this.value\"", "oninput=\"MENU[${i}].desc = this.value\"",
+    "oninput=\"MENU[${i}].category = this.value\"", "oninput=\"MENU[${i}].desc = this.value; refreshEnStatus(${i})\"",
     "onchange=\"uploadMenuImage(${i}, this)\"", "onclick=\"clearMenuImage(${i})\"",
     "onchange=\"setMenuMustTry(${i}, this.checked, this)\"", "onchange=\"setMenuAvailability(${i}, this.checked, this)\"",
     "onclick=\"removeItem(${i})\"", 'onclick="addBlankItem()"', 'onclick="saveMenu()"', 'onclick="saveCloudinarySettings()"',

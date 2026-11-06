@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ทองย้อย · แอดมิน</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/assets/capybara-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
 <link rel="stylesheet" href="/style.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -541,6 +545,13 @@
   #panel-receipt .rc-fs-sm .rc-kitchen-item{font-size:10.5px;} #panel-receipt .rc-fs-md .rc-kitchen-item{font-size:13px;} #panel-receipt .rc-fs-lg .rc-kitchen-item{font-size:15.5px;} #panel-receipt .rc-fs-xl .rc-kitchen-item{font-size:19px;}
   @media(max-width:900px){#panel-receipt .rc-layout{grid-template-columns:1fr;}#panel-receipt .rc-preview-col{position:static;order:-1;}}
   @media(max-width:560px){#panel-receipt .rc-row2{grid-template-columns:1fr;}}
+  .en-input{border-color:#C7521E;}
+  .en-chip{display:inline-block;font-size:12px;border-radius:999px;padding:2px 10px;margin-top:6px;}
+  .en-chip.ok{background:#e3f2e8;color:#2f7d4f;}
+  .en-chip.todo{background:#fdeccf;color:#9a5b00;}
+  .en-summary{font-size:13px;color:#6b5a4d;margin:0 0 10px;}
+  .cat-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px;}
+  .cat-head{font-size:13px;color:#6b5a4d;margin-top:10px;}
 </style>
 <link rel="stylesheet" href="/admin-theme.css?v=1">
 </head>
@@ -573,6 +584,11 @@
       <span class="menu-editor-filter-label">ดูเมนูตามหมวด</span>
       <div id="menuCategoryFilter" class="menu-editor-category-chips"></div>
     </div>
+    <div class="item-form no-print" id="categoryManager">
+      <h3>จัดการหมวด (ไทย / English)</h3>
+      <p class="en-summary">แก้ชื่อไทยแล้วกดออกจากช่อง เมนูทั้งหมวดจะเปลี่ยนตาม · ช่อง English ว่าง = ลูกค้าเห็นชื่อไทย · แก้เสร็จกด "บันทึกเมนู" ด้านล่าง</p>
+      <div id="categoryManagerRows"></div>
+    </div>
     <div class="item-form cloudinary-settings no-print">
       <div class="cloudinary-head">
         <div>
@@ -597,6 +613,7 @@
       </div>
       <p class="cloudinary-security-note">Cloud Name และ Unsigned Preset ใช้ในหน้าเว็บได้ตามรูปแบบ Cloudinary แต่ห้ามใส่ API Secret ในหน้านี้เด็ดขาด</p>
     </div>
+    <div id="menuEnSummary" class="en-summary no-print"></div>
     <div id="itemList"></div>
     <div class="item-actions no-print">
       <button class="btn secondary" onclick="addBlankItem()">+ เพิ่มเมนูใหม่</button>
@@ -633,6 +650,8 @@
       </select>
       <label>ชื่อร้าน (ขึ้นหัวใบสั่งพิมพ์)</label>
       <input id="shopName" type="text">
+      <label>ชื่อร้าน (English) ขึ้นที่หน้าลูกค้าเมื่อเลือก EN</label>
+      <input id="shopNameEn" class="en-input" type="text" placeholder="ว่าง = ลูกค้าเห็นชื่อไทย">
       <div class="item-actions">
         <button class="btn" onclick="saveGeneralPrintSettings()">💾 บันทึกตั้งค่าทั่วไป</button>
       </div>
@@ -1245,9 +1264,100 @@ async function setMenuAvailability(i, available, checkbox) {
   }
 }
 
+// ---------- English menu text (optional; empty = customers see Thai) ----------
+function hasText(v) { return String(v == null ? '' : v).trim() !== ''; }
+
+// "Complete" = English name filled, and English description filled whenever a Thai one exists.
+function isEnComplete(item) {
+  return hasText(item.nameEn) && (!hasText(item.desc) || hasText(item.descEn));
+}
+
+function renderEnSummary() {
+  const el = document.getElementById('menuEnSummary');
+  if (!el) return;
+  if (!MENU.length) { el.textContent = ''; return; }
+  const done = MENU.filter(isEnComplete).length;
+  el.innerHTML = `แปลอังกฤษครบแล้ว <b>${done} / ${MENU.length}</b> เมนู · ช่อง English เว้นว่างได้ ลูกค้าจะเห็นภาษาไทยแทน`;
+}
+
+function refreshEnStatus(i) {
+  const chip = document.getElementById('enChip' + i);
+  if (chip && MENU[i]) {
+    const ok = isEnComplete(MENU[i]);
+    chip.className = 'en-chip ' + (ok ? 'ok' : 'todo');
+    chip.textContent = ok ? 'มี EN' : 'ยังไม่ครบ';
+  }
+  renderEnSummary();
+}
+
+// ---------- category manager: Thai + English names, applied to every item of the category ----------
+function categoryEnOf(cat) {
+  const found = MENU.find(i => (i.category || '').trim() === cat && hasText(i.categoryEn));
+  return found ? String(found.categoryEn).trim() : '';
+}
+
+function setCategoryEnByName(cat, value) {
+  MENU.forEach(it => { if ((it.category || '').trim() === cat) it.categoryEn = value; });
+  refreshCategoryEnSummary();
+}
+
+// Returns { ok, changed }. Empty names and names that already exist are refused.
+function renameCategory(oldName, newName) {
+  const next = String(newName == null ? '' : newName).trim();
+  if (!next) return { ok: false, changed: false, reason: 'empty' };
+  if (next === oldName) return { ok: true, changed: false };
+  if (menuCategories().includes(next)) return { ok: false, changed: false, reason: 'exists' };
+  MENU.forEach(it => { if ((it.category || '').trim() === oldName) it.category = next; });
+  if (adminMenuCategoryFilter === oldName) adminMenuCategoryFilter = next;
+  return { ok: true, changed: true };
+}
+
+function onCategoryRename(input) {
+  const old = input.dataset.cat;
+  const res = renameCategory(old, input.value);
+  if (!res.ok) {
+    input.value = old;
+    if (typeof showToast === 'function') showToast(res.reason === 'exists' ? 'มีหมวดชื่อนี้อยู่แล้ว' : 'ชื่อหมวดต้องไม่ว่าง');
+    return;
+  }
+  if (res.changed) renderList();
+}
+
+function refreshCategoryEnSummary() {
+  const el = document.getElementById('catEnSummary');
+  if (!el) return;
+  const cats = menuCategories();
+  const done = cats.filter(c => categoryEnOf(c)).length;
+  el.innerHTML = `ใส่ชื่ออังกฤษแล้ว <b>${done} / ${cats.length}</b> หมวด`;
+}
+
+function renderCategoryManager() {
+  const box = document.getElementById('categoryManagerRows');
+  if (!box) return;
+  const cats = menuCategories();
+  if (!cats.length) {
+    box.innerHTML = '<div class="en-summary">ยังไม่มีหมวด ใส่ชื่อหมวดในรายการเมนูด้านล่างก่อน</div>';
+    return;
+  }
+  box.innerHTML =
+    '<div class="cat-row cat-head"><span>ชื่อหมวด (ไทย)</span><span>Category (English)</span></div>' +
+    cats.map(c => `
+      <div class="cat-row">
+        <input type="text" data-cat="${escAttr(c)}" value="${escAttr(c)}" aria-label="ชื่อหมวดภาษาไทย"
+          onchange="onCategoryRename(this)">
+        <input type="text" class="en-input" data-cat="${escAttr(c)}" value="${escAttr(categoryEnOf(c))}"
+          placeholder="ว่าง = ลูกค้าเห็นชื่อไทย" aria-label="Category name in English"
+          oninput="setCategoryEnByName(this.dataset.cat, this.value)">
+      </div>`).join('') +
+    '<div class="en-summary" id="catEnSummary"></div>';
+  refreshCategoryEnSummary();
+}
+
 function renderList() {
   renderCategoryDatalist();
   renderMenuCategoryFilter();
+  renderEnSummary();
+  renderCategoryManager();
   const el = document.getElementById('itemList');
   if (!MENU.length) {
     el.innerHTML = '<div class="empty-state">ยังไม่มีเมนู กด "+ เพิ่มเมนูใหม่" เพื่อเริ่มเลย</div>';
@@ -1272,10 +1382,13 @@ function renderList() {
           <input type="number" value="${escAttr(item.price)}" oninput="MENU[${i}].price = Number(this.value)">
         </div>
       </div>
+      <label>ชื่อเมนู (English)</label>
+      <input class="en-input" value="${escAttr(item.nameEn)}" placeholder="ว่าง = ลูกค้าเห็นชื่อไทย"
+        oninput="MENU[${i}].nameEn = this.value; refreshEnStatus(${i})">
       <div class="row">
         <div>
           <label>หมวด</label>
-          <input list="categoryList" value="${escAttr(item.category)}" oninput="MENU[${i}].category = this.value">
+          <input list="categoryList" value="${escAttr(item.category)}" oninput="MENU[${i}].category = this.value" onchange="renderCategoryManager()">
         </div>
         <div>
           <label>รูปภาพเมนู</label>
@@ -1298,7 +1411,11 @@ function renderList() {
         </div>
       </div>
       <label>รายละเอียด</label>
-      <input value="${escAttr(item.desc)}" oninput="MENU[${i}].desc = this.value">
+      <input value="${escAttr(item.desc)}" oninput="MENU[${i}].desc = this.value; refreshEnStatus(${i})">
+      <label>รายละเอียด (English)</label>
+      <input class="en-input" value="${escAttr(item.descEn)}" placeholder="ว่าง = ลูกค้าเห็นรายละเอียดภาษาไทย"
+        oninput="MENU[${i}].descEn = this.value; refreshEnStatus(${i})">
+      <span id="enChip${i}" class="en-chip ${isEnComplete(item) ? 'ok' : 'todo'}">${isEnComplete(item) ? 'มี EN' : 'ยังไม่ครบ'}</span>
       <div class="menu-flags">
         <label class="must-try-toggle ${isMustTry(item) ? 'is-selected' : ''}">
           <input type="checkbox" ${isMustTry(item) ? 'checked' : ''}
@@ -1535,6 +1652,7 @@ async function loadSettings() {
   document.getElementById('tableCount').value = SETTINGS.tableCount || 1;
   document.getElementById('paperWidthMm').value = String(SETTINGS.paperWidthMm || 80);
   document.getElementById('shopName').value = SETTINGS.shopName || '';
+  document.getElementById('shopNameEn').value = SETTINGS.shopNameEn || '';
   refreshCloudinaryUi();
   PRINTERS = Array.isArray(SETTINGS.printers) ? SETTINGS.printers : [];
   renderPrinterList();
@@ -1547,7 +1665,8 @@ async function loadSettings() {
 async function saveGeneralPrintSettings() {
   const body = {
     paperWidthMm: Number(document.getElementById('paperWidthMm').value),
-    shopName: document.getElementById('shopName').value
+    shopName: document.getElementById('shopName').value,
+    shopNameEn: document.getElementById('shopNameEn').value
   };
   await fetch(API + '/api/settings', {
     method: 'POST',

@@ -379,3 +379,11 @@ label { font-size: 12px; color: #6b6058; display: block; margin: 8px 0 3px; }
 @media (min-width: 480px) {
   .menu-card2 img { height: 190px; }
 }
+
+/* language toggle (TH | EN) */
+.lang-toggle { display: inline-flex; border: 1px solid rgba(255,255,255,0.35); border-radius: 20px; overflow: hidden; }
+.lang-toggle button {
+  background: transparent; color: #fff; border: none; font-size: 12px; padding: 6px 9px; cursor: pointer;
+}
+.lang-toggle button[aria-pressed="true"] { background: #C7521E; font-weight: 600; }
+html[lang="en"] .topbar .table-tag, html[lang="en"] .history-btn { white-space: nowrap; }
