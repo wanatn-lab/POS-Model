@@ -1,5 +1,9 @@
 # POS Model
 
+> **Never deploy this repository to Worker `order`.** `order` is the Jinko production Worker.
+> A plain `wrangler deploy` here targets only `jinko-central-staging`; `wrangler deploy --env staging` targets `thongyoi`.
+> Production deployment must use a separately named Worker and an explicit, owner-approved workflow. See `DEPLOY.md`.
+
 Backup template of the Cloudflare restaurant ordering system, captured from
 `jinko-qr` commit `94a2fdb` after the Thongyoi admin redesign.
 
