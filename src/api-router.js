@@ -12,7 +12,9 @@ import shopStatus from "../api/shop-status.js";
 import tableStatus from "../api/table-status.js";
 import {
   CUSTOMER,
+  DEFAULT_TABLE_IDS,
   DEFAULT_ORDERS_PER_MINUTE,
+  DEFAULT_ORDERS_PER_MINUTE_PER_CLIENT,
   DEVICE,
   OWNER,
   PUBLIC,
@@ -25,6 +27,7 @@ import {
   bumpTableVersion,
   clientLabel,
   issueTablePass,
+  isTakeawayTable,
   jsonResponse,
   logAuth,
   normalizeTable,
@@ -52,7 +55,16 @@ const HANDLERS = {
 // Exported so a test can prove that every handler has an access rule (src/auth.js RULES).
 export const ROUTES = Object.keys(HANDLERS);
 
-const DEFAULT_TABLE_COUNT = 20;
+function configuredTableIds(settings, env) {
+  if (String(env.LEGACY_TABLE_IDS || "").toLowerCase() === "true") {
+    const count = Number(settings && settings.tableCount) > 0 ? Number(settings.tableCount) : 20;
+    return Array.from({ length: count }, (_, index) => String(index + 1));
+  }
+  if (Array.isArray(settings && settings.tableIds) && settings.tableIds.length) {
+    return settings.tableIds.map(normalizeTable).filter(Boolean);
+  }
+  return DEFAULT_TABLE_IDS;
+}
 
 function json(status, body) {
   return new Response(JSON.stringify(body), {
@@ -95,13 +107,11 @@ function bodyAction(body) {
 }
 
 function isCustomerOrderCreate(route, req, principal) {
-  return (
-    route === "orders" &&
-    req.method === "POST" &&
-    bodyAction(req.body) !== "done" &&
-    principal.role !== STAFF &&
-    principal.role !== OWNER
-  );
+  return isOrderCreate(route, req) && principal.role !== STAFF && principal.role !== OWNER;
+}
+
+function isOrderCreate(route, req) {
+  return route === "orders" && req.method === "POST" && !["done", "void"].includes(bodyAction(req.body));
 }
 
 // A customer (or anyone without a staff session) placing an order: the table must exist, and a
@@ -112,21 +122,29 @@ async function checkOrderCreate(request, req, principal, { store, env }) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const table = normalizeTable(body.table);
   const saved = await store.get("settings");
-  const tableCount = Number(saved && saved.tableCount) > 0 ? Number(saved.tableCount) : DEFAULT_TABLE_COUNT;
-  if (!table || Number(table) > tableCount) {
+  const tableIds = configuredTableIds(saved, env);
+  if (!table || !tableIds.includes(table)) {
     return { ok: false, status: 400, error: "invalid table", reason: "invalid_table" };
   }
   if (principal.role === CUSTOMER && table !== normalizeTable(principal.table)) {
     return { ok: false, status: 403, error: "forbidden", reason: "table_mismatch" };
   }
   const perMinute = Math.max(1, Math.floor(Number(env.ORDER_RATE_PER_MIN) || DEFAULT_ORDERS_PER_MINUTE));
-  if ((await rateHit(store, `auth:rl:order:${table}`, 60)) > perMinute) {
-    return { ok: false, status: 429, error: "too many orders", reason: "table_rate_limited" };
+  // The whole shop shares one Wi-Fi address, so the per-client limit is its own, larger number.
+  const perClient = Math.max(1, Math.floor(Number(env.ORDER_RATE_PER_MIN_PER_CLIENT) || (env.ORDER_RATE_PER_MIN ? perMinute * 3 : DEFAULT_ORDERS_PER_MINUTE_PER_CLIENT)));
+  // A network retry of an order that already exists (same idempotency key) is not a new order.
+  const idempotencyKey = typeof body.idempotencyKey === "string" ? body.idempotencyKey.trim() : "";
+  const isReplay = /^[A-Za-z0-9_-]{16,128}$/.test(idempotencyKey) &&
+    Boolean(((await store.get("orderIdempotency")) || {})[`${table}:${idempotencyKey}`]);
+  if (principal.role !== STAFF && principal.role !== OWNER && !isReplay) {
+    if ((await rateHit(store, `auth:rl:order:${table}`, 60)) > perMinute) {
+      return { ok: false, status: 429, error: "too many orders", reason: "table_rate_limited" };
+    }
+    if ((await rateHit(store, `auth:rl:orderip:${await clientLabel(request)}`, 60)) > perClient) {
+      return { ok: false, status: 429, error: "too many orders", reason: "client_rate_limited" };
+    }
   }
-  if ((await rateHit(store, `auth:rl:orderip:${await clientLabel(request)}`, 60)) > perMinute * 3) {
-    return { ok: false, status: 429, error: "too many orders", reason: "client_rate_limited" };
-  }
-  return { ok: true, table };
+  return { ok: true, table, takeaway: isTakeawayTable(table) };
 }
 
 async function decide(request, route, req, principal, context) {
@@ -136,7 +154,12 @@ async function decide(request, route, req, principal, context) {
   if (principal.viaCookie && req.method !== "GET" && !sameOriginRequest(request)) {
     return { ok: false, status: 403, error: "forbidden", reason: "cross_origin" };
   }
-  if (isCustomerOrderCreate(route, req, principal)) return checkOrderCreate(request, req, principal, context);
+  if (isOrderCreate(route, req)) {
+    if (principal.role === DEVICE || principal.role === "reader") {
+      return { ok: false, status: 403, error: "forbidden", reason: "non_customer_principal" };
+    }
+    return checkOrderCreate(request, req, principal, context);
+  }
   return verdict;
 }
 
@@ -174,9 +197,10 @@ async function handleApiRequestNow(request, { store, env = {} }) {
       if (principal.role === DEVICE && req.body && typeof req.body === "object") {
         // A device is identified by its credential, never by what it says about itself.
         if (route === "print-jobs") req.body = { ...req.body, deviceId: principal.deviceId };
+        if (route === "print-jobs") req.body = { ...req.body, station: principal.deviceStation };
         if (route === "printer-status") req.body = { ...req.body, instanceId: principal.deviceId };
       }
-      if (isCustomerOrderCreate(route, req, principal)) req.body = { ...req.body, table: normalizeTable(req.body.table) };
+      if (isOrderCreate(route, req)) req.body = { ...req.body, table: normalizeTable(req.body.table) };
     }
   }
 
@@ -196,8 +220,13 @@ async function handleApiRequestNow(request, { store, env = {} }) {
       // Table passes issued before this moment stop working: the next customer starts clean.
       await bumpTableVersion(store, req.body.table);
     }
+    if (route === "orders" && req.method === "POST" && isCustomerOrderCreate(route, req, principal) && isTakeawayTable(req.body.table)) {
+      // A takeaway QR creates a fresh one-order session every time. Do not issue a
+      // reusable customer cookie, and invalidate any pass supplied for this request.
+      await bumpTableVersion(store, req.body.table);
+    }
     // Only someone without a valid pass is handed one. A pass holder never receives a replacement.
-    if (isCustomerOrderCreate(route, req, principal) && principal.role === PUBLIC) {
+    if (isCustomerOrderCreate(route, req, principal) && principal.role === PUBLIC && !isTakeawayTable(req.body.table)) {
       const table = normalizeTable(req.body.table);
       const pass = table ? await issueTablePass(env, store, table) : null;
       if (pass) {

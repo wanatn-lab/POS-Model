@@ -45,6 +45,7 @@ const redis = fakeRedis([
   {
     id: "receipt-1",
     type: "receipt",
+    station: "counter",
     status: "queued",
     items: [{ name: "น้ำเปล่า", qty: 1 }],
   },

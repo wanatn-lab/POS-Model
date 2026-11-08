@@ -100,6 +100,7 @@
 <script>
 const params = new URLSearchParams(location.search);
 const TABLE = params.get('table') || '';
+let pendingIdempotencyKey = null;
 document.getElementById('tableTag').textContent = TABLE || '-';
 
 // ---------- language (TH | EN) ----------
@@ -358,6 +359,19 @@ function cartItems() {
   }).filter(Boolean);
 }
 
+function requestItems() {
+  // The server owns names, prices, categories and station routing. The phone
+  // only identifies the chosen menu id and quantity.
+  return cartItems().map(({ id, qty }) => ({ id, qty }));
+}
+
+function idempotencyKey() {
+  if (!pendingIdempotencyKey) {
+    pendingIdempotencyKey = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : `${Date.now()}${Math.random()}`.replace(/\D/g, '').padEnd(16, '0');
+  }
+  return pendingIdempotencyKey;
+}
+
 function cartCountTotal() {
   const items = cartItems();
   const count = items.reduce((s, i) => s + i.qty, 0);
@@ -467,7 +481,7 @@ function renderReview() {
 }
 
 async function submitOrder() {
-  const items = cartItems();
+  const items = requestItems();
   if (!items.length) return;
   const note = document.getElementById('orderNote').value.trim();
   const btn = document.getElementById('submitBtn');
@@ -477,10 +491,11 @@ async function submitOrder() {
     const res = await fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: TABLE, items, note })
+      body: JSON.stringify({ table: TABLE, items, note, idempotencyKey: idempotencyKey() })
     });
     if (!res.ok) throw new Error('failed');
     cart = {};
+    pendingIdempotencyKey = null;
     document.getElementById('orderNote').value = '';
     renderMenu();
     updateCartBar();

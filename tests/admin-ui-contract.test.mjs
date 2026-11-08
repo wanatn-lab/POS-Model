@@ -177,3 +177,19 @@ test("table-status side panel reuses the real drawer and menu edit button reuses
   }
   assert.ok(!/toggleMenuEdit[^}]*fetch\(/.test(html.slice(html.indexOf("function toggleMenuEdit"), html.indexOf("function toggleMenuEdit") + 500)), "edit toggle must not call the API");
 });
+
+test("menu card layout does not depend on child position, so extra EN fields cannot break it", () => {
+  const css = read("admin-theme.css");
+  const cardRules = css.split("\n").filter((line) => line.includes("#itemList .item-form"));
+  assert.ok(cardRules.length > 10, "menu card rules not found");
+  assert.equal(cardRules.filter((line) => /\.row:nth-child\(/.test(line)).length, 0, "use .row:nth-of-type, not .row:nth-child");
+  assert.match(css, /\.item-form > label:not\(\.en-label\) \{/);
+  assert.match(css, /\.item-form > input:not\(\.en-input\) \{/);
+  for (const cls of ["en-label-name", "en-input-name", "en-label-desc", "en-input-desc", "en-chip"]) {
+    assert.match(css, new RegExp("\\.item-form > \\." + cls + " \\{"), "missing placement rule for ." + cls);
+  }
+  assert.match(css, /\.item-form:not\(\.is-editing\) > \.en-chip \{ display:none; \}/);
+  for (const marker of ['class="en-label en-label-name"', 'class="en-input en-input-name"', 'class="en-label en-label-desc"', 'class="en-input en-input-desc"']) {
+    assert.ok(admin.includes(marker), "menu card template lost " + marker);
+  }
+});

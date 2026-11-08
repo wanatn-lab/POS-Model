@@ -1,12 +1,8 @@
 import { redis } from "./_redis.js";
 
-// Seed data — matches what was already live on the site before this migration,
-// so the very first request doesn't show an empty menu.
-const SEED_MENU = [
-  { id: "m1", name: "ข้าวผัดกระเพราหมูสับ", price: 59, desc: "เผ็ดกำลังดี ใส่ไข่ดาว", image: "https://images.unsplash.com/photo-1626200419199-391ae4be7a41?w=500&q=60" },
-  { id: "m2", name: "ก๋วยเตี๋ยวเรือเนื้อ", price: 45, desc: "น้ำซุปเข้มข้น เส้นเล็ก", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=500&q=60" },
-  { id: "m3", name: "ชาเย็น", price: 35, desc: "หวานมัน เย็นชื่นใจ", image: "https://images.unsplash.com/photo-1558857563-b371033873b8?w=500&q=60", available: true },
-];
+// A new shop starts with no fabricated products or prices. The owner imports or
+// enters the real menu in Admin before accepting customer orders.
+const SEED_MENU = [];
 
 export default async function handler(req, res) {
   if (req.method === "GET") {

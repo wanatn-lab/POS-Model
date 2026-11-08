@@ -1382,13 +1382,18 @@ function renderList() {
           <input type="number" value="${escAttr(item.price)}" oninput="MENU[${i}].price = Number(this.value)">
         </div>
       </div>
-      <label>ชื่อเมนู (English)</label>
-      <input class="en-input" value="${escAttr(item.nameEn)}" placeholder="ว่าง = ลูกค้าเห็นชื่อไทย"
+      <label class="en-label en-label-name">ชื่อเมนู (English)</label>
+      <input class="en-input en-input-name" value="${escAttr(item.nameEn)}" placeholder="ว่าง = ลูกค้าเห็นชื่อไทย"
         oninput="MENU[${i}].nameEn = this.value; refreshEnStatus(${i})">
       <div class="row">
         <div>
           <label>หมวด</label>
           <input list="categoryList" value="${escAttr(item.category)}" oninput="MENU[${i}].category = this.value" onchange="renderCategoryManager()">
+          <label>พิมพ์ออกเครื่อง</label>
+          <select onchange="MENU[${i}].printer = this.value">
+            <option value="kitchen" ${item.printer !== 'counter' ? 'selected' : ''}>ครัว</option>
+            <option value="counter" ${item.printer === 'counter' ? 'selected' : ''}>เคาน์เตอร์</option>
+          </select>
         </div>
         <div>
           <label>รูปภาพเมนู</label>
@@ -1412,8 +1417,8 @@ function renderList() {
       </div>
       <label>รายละเอียด</label>
       <input value="${escAttr(item.desc)}" oninput="MENU[${i}].desc = this.value; refreshEnStatus(${i})">
-      <label>รายละเอียด (English)</label>
-      <input class="en-input" value="${escAttr(item.descEn)}" placeholder="ว่าง = ลูกค้าเห็นรายละเอียดภาษาไทย"
+      <label class="en-label en-label-desc">รายละเอียด (English)</label>
+      <input class="en-input en-input-desc" value="${escAttr(item.descEn)}" placeholder="ว่าง = ลูกค้าเห็นรายละเอียดภาษาไทย"
         oninput="MENU[${i}].descEn = this.value; refreshEnStatus(${i})">
       <span id="enChip${i}" class="en-chip ${isEnComplete(item) ? 'ok' : 'todo'}">${isEnComplete(item) ? 'มี EN' : 'ยังไม่ครบ'}</span>
       <div class="menu-flags">
@@ -1447,7 +1452,7 @@ function toggleMenuEdit(i, btn) {
 }
 
 function addBlankItem() {
-  MENU.push({ id: 'm' + Date.now(), name: '', price: 0, category: '', image: '', desc: '', available: true, mustTry: false });
+  MENU.push({ id: 'm' + Date.now(), name: '', price: 0, category: '', printer: 'kitchen', image: '', desc: '', available: true, mustTry: false });
   adminMenuEditing.add(MENU[MENU.length - 1]);
   renderList();
 }
@@ -1473,18 +1478,22 @@ async function saveMenu({ silent = false } = {}) {
 }
 
 // ---------- QR โต๊ะ ----------
-// QR content is always just origin + "/order?table=N" — deterministic and
-// permanent for a given table number. Re-rendering (or increasing the table
-// count later) never changes an already-printed table's QR code.
-function renderQrGrid(n) {
+// QR content uses the configured opaque table id (T1-T14, TA1-TA2), never a
+// display index. This keeps an old numeric QR from silently targeting a new shop.
+function configuredQrTables() {
+  return Array.isArray(SETTINGS.tableIds) && SETTINGS.tableIds.length
+    ? SETTINGS.tableIds.map(String)
+    : Array.from({ length: Number(SETTINGS.tableCount) || 0 }, (_, index) => String(index + 1));
+}
+function renderQrGrid(tableIds = configuredQrTables()) {
   const grid = document.getElementById('qrGrid');
   grid.innerHTML = '';
-  for (let t = 1; t <= n; t++) {
+  for (const t of tableIds) {
     const box = document.createElement('div');
     box.innerHTML = `<div style="font-size:13px;margin-bottom:6px">โต๊ะ ${t}</div><div class="qr-${t}"></div>` +
       `<div class="no-print" style="display:flex;gap:6px;justify-content:center;margin-top:8px">` +
-      `<button class="btn secondary" style="font-size:12px;padding:5px 10px" onclick="sendQrToCounter(${t}, this)">🖨️ ปริ้น</button>` +
-      `<button class="btn secondary" style="font-size:12px;padding:5px 10px" onclick="downloadOneQr(${t})">⬇️ ดาวน์โหลด</button>` +
+      `<button class="btn secondary" style="font-size:12px;padding:5px 10px" onclick='printOneQr(${JSON.stringify(t)})'>🖨️ ปริ้น</button>` +
+      `<button class="btn secondary" style="font-size:12px;padding:5px 10px" onclick='downloadOneQr(${JSON.stringify(t)})'>⬇️ ดาวน์โหลด</button>` +
       `</div>`;
     grid.appendChild(box);
     new QRCode(box.querySelector('.qr-' + t), {
@@ -1551,31 +1560,10 @@ async function downloadOneQr(t) {
   canvas.toBlob((blob) => triggerDownload(blob, `qr-table-${t}.png`), 'image/png');
 }
 
-// Sends a "print this table's QR" job to the drink-counter printer. The
-// /counter-print page (open on the iMin device) picks it up within a few
-// seconds and prints it. Separate queue (/api/qr-print-jobs) — does not touch
-// orders, kitchen tickets or receipts.
-async function sendQrToCounter(t, btn) {
-  const original = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'กำลังส่งไปเครื่อง...';
-  let ok = false;
-  try {
-    const res = await fetch('/api/qr-print-jobs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create', table: t })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
-    ok = true;
-    btn.textContent = '✅ ส่งแล้ว';
-  } catch (err) {
-    console.error(err);
-    btn.textContent = '❌ ส่งไม่สำเร็จ';
-    alert('ส่งงานพิมพ์ไปเครื่อง iMin ไม่สำเร็จ ลองใหม่อีกครั้ง');
-  }
-  setTimeout(() => { btn.textContent = original; btn.disabled = false; }, ok ? 2500 : 1500);
+// Kept as a no-op compatibility hook for older Admin links. QR printer jobs
+// are disabled for this shop; print/download uses the staff browser instead.
+async function sendQrToCounter() {
+  alert('ร้านนี้ปิดคิวพิมพ์ QR แล้ว กรุณาพิมพ์จากเบราว์เซอร์หรือดาวน์โหลดไฟล์ QR');
 }
 
 // Prints a single table's QR through the computer's own print dialog, so
@@ -1613,13 +1601,13 @@ function printOneQr(t) {
 
 async function downloadAllQr() {
   const btn = document.getElementById('qrDownloadAllBtn');
-  const n = Number(document.getElementById('tableCount').value) || 1;
+  const tableIds = configuredQrTables();
   const original = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'กำลังเตรียมไฟล์...';
   try {
     const zip = new JSZip();
-    for (let t = 1; t <= n; t++) {
+    for (const t of tableIds) {
       const canvas = await buildQrDownloadCanvas(t);
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
       zip.file(`qr-table-${t}.png`, blob);
@@ -1636,13 +1624,7 @@ async function downloadAllQr() {
 }
 
 function genQr() {
-  const n = Number(document.getElementById('tableCount').value) || 1;
-  fetch(API + '/api/settings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tableCount: n })
-  });
-  renderQrGrid(n);
+  renderQrGrid();
 }
 
 // ---------- ตั้งค่าทั่วไป + เครื่องพิมพ์ ----------
@@ -1659,7 +1641,7 @@ async function loadSettings() {
   renderList();
   // Show the existing, already-permanent table QR codes right away — no
   // need to click a button just to see the ones you already printed.
-  renderQrGrid(SETTINGS.tableCount || 1);
+  renderQrGrid();
 }
 
 async function saveGeneralPrintSettings() {

@@ -175,12 +175,17 @@ test("a hanging Firebase is abandoned at the timeout", async () => {
 
 // ---------- call sites: ring only where NEW printable work appears ----------
 
+const testMenu = [
+  { id: "m1", name: "ข้าวซอย", price: 60, category: "อาหาร", available: true },
+  { id: "m2", name: "แคบหมู", price: 30, category: "อาหาร", available: true },
+];
+
 test("new order rings print; marking done does not", async () => {
-  const redis = fakeRedis({ orders: [] });
+  const redis = fakeRedis({ orders: [], menu: testMenu });
   const bell = spyBell();
   const handler = createOrdersHandler({ redis, bell });
   const res = fakeRes();
-  await handler({ method: "POST", body: { table: 3, items: [{ name: "ข้าวซอย", qty: 1 }] } }, res);
+  await handler({ method: "POST", body: { table: 3, items: [{ id: "m1", qty: 1 }] } }, res);
   assert.equal(res.statusCode, 200);
   assert.deepEqual(bell.rung, ["print"]);
 
@@ -198,7 +203,7 @@ test("invalid order is rejected and does not ring", async () => {
 });
 
 test("order is still saved and answered 200 when the real bell fails", async () => {
-  const redis = fakeRedis({ orders: [] });
+  const redis = fakeRedis({ orders: [], menu: testMenu });
   const failingBell = createBell({
     env: PROD_ENV,
     fetchImpl: async () => { throw new Error("firebase down"); },
@@ -206,7 +211,7 @@ test("order is still saved and answered 200 when the real bell fails", async () 
   });
   const res = fakeRes();
   await createOrdersHandler({ redis, bell: failingBell })(
-    { method: "POST", body: { table: 5, items: [{ name: "แคบหมู", qty: 2 }] } },
+    { method: "POST", body: { table: 5, items: [{ id: "m2", qty: 2 }] } },
     res,
   );
   assert.equal(res.statusCode, 200);
@@ -278,7 +283,7 @@ test("print-job claim/complete/release never ring (the bridge acknowledges its o
   const { readFile } = await import("node:fs/promises");
   const source = await readFile(new URL("../api/print-jobs.js", import.meta.url), "utf8");
   assert.doesNotMatch(source, /_bell\.js|ringBell/);
-  const handler = createPrintJobsHandler(fakeRedis({ printJobs: [{ id: "r1", type: "receipt", status: "queued" }] }));
+  const handler = createPrintJobsHandler(fakeRedis({ printJobs: [{ id: "r1", type: "receipt", station: "counter", status: "queued" }] }));
   const res = fakeRes();
   await handler({ method: "POST", body: { action: "claim", id: "r1", deviceId: "device-123456" } }, res);
   assert.equal(res.statusCode, 200);

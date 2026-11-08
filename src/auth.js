@@ -31,8 +31,14 @@ export const LOGIN_MAX_FAILS = 5;
 export const LOGIN_WINDOW_SEC = 15 * 60;
 export const MIN_PASSWORD_LENGTH = 12;
 export const MIN_SECRET_LENGTH = 32;
-export const DEFAULT_ORDERS_PER_MINUTE = 10;
+export const DEFAULT_ORDERS_PER_MINUTE = 3;
+export const DEFAULT_ORDERS_PER_MINUTE_PER_CLIENT = 30;
 export const DEVICE_TOKEN_RE = /^(dev_[0-9a-f]{12})\.([A-Za-z0-9_-]{43})$/;
+export const DEFAULT_TABLE_IDS = [
+  ...Array.from({ length: 14 }, (_, index) => `T${index + 1}`),
+  "TA1",
+  "TA2",
+];
 
 // ---- the access matrix --------------------------------------------------------------------
 // route -> HTTP method -> allowed roles, or { <body.action>: roles, "*": default roles }.
@@ -45,12 +51,12 @@ export const RULES = {
   // a device, staff or owner (receipt design and printer setup are not public).
   settings: { GET: [PUBLIC], POST: [OWNER] },
   orders: {
-    GET: [CUSTOMER, DEVICE, STAFF], // a customer only ever receives their own table
-    POST: { done: [STAFF], "*": [PUBLIC] }, // placing an order is how a table gets its pass
+    GET: [CUSTOMER, STAFF], // a customer only ever receives their own table
+    POST: { done: [STAFF], void: [STAFF], "*": [PUBLIC] }, // placing an order is how a table gets its pass
   },
   "table-status": { GET: [STAFF], POST: [STAFF] },
-  "bill-history": { GET: [STAFF, READER], POST: [STAFF] },
-  "print-jobs": { GET: [DEVICE], POST: [DEVICE] },
+  "bill-history": { GET: [STAFF, READER], POST: { cancel: [OWNER], "*": [STAFF] } },
+  "print-jobs": { GET: [DEVICE], POST: { retry: [STAFF], "*": [DEVICE] } },
   "printer-status": { GET: [STAFF], POST: [DEVICE] },
   "qr-print-jobs": { GET: [DEVICE], POST: { create: [STAFF], "*": [DEVICE] } },
   kitchen: { GET: [STAFF], POST: [STAFF] },
@@ -196,12 +202,18 @@ export function sameOriginRequest(request) {
 }
 
 // ---- table numbers / table passes ------------------------------------------------------------
-// "5", " 5", "05" and 5 are the same table. Anything that is not a whole number 1..999 is invalid.
+// Table ids are deliberate codes, not array positions. T1-T14 are dine-in;
+// TA1-TA2 are takeaway sessions. Numeric ids are only for a temporary migration path.
 export function normalizeTable(value) {
   const text = String(value == null ? "" : value).trim();
-  if (!/^\d{1,3}$/.test(text)) return null;
-  const number = Number(text);
-  return number >= 1 ? String(number) : null;
+  const code = text.toUpperCase();
+  if (/^T(?:[1-9]\d*|A[1-9]\d*)$/.test(code)) return code;
+  if (/^\d{1,3}$/.test(text) && Number(text) >= 1) return String(Number(text));
+  return null;
+}
+
+export function isTakeawayTable(table) {
+  return /^TA[1-9]\d*$/.test(String(table || "").toUpperCase());
 }
 
 const tableVersionKey = (table) => `auth:tv:${table}`;
@@ -269,7 +281,7 @@ export async function resolvePrincipal(request, { store, env }, now = Date.now()
     const shaped = DEVICE_TOKEN_RE.exec(token);
     if (shaped) {
       const device = await authenticateDevice(store, shaped[1], shaped[2], now);
-      if (device) return { role: DEVICE, deviceId: device.id };
+      if (device) return { role: DEVICE, deviceId: device.id, deviceStation: device.station || "counter" };
     } else if (
       typeof env.BILL_READER_TOKEN === "string" &&
       env.BILL_READER_TOKEN.length >= MIN_SECRET_LENGTH &&
@@ -281,7 +293,9 @@ export async function resolvePrincipal(request, { store, env }, now = Date.now()
 
   const jar = parseCookies(request.headers.get("cookie"));
   const session = await verifyToken(env, "session", jar[SESSION_COOKIE], now);
-  if (session && (session.r === STAFF || session.r === OWNER)) return { role: session.r, viaCookie: true };
+  if (session && (session.r === STAFF || session.r === OWNER)) {
+    return { role: session.r, staffId: typeof session.id === "string" ? session.id : session.r, viaCookie: true };
+  }
 
   const pass = await verifyToken(env, "table", jar[TABLE_COOKIE], now);
   if (pass && normalizeTable(pass.t) && pass.v === (await tableVersion(store, pass.t))) {

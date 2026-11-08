@@ -72,11 +72,16 @@ function compareTables(first, second) {
   if (firstNumber && secondNumber) return first.table - second.table;
   if (firstNumber) return -1;
   if (secondNumber) return 1;
-  return String(first.table).localeCompare(String(second.table), "th");
+  return String(first.table).localeCompare(String(second.table), "th", { numeric: true });
 }
 
 const BILL_HISTORY_MAX = 1000;
 const BILL_HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function batchSet(client, entries) {
+  if (typeof client.batchSet === "function") return client.batchSet(entries);
+  return Promise.all(entries.map(([key, value]) => client.set(key, value)));
+}
 
 function recentBills(value, now) {
   const earliest = now.getTime() - BILL_HISTORY_WINDOW_MS;
@@ -137,6 +142,7 @@ function receiptForTable(orders, clearMap, table, settings, now) {
   const today = bangkokDay(now);
   const sourceOrders = orders.filter((order) =>
     String(order.table) === String(table) &&
+    order.status !== "void" &&
     bangkokDay(new Date(order.createdAt)) === today &&
     new Date(order.createdAt).getTime() > previousClear,
   );
@@ -157,7 +163,9 @@ function receiptForTable(orders, clearMap, table, settings, now) {
   const receiptConfig = receiptConfigForJob(settings);
   return {
     id: `receipt-${String(table)}-${orderIds.join("-")}`,
+    printId: `receipt-${String(table)}-${orderIds.join("-")}`,
     type: "receipt",
+    station: "counter",
     status: "queued",
     shopName: (settings && settings.shopName) || "ทองย้อย",
     // Kept at the top level for old bridge versions, while the complete nested
@@ -185,8 +193,17 @@ export function tableStatusPayload(orders, clears, settings, now) {
   const recent = allOrders.filter((o) => bangkokDay(new Date(o.createdAt)) === today);
 
   const tables = Object.create(null);
-  for (let t = 1; t <= tableCount; t++) {
-    tables[t] = { table: t, openedAt: null, items: [] };
+  // New shop: seed the board from the configured ids (T1-T14). Takeaway lanes (TA*) only appear
+  // while an order exists, one row per order. Without tableIds, keep the old numeric board.
+  const configuredIds = Array.isArray(settings && settings.tableIds)
+    ? settings.tableIds.map(String).filter((id) => id && !/^TA\d+$/i.test(id))
+    : [];
+  if (configuredIds.length) {
+    for (const id of configuredIds) tables[id] = { table: tableValue(id), openedAt: null, items: [] };
+  } else {
+    for (let t = 1; t <= tableCount; t++) {
+      tables[t] = { table: t, openedAt: null, items: [] };
+    }
   }
 
   for (const order of recent) {
@@ -290,6 +307,7 @@ export function createTableStatusHandler({ redis: redisClient = redis, now = () 
       const existingBill = history.find((bill) => bill.id === receipt.id);
       const bill = existingBill || {
         ...receipt,
+        status: "paid",
         billNo: billNumber(now, table),
         settledAt: now.toISOString(),
       };
@@ -310,11 +328,14 @@ export function createTableStatusHandler({ redis: redisClient = redis, now = () 
       }
 
       clears[table] = now.toISOString();
-      await Promise.all([
-        redisClient.set("tableClears", clears),
-        redisClient.set("billHistory", recentBills(history, now)),
-        jobsToSave ? redisClient.set("printJobs", jobsToSave) : Promise.resolve(),
-      ]);
+      // A paid bill, closed table session and its optional receipt are one unit:
+      // SQLite rolls all of them back if an individual write fails.
+      const writes = [
+        ["tableClears", clears],
+        ["billHistory", recentBills(history, now)],
+      ];
+      if (jobsToSave) writes.push(["printJobs", jobsToSave]);
+      await batchSet(redisClient, writes);
       // Ring only when a new receipt was actually queued.
       if (jobsToSave) await bell("print");
       return res.status(200).json({ ok: true, receiptJobId, bill });

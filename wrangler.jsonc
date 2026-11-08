@@ -1,6 +1,6 @@
 {
-  "name": "order",
-  "account_id": "040db9c5b9960d8500349fd4958bded8",
+  "name": "moo-daeng-pos",
+  "account_id": "e9992412fcfd4b91eb138afac9be9abf",
   "main": "src/worker.js",
   "compatibility_date": "2026-09-01",
   "assets": {
@@ -16,11 +16,11 @@
 
   // Staging: deploy only with `wrangler deploy --env staging` (npm run deploy:staging).
   // Wrangler does NOT inherit assets/durable_objects/migrations/vars into an environment, so they are repeated here.
-  // The Durable Object has no script_name, so its namespace belongs to the worker "thongyoi"
-  // and its SQLite storage is separate from production ("order"). No data is shared or copied.
+  // This environment belongs to this restaurant's staging Worker. Its Durable
+  // Object namespace is separate from production; no old-shop data is shared or copied.
   "env": {
     "staging": {
-      "name": "thongyoi",
+      "name": "moo-daeng-pos-staging",
       "assets": {
         "directory": "./public",
         "binding": "ASSETS",
@@ -30,7 +30,7 @@
         "bindings": [{ "name": "SHOP", "class_name": "ShopDO" }]
       },
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShopDO"] }],
-      "vars": { "AUTH_MODE": "log" }
+      "vars": { "AUTH_MODE": "enforce" }
     }
   }
 }

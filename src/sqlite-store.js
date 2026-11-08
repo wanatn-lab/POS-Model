@@ -56,6 +56,29 @@ export class SqliteStore {
     return "OK";
   }
 
+  // One SQLite transaction for state that must change together (for example an
+  // order plus its kitchen job, or a paid bill plus its receipt job). Entries
+  // are computed before this call, so no await can leave a partial commit.
+  async batchSet(entries) {
+    this.sql.exec("BEGIN TRANSACTION");
+    try {
+      for (const [key, value, options = {}] of entries) {
+        const ex = Number(options.ex) > 0 ? this.now() + Number(options.ex) * 1000 : null;
+        this.sql.exec(
+          "INSERT INTO kv (key, value, exp) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, exp = excluded.exp",
+          key,
+          JSON.stringify(value),
+          ex,
+        );
+      }
+      this.sql.exec("COMMIT");
+      return "OK";
+    } catch (error) {
+      this.sql.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   async del(key) {
     this.sql.exec("DELETE FROM kv WHERE key = ?", key);
     this.sql.exec("DELETE FROM h WHERE key = ?", key);

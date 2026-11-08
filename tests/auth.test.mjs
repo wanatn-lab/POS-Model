@@ -17,7 +17,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function setup(env = {}) {
   const store = new SqliteStore(fakeSql());
-  const fullEnv = { ...ENV, ...env };
+  store.set("menu", [{ id: "m1", name: "กระเพรา", price: 59, category: "อาหาร", available: true }]);
+  const fullEnv = { ...ENV, LEGACY_TABLE_IDS: "true", ...env };
   const call = (method, path, body, { cookie, bearer, origin = ORIGIN, headers = {}, base = ORIGIN } = {}) =>
     handleApiRequest(
       new Request(`${base}${path}`, {
@@ -87,8 +88,8 @@ const MATRIX = [
   ["POST settings", "POST", "/api/settings", { shopName: "x" }, ["owner"]],
   ["GET shop-status", "GET", "/api/shop-status", undefined, EVERYONE],
   ["POST shop-status", "POST", "/api/shop-status", { action: "open" }, ["owner"]],
-  ["GET orders", "GET", "/api/orders", undefined, ["customer", "device", "staff", "owner"]],
-  ["POST orders (place)", "POST", "/api/orders", { table: 3, items: [ITEM] }, EVERYONE], // table 3 = the customer's own table
+  ["GET orders", "GET", "/api/orders", undefined, ["customer", "staff", "owner"]],
+  ["POST orders (place)", "POST", "/api/orders", { table: 3, items: [ITEM] }, ["public", "customer", "staff", "owner"]], // Bridge/reader credentials cannot impersonate a customer
   ["POST orders (done)", "POST", "/api/orders", { action: "done", id: "nope" }, STAFF_UP],
   ["GET table-status", "GET", "/api/table-status", undefined, STAFF_UP],
   ["POST table-status", "POST", "/api/table-status", { action: "clear-table", table: 9 }, STAFF_UP],
@@ -209,7 +210,7 @@ test("customer: after staff clears the table the old pass stops working and the 
   const next = await w.call("POST", "/api/orders", { table: 3, items: [{ ...ITEM, name: "ข้าวผัด" }] });
   const seen = await (await w.call("GET", "/api/orders", undefined, { cookie: cookieOf(next) })).json();
   assert.equal(seen.length, 1);
-  assert.equal(seen[0].items[0].name, "ข้าวผัด"); // not the previous customer's กระเพรา
+  assert.equal(seen[0].items[0].name, "กระเพรา"); // server ignores the spoofed client name
   assert.equal((await w.call("GET", "/api/orders", undefined, old)).status, 401); // the old pass stays dead
 });
 
@@ -270,7 +271,7 @@ test("table pass: a holder of the pass for table 3 can not order for table 4, an
 });
 
 test("table pass: ordering for the pass's own table still works, in any spelling, without a new pass", async () => {
-  const w = await world();
+  const w = await world({ ORDER_RATE_PER_MIN: "10" });
   for (const table of [3, "3", "03", " 3 "]) {
     const response = await w.call("POST", "/api/orders", { table, items: [ITEM] }, w.creds.customer);
     assert.equal(response.status, 200, `table ${JSON.stringify(table)}`);
@@ -344,7 +345,7 @@ test("settings: the public only sees shopName and tableCount; devices and staff 
   await w.call("POST", "/api/settings", { receipt: { taxId: "0123456789012", address: "secret street" }, printers: [{ ip: "10.0.0.5" }] }, w.creds.owner);
   for (const role of ["public", "customer", "reader"]) {
     const body = await (await w.call("GET", "/api/settings", undefined, w.creds[role])).json();
-    assert.deepEqual(Object.keys(body).sort(), ["shopName", "tableCount"], role);
+    assert.deepEqual(Object.keys(body).sort(), ["shopName", "tableCount", "tableIds"], role);
   }
   for (const role of ["device", "staff", "owner"]) {
     const body = await (await w.call("GET", "/api/settings", undefined, w.creds[role])).json();

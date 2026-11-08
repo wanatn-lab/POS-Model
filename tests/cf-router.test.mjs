@@ -5,8 +5,12 @@ import { SqliteStore } from "../src/sqlite-store.js";
 import { fakeSql } from "./cf-helpers.mjs";
 
 function setup(env = {}) {
-  env = { AUTH_MODE: "off", ...env }; // these tests predate access control (see tests/auth.test.mjs)
+  env = { AUTH_MODE: "off", LEGACY_TABLE_IDS: "true", ...env }; // legacy fixture IDs
   const store = new SqliteStore(fakeSql());
+  store.set("menu", [
+    { id: "m1", name: "กระเพรา", price: 59, category: "อาหาร", available: true },
+    { id: "m3", name: "ชาเย็น", price: 35, category: "เครื่องดื่ม", available: true },
+  ]);
   const call = (method, path, body, headers = {}) =>
     handleApiRequest(
       new Request(`https://shop.example${path}`, {

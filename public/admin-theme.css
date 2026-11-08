@@ -239,18 +239,26 @@ body.admin-redesign #panel-menu #itemList { grid-template-columns:repeat(auto-fi
 body.admin-redesign #panel-menu #itemList .item-form.is-editing { grid-column:span 2; }
 body.admin-redesign #panel-menu #itemList .item-form { display:grid; grid-template-columns:14px 1fr 1fr 14px; align-content:start; padding:0 0 14px; overflow:hidden; border:0; border-radius:18px; background:#fff; box-shadow:var(--m-sh); }
 body.admin-redesign #panel-menu #itemList .item-form > .row { display:contents; }
-body.admin-redesign #panel-menu #itemList .item-form > .row:nth-child(2) > div:nth-child(2) { grid-column:1 / -1; grid-row:1; }
-body.admin-redesign #panel-menu #itemList .item-form > .row:nth-child(1) > div:nth-child(1) { grid-column:2 / 4; grid-row:2; margin-top:14px; }
-body.admin-redesign #panel-menu #itemList .item-form > .row:nth-child(1) > div:nth-child(2) { grid-column:2; grid-row:3; margin:10px 5px 0 0; }
-body.admin-redesign #panel-menu #itemList .item-form > .row:nth-child(2) > div:nth-child(1) { grid-column:3; grid-row:3; margin:10px 0 0 5px; }
-body.admin-redesign #panel-menu #itemList .item-form > label { grid-column:2 / 4; grid-row:4; margin-top:10px; }
-body.admin-redesign #panel-menu #itemList .item-form > input { grid-column:2 / 4; grid-row:5; }
-body.admin-redesign #panel-menu #itemList .item-form > .menu-flags { grid-column:2 / 4; grid-row:6; margin-top:12px; }
-body.admin-redesign #panel-menu #itemList .item-form > .item-actions { grid-column:2 / 4; grid-row:7; margin-top:12px; }
-body.admin-redesign #panel-menu #itemList .item-form > .row:nth-child(1) > div:nth-child(1) input { font-weight:700; font-size:16px; }
-body.admin-redesign #panel-menu #itemList .item-form > .row:nth-child(1) > div:nth-child(2) input { border-color:var(--m-gold); background:var(--m-gl); color:var(--m-red2); font-weight:800; }
+body.admin-redesign #panel-menu #itemList .item-form > .row:nth-of-type(2) > div:nth-child(2) { grid-column:1 / -1; grid-row:1; }
+body.admin-redesign #panel-menu #itemList .item-form > .row:nth-of-type(1) > div:nth-child(1) { grid-column:2 / 4; grid-row:2; margin-top:14px; }
+body.admin-redesign #panel-menu #itemList .item-form > .row:nth-of-type(1) > div:nth-child(2) { grid-column:2; grid-row:5; margin:10px 5px 0 0; }
+body.admin-redesign #panel-menu #itemList .item-form > .row:nth-of-type(2) > div:nth-child(1) { grid-column:3; grid-row:5; margin:10px 0 0 5px; }
+body.admin-redesign #panel-menu #itemList .item-form > label:not(.en-label) { grid-column:2 / 4; grid-row:6; margin-top:10px; }
+body.admin-redesign #panel-menu #itemList .item-form > input:not(.en-input) { grid-column:2 / 4; grid-row:7; }
+/* English fields (editing state only; hidden in compact by the :not(.is-editing) rules below) */
+body.admin-redesign #panel-menu #itemList .item-form > .en-label { grid-column:2 / 4; margin-top:10px; }
+body.admin-redesign #panel-menu #itemList .item-form > .en-label-name { grid-row:3; }
+body.admin-redesign #panel-menu #itemList .item-form > .en-input-name { grid-column:2 / 4; grid-row:4; }
+body.admin-redesign #panel-menu #itemList .item-form > .en-label-desc { grid-row:8; }
+body.admin-redesign #panel-menu #itemList .item-form > .en-input-desc { grid-column:2 / 4; grid-row:9; }
+body.admin-redesign #panel-menu #itemList .item-form > .en-chip { grid-column:2 / 4; grid-row:10; justify-self:start; margin-top:8px; }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .en-chip { display:none; }
+body.admin-redesign #panel-menu #itemList .item-form > .menu-flags { grid-column:2 / 4; grid-row:11; margin-top:12px; }
+body.admin-redesign #panel-menu #itemList .item-form > .item-actions { grid-column:2 / 4; grid-row:12; margin-top:12px; }
+body.admin-redesign #panel-menu #itemList .item-form > .row:nth-of-type(1) > div:nth-child(1) input { font-weight:700; font-size:16px; }
+body.admin-redesign #panel-menu #itemList .item-form > .row:nth-of-type(1) > div:nth-child(2) input { border-color:var(--m-gold); background:var(--m-gl); color:var(--m-red2); font-weight:800; }
 /* image area */
-body.admin-redesign #panel-menu #itemList .item-form > .row:nth-child(2) > div:nth-child(2) > label { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); }
+body.admin-redesign #panel-menu #itemList .item-form > .row:nth-of-type(2) > div:nth-child(2) > label { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); }
 body.admin-redesign #panel-menu .menu-image-upload { flex-direction:column; align-items:stretch; gap:0; }
 body.admin-redesign #panel-menu .menu-image-upload .img-preview-box { width:100%; height:130px; border:0; border-radius:0; background:linear-gradient(135deg,#fde6c4,#f8cfc9); }
 body.admin-redesign #panel-menu .img-preview-empty { font-size:14px; color:var(--m-mute); }
@@ -270,7 +278,7 @@ body.admin-redesign #panel-menu .cloudinary-badge { background:#fdecec; color:va
 body.admin-redesign #panel-menu .cloudinary-badge.ready { background:#e3f5ea; color:#238a55; }
 /* edit toggle + compact (view) state; the full form shows only while .is-editing */
 body.admin-redesign #panel-menu #itemList .item-form { position:relative; }
-body.admin-redesign #panel-menu #itemList .item-form > .menu-edit-toggle { grid-column:2 / 4; grid-row:8; min-height:44px; margin-top:12px; border:1.5px solid var(--m-red); border-radius:12px; background:#fff; color:var(--m-red2); font:700 15px inherit; cursor:pointer; }
+body.admin-redesign #panel-menu #itemList .item-form > .menu-edit-toggle { grid-column:2 / 4; grid-row:13; min-height:44px; margin-top:12px; border:1.5px solid var(--m-red); border-radius:12px; background:#fff; color:var(--m-red2); font:700 15px inherit; cursor:pointer; }
 body.admin-redesign #panel-menu #itemList .item-form > .menu-edit-toggle:hover { background:#fdecec; }
 body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row > div > label,
 body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > label,
@@ -280,15 +288,15 @@ body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .item-ac
 body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) .menu-image-upload-controls,
 body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) .img-spec-hint { display:none; }
 body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .menu-edit-toggle { grid-row:4; }
-body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-child(2) > div:nth-child(1) { grid-column:2 / 4; grid-row:3; margin:0; }
-body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-child(1) > div:nth-child(1) { margin-top:12px; }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-of-type(2) > div:nth-child(1) { grid-column:2 / 4; grid-row:3; margin:0; }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-of-type(1) > div:nth-child(1) { margin-top:12px; }
 body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row input:not([type=file]) { min-height:0; padding:0; border-color:transparent; background:transparent; box-shadow:none; pointer-events:none; }
-body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-child(1) > div:nth-child(1) input { font-size:17px; font-weight:700; color:var(--m-ink); }
-body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-child(2) > div:nth-child(1) input { font-size:14px; color:var(--m-mute); }
-body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-child(1) > div:nth-child(2) { position:relative; grid-column:2 / 4; grid-row:1; align-self:end; justify-self:end; z-index:2; margin:0 0 10px; }
-body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-child(1) > div:nth-child(2)::before { content:"฿"; position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#2a1d00; font-size:18px; font-weight:800; pointer-events:none; }
-body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-child(1) > div:nth-child(2) input { width:104px; min-height:40px; padding:6px 14px 6px 32px; border-radius:999px; background:var(--m-gold); color:#2a1d00; font-size:18px; font-weight:800; -moz-appearance:textfield; appearance:textfield; }
-body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-child(1) > div:nth-child(2) input::-webkit-inner-spin-button { display:none; }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-of-type(1) > div:nth-child(1) input { font-size:17px; font-weight:700; color:var(--m-ink); }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-of-type(2) > div:nth-child(1) input { font-size:14px; color:var(--m-mute); }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-of-type(1) > div:nth-child(2) { position:relative; grid-column:2 / 4; grid-row:1; align-self:end; justify-self:end; z-index:2; margin:0 0 10px; }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-of-type(1) > div:nth-child(2)::before { content:"฿"; position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#2a1d00; font-size:18px; font-weight:800; pointer-events:none; }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-of-type(1) > div:nth-child(2) input { width:104px; min-height:40px; padding:6px 14px 6px 32px; border-radius:999px; background:var(--m-gold); color:#2a1d00; font-size:18px; font-weight:800; -moz-appearance:textfield; appearance:textfield; }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row:nth-of-type(1) > div:nth-child(2) input::-webkit-inner-spin-button { display:none; }
 body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .row input:focus-visible { outline:2px solid var(--m-gold); }
 body.admin-redesign #panel-menu #itemList .item-form:has(.avail-toggle input:not(:checked)) .img-preview-box { filter:grayscale(1); opacity:.7; }
 body.admin-redesign #panel-menu #itemList .item-form:has(.avail-toggle input:not(:checked))::after { content:"ของหมดชั่วคราว"; position:absolute; top:10px; left:10px; padding:4px 10px; border-radius:999px; background:#fdecec; color:var(--m-red); font-size:12px; font-weight:700; }

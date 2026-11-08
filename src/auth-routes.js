@@ -74,7 +74,16 @@ export async function handleAuthRoute(request, name, { store, env }) {
     return jsonResponse(401, { ok: false, error: "bad_credentials" });
   }
   await rateClear(store, key);
-  const token = await signToken(env, "session", { r: role, exp: Date.now() + SESSION_TTL_SEC * 1000 });
+  // A shared password cannot prove a person's name. The owner configures this
+  // display id in the Worker environment so staff-created orders remain auditable.
+  const configuredId = typeof env[role === STAFF ? "STAFF_ID" : "OWNER_ID"] === "string"
+    ? env[role === STAFF ? "STAFF_ID" : "OWNER_ID"].trim().slice(0, 80)
+    : "";
+  const token = await signToken(env, "session", {
+    r: role,
+    id: configuredId || role,
+    exp: Date.now() + SESSION_TTL_SEC * 1000,
+  });
   return jsonResponse(
     200,
     { ok: true, role },
@@ -86,6 +95,7 @@ function publicView(device) {
   return {
     id: device.id,
     name: device.name,
+    station: device.station || "counter",
     status: device.status,
     createdAt: device.createdAt,
     rotatedAt: device.rotatedAt || null,
@@ -124,7 +134,8 @@ export async function handleDevicesRoute(request, { store, env, principal }) {
     }
     const id = `dev_${[...crypto.getRandomValues(new Uint8Array(6))].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
     const { secret, hash } = await newSecret();
-    devices[id] = { id, name, status: "active", createdAt: iso, current: { hash, createdAt: iso }, previous: null };
+    const station = body.station === "kitchen" ? "kitchen" : "counter";
+    devices[id] = { id, name, station, status: "active", createdAt: iso, current: { hash, createdAt: iso }, previous: null };
     await store.set(DEVICES_KEY, devices);
     logAuth("auth.device_created", { deviceId: id });
     // The secret is shown exactly once and is never stored in readable form.

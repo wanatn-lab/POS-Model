@@ -37,6 +37,10 @@ function pageFetch({ store, env, jar, overrides, log }) {
 async function newShop({ env = {}, loginAs, seedOrders = [] } = {}) {
   const store = new SqliteStore(fakeSql());
   const fullEnv = { ...ENV, ...env };
+  if (seedOrders.length) {
+    const menu = seedOrders.flatMap((order) => order.items || []).map((item) => ({ ...item, available: true }));
+    await store.set("menu", menu);
+  }
   const jar = {};
   if (loginAs) {
     const password = loginAs === "owner" ? ENV.OWNER_PASSWORD : ENV.STAFF_PASSWORD;

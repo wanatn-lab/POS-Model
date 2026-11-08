@@ -5,13 +5,18 @@ const HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_BILLS = 1000;
 const MAX_PRINT_JOBS = 300;
 
+function batchSet(client, entries) {
+  if (typeof client.batchSet === "function") return client.batchSet(entries);
+  return Promise.all(entries.map(([key, value]) => client.set(key, value)));
+}
+
 function isCancelled(bill) {
   return Boolean(bill && (bill.cancelledAt || bill.status === "cancelled"));
 }
 
 function summaryFor(history) {
   const cancelledBills = history.filter(isCancelled);
-  const validBills = history.filter((bill) => !isCancelled(bill));
+  const validBills = history.filter((bill) => !isCancelled(bill) && bill.status === "paid");
   return {
     allBills: history.length,
     validBills: validBills.length,
@@ -52,6 +57,7 @@ function safeBill(bill) {
     table: String(bill.table || "-"),
     createdAt: bill.createdAt,
     settledAt: bill.settledAt || bill.createdAt,
+    status: bill.status || "paid",
     shopName: String(bill.shopName || "ทองย้อย"),
     phone: String(bill.phone || "085-529-8799"),
     total: Number(bill.total) || 0,
@@ -116,9 +122,9 @@ export function createBillHistoryHandler({ redis: redisClient = redis, bell = ri
       }
     });
 
-    await Promise.all([
-      redisClient.set("billHistory", recentBills(history, now)),
-      redisClient.set("printJobs", jobs.slice(-MAX_PRINT_JOBS)),
+    await batchSet(redisClient, [
+      ["billHistory", recentBills(history, now)],
+      ["printJobs", jobs.slice(-MAX_PRINT_JOBS)],
     ]);
     return res.status(200).json({
       ok: true,
@@ -173,9 +179,9 @@ export function createBillHistoryHandler({ redis: redisClient = redis, bell = ri
       }
     });
 
-    await Promise.all([
-      redisClient.set("billHistory", recentBills(history, now)),
-      redisClient.set("printJobs", jobs.slice(-MAX_PRINT_JOBS)),
+    await batchSet(redisClient, [
+      ["billHistory", recentBills(history, now)],
+      ["printJobs", jobs.slice(-MAX_PRINT_JOBS)],
     ]);
     return res.status(200).json({
       ok: true,
@@ -209,15 +215,17 @@ export function createBillHistoryHandler({ redis: redisClient = redis, bell = ri
   const receiptJob = {
     ...bill,
     id: `reprint-${bill.id}-${now}`,
+    printId: `reprint-${bill.id}-${now}`,
     type: "receipt",
+    station: "counter",
     status: "queued",
     reprintOf: bill.id,
     queuedAt: new Date(now).toISOString(),
   };
   jobs.push(receiptJob);
-  await Promise.all([
-    redisClient.set("billHistory", history.slice(0, MAX_BILLS)),
-    redisClient.set("printJobs", jobs.slice(-MAX_PRINT_JOBS)),
+  await batchSet(redisClient, [
+    ["billHistory", history.slice(0, MAX_BILLS)],
+    ["printJobs", jobs.slice(-MAX_PRINT_JOBS)],
   ]);
   await bell("print");
   return res.status(200).json({ ok: true, receiptJobId: receiptJob.id });

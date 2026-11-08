@@ -20,4 +20,5 @@ export const redis = {
   hset: (...args) => store().hset(...args),
   hgetall: (...args) => store().hgetall(...args),
   mget: (...args) => store().mget(...args),
+  batchSet: (...args) => store().batchSet(...args),
 };

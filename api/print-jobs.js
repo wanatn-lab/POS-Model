@@ -1,98 +1,144 @@
 import { redis } from "./_redis.js";
 
-// A receipt must survive the browser closing and must not be printed by two
-// Bridge processes at once.  A short server-side lease, plus the bridge's own
-// local print history, gives us both durability and protection during the
-// foreground/background hand-off on iMin.
 const CLAIM_TTL_MS = 2 * 60 * 1000;
+const MAX_RETRIES = 3;
 const MAX_JOBS = 300;
+const STATIONS = new Set(["counter", "kitchen"]);
 
 function readJobs(value) {
   return Array.isArray(value) ? value.filter((job) => job && job.id) : [];
-}
-
-function canClaim(job, now) {
-  if (job.status === "printed") return false;
-  if (job.status !== "printing") return true;
-  return !job.claimedAt || new Date(job.claimedAt).getTime() <= now - CLAIM_TTL_MS;
 }
 
 function validDeviceId(value) {
   return typeof value === "string" && value.trim().length >= 8;
 }
 
-export function createPrintJobsHandler(redisClient = redis) {
-  return async function handler(req, res) {
-  if (req.method === "GET") {
-    const jobs = readJobs(await redisClient.get("printJobs"));
-    // The bridge needs both queued work and its own unfinished lease so it can
-    // acknowledge a receipt after a temporary network failure.
-    return res.status(200).json({
-      jobs: jobs.filter((job) => job.type === "receipt" && job.status !== "printed" && job.status !== "cancelled"),
-    });
+function isLeaseExpired(job, now) {
+  return ["claimed", "printing"].includes(job.status) && (!job.claimedAt || new Date(job.claimedAt).getTime() <= now - CLAIM_TTL_MS);
+}
+
+// A job that returns to the queue after the printer may already have printed it is a reprint.
+// The Bridge must print `reprintLabel` on it so the kitchen/cashier can tell it from a new job.
+function markReprint(job, wasPrinting) {
+  if (wasPrinting || job.printingAt) {
+    job.reprint = true;
+    job.reprintLabel = "*** พิมพ์ซ้ำ ***";
   }
+}
 
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "GET, POST");
-    return res.status(405).end("Method not allowed");
-  }
-
-  const body = req.body || {};
-  const { action, id, deviceId } = body;
-  if (!id || !validDeviceId(deviceId)) {
-    return res.status(400).json({ ok: false, error: "missing id or deviceId" });
-  }
-
-  const jobs = readJobs(await redisClient.get("printJobs"));
-  const job = jobs.find((entry) => entry.id === id && entry.type === "receipt");
-  if (!job) return res.status(404).json({ ok: false, error: "print job not found" });
-  const now = Date.now();
-
-  if (job.status === "cancelled") {
-    return res.status(409).json({ ok: false, error: "print job cancelled" });
-  }
-
-  if (action === "claim") {
-    if (job.status === "printed") {
-      return res.status(409).json({ ok: false, error: "print job already completed" });
-    }
-    const claimedByOtherDevice =
-      job.status === "printing" && job.claimedBy && job.claimedBy !== deviceId && !canClaim(job, now);
-    if (claimedByOtherDevice) {
-      return res.status(409).json({ ok: false, error: "print job is being printed" });
-    }
-    job.status = "printing";
-    job.claimedBy = deviceId;
-    job.claimedAt = new Date(now).toISOString();
-    await redisClient.set("printJobs", jobs.slice(-MAX_JOBS));
-    return res.status(200).json({ ok: true, job });
-  }
-
-  if (action === "complete") {
-    if (job.status === "printed") return res.status(200).json({ ok: true, job });
-    if (job.claimedBy && job.claimedBy !== deviceId && !canClaim(job, now)) {
-      return res.status(409).json({ ok: false, error: "print job belongs to another device" });
-    }
-    job.status = "printed";
-    job.printedAt = new Date(now).toISOString();
-    job.claimedBy = deviceId;
-    await redisClient.set("printJobs", jobs.slice(-MAX_JOBS));
-    return res.status(200).json({ ok: true, job });
-  }
-
-  if (action === "release") {
-    if (job.status === "printed") return res.status(200).json({ ok: true, job });
-    if (job.claimedBy && job.claimedBy !== deviceId && !canClaim(job, now)) {
-      return res.status(409).json({ ok: false, error: "print job belongs to another device" });
-    }
-    job.status = "queued";
+function releaseExpired(jobs, station, now) {
+  let changed = false;
+  for (const job of jobs) {
+    if (job.station !== station || !isLeaseExpired(job, now)) continue;
+    markReprint(job, job.status === "printing");
+    job.retryCount = (Number(job.retryCount) || 0) + 1;
+    job.status = job.retryCount > MAX_RETRIES ? "failed" : "queued";
+    job.lastError = "lease_expired";
+    job.lastFailedAt = new Date(now).toISOString();
     delete job.claimedBy;
     delete job.claimedAt;
-    await redisClient.set("printJobs", jobs.slice(-MAX_JOBS));
-    return res.status(200).json({ ok: true, job });
+    changed = true;
   }
+  return changed;
+}
 
-  return res.status(400).json({ ok: false, error: "unknown action" });
+function jobsForStation(jobs, station) {
+  return jobs.filter((job) => job.station === station && !["printed", "cancelled"].includes(job.status));
+}
+
+function batchSet(client, entries) {
+  if (typeof client.batchSet === "function") return client.batchSet(entries);
+  return Promise.all(entries.map(([key, value]) => client.set(key, value)));
+}
+
+export function createPrintJobsHandler(redisClient = redis) {
+  return async function handler(req, res) {
+    // `station` is injected from the authenticated device by api-router. The
+    // fallback keeps the isolated handler usable in migration/unit tooling;
+    // it is never reachable in enforced Worker traffic without device auth.
+    const station = req.auth && req.auth.deviceStation || req.body && req.body.station || "counter";
+    if (!STATIONS.has(station)) return res.status(403).json({ ok: false, error: "device station is not configured" });
+    const now = Date.now();
+    const jobs = readJobs(await redisClient.get("printJobs"));
+    const releasedExpired = releaseExpired(jobs, station, now);
+
+    if (req.method === "GET") {
+      if (releasedExpired) await redisClient.set("printJobs", jobs.slice(-MAX_JOBS));
+      return res.status(200).json({
+        station,
+        leaseMs: CLAIM_TTL_MS,
+        jobs: jobsForStation(jobs, station),
+      });
+    }
+
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "GET, POST");
+      return res.status(405).end("Method not allowed");
+    }
+
+    const body = req.body || {};
+    if (body.action === "retry") {
+      const job = jobs.find((entry) => entry.id === body.id && entry.station === body.station);
+      if (!job) return res.status(404).json({ ok: false, error: "print job not found" });
+      if (!["failed", "queued"].includes(job.status)) return res.status(409).json({ ok: false, error: "print job is not retryable" });
+      markReprint(job, true);
+      job.status = "queued";
+      job.manualRetryAt = new Date(now).toISOString();
+      await redisClient.set("printJobs", jobs.slice(-MAX_JOBS));
+      return res.status(200).json({ ok: true, job });
+    }
+
+    const { action, id, deviceId } = body;
+    if (!id || !validDeviceId(deviceId)) return res.status(400).json({ ok: false, error: "missing id or deviceId" });
+    const job = jobs.find((entry) => entry.id === id && entry.station === station);
+    if (!job) return res.status(404).json({ ok: false, error: "print job not found" });
+    if (job.status === "cancelled") return res.status(409).json({ ok: false, error: "print job cancelled" });
+
+    const ownedByOtherDevice = job.claimedBy && job.claimedBy !== deviceId && !isLeaseExpired(job, now);
+    if (ownedByOtherDevice) return res.status(409).json({ ok: false, error: "print job belongs to another device" });
+
+    if (action === "claim") {
+      if (job.status === "printed") return res.status(409).json({ ok: false, error: "print job already completed" });
+      if (job.status === "failed") return res.status(409).json({ ok: false, error: "print job needs manual retry" });
+      job.status = "claimed";
+      job.claimedBy = deviceId;
+      job.claimedAt = new Date(now).toISOString();
+      await redisClient.set("printJobs", jobs.slice(-MAX_JOBS));
+      return res.status(200).json({ ok: true, job });
+    }
+
+    if (action === "printing") {
+      if (!["claimed", "printing"].includes(job.status)) return res.status(409).json({ ok: false, error: "print job is not claimed" });
+      job.status = "printing";
+      job.printingAt = new Date(now).toISOString();
+      await redisClient.set("printJobs", jobs.slice(-MAX_JOBS));
+      return res.status(200).json({ ok: true, job });
+    }
+
+    if (action === "complete") {
+      if (job.status === "printed") return res.status(200).json({ ok: true, job });
+      if (!["claimed", "printing"].includes(job.status)) return res.status(409).json({ ok: false, error: "print job is not claimed" });
+      job.status = "printed";
+      job.printedAt = new Date(now).toISOString();
+      job.claimedBy = deviceId;
+      await redisClient.set("printJobs", jobs.slice(-MAX_JOBS));
+      return res.status(200).json({ ok: true, job });
+    }
+
+    if (action === "release") {
+      if (job.status === "printed") return res.status(200).json({ ok: true, job });
+      markReprint(job, job.status === "printing");
+      job.retryCount = (Number(job.retryCount) || 0) + 1;
+      job.status = job.retryCount > MAX_RETRIES ? "failed" : "queued";
+      job.lastError = typeof body.error === "string" ? body.error.slice(0, 200) : "print_failed";
+      job.lastFailedAt = new Date(now).toISOString();
+      delete job.claimedBy;
+      delete job.claimedAt;
+      await redisClient.set("printJobs", jobs.slice(-MAX_JOBS));
+      return res.status(200).json({ ok: true, job });
+    }
+
+    return res.status(400).json({ ok: false, error: "unknown action" });
   };
 }
 
