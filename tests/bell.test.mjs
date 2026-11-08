@@ -84,6 +84,17 @@ test("bell is off unless BELL_ENABLED=true with a URL and a valid service accoun
   assert.equal(bellConfig(base64).ready, true, "base64 service account is accepted");
 });
 
+test("bell reads the Worker environment injected by api-router, not process.env", () => {
+  const previous = globalThis.__shopEnv;
+  globalThis.__shopEnv = PROD_ENV;
+  try {
+    assert.equal(bellConfig().ready, true);
+    assert.equal(bellConfig().databaseUrl, "https://jinko-pos-default-rtdb.example.firebasedatabase.app");
+  } finally {
+    globalThis.__shopEnv = previous;
+  }
+});
+
 test("preview never uses production settings and rings a separate path", () => {
   const previewWithProdOnly = { ...PROD_ENV, VERCEL_ENV: "preview" };
   assert.equal(bellConfig(previewWithProdOnly).ready, false);

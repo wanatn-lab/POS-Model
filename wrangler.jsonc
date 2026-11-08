@@ -30,7 +30,11 @@
         "bindings": [{ "name": "SHOP", "class_name": "ShopDO" }]
       },
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShopDO"] }],
-      "vars": { "AUTH_MODE": "enforce" }
+      "vars": {
+        "AUTH_MODE": "enforce",
+        "BELL_ENABLED": "true",
+        "FIREBASE_DATABASE_URL": "https://thongyoibell-default-rtdb.asia-southeast1.firebasedatabase.app"
+      }
     }
   }
 }

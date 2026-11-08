@@ -695,3 +695,11 @@ test("pre-filter does nothing unless AUTH_MODE is enforce", async () => {
     assert.equal(await quickReject(new Request(`${ORIGIN}/api/orders`), { ...ENV, AUTH_MODE }), null);
   }
 });
+
+test("login: a 4-digit staff PIN is accepted, but the owner password must still be 12+ characters", async () => {
+  const staff = setup({ STAFF_PASSWORD: "4821" });
+  assert.equal((await staff.call("POST", "/api/auth/login", { role: "staff", password: "4821" })).status, 200);
+  assert.equal((await staff.call("POST", "/api/auth/login", { role: "staff", password: "0000" })).status, 401);
+  assert.equal((await setup({ STAFF_PASSWORD: "123" }).call("POST", "/api/auth/login", { role: "staff", password: "123" })).status, 503);
+  assert.equal((await setup({ OWNER_PASSWORD: "123456" }).call("POST", "/api/auth/login", { role: "owner", password: "123456" })).status, 503);
+});

@@ -9,6 +9,7 @@ import {
   LOGIN_MAX_FAILS,
   LOGIN_WINDOW_SEC,
   MIN_PASSWORD_LENGTH,
+  MIN_STAFF_PASSWORD_LENGTH,
   OWNER,
   PUBLIC,
   SESSION_COOKIE,
@@ -59,7 +60,7 @@ export async function handleAuthRoute(request, name, { store, env }) {
     return jsonResponse(400, { ok: false, error: "bad_request" });
   }
   const expected = env[PASSWORD_VARIABLE[role]];
-  if (!signingConfigured(env) || typeof expected !== "string" || expected.length < MIN_PASSWORD_LENGTH) {
+  if (!signingConfigured(env) || typeof expected !== "string" || expected.length < (role === STAFF ? MIN_STAFF_PASSWORD_LENGTH : MIN_PASSWORD_LENGTH)) {
     return jsonResponse(503, { ok: false, error: "not_configured" });
   }
 

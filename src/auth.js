@@ -30,6 +30,8 @@ export const TABLE_PASS_TTL_SEC = 8 * 60 * 60;
 export const LOGIN_MAX_FAILS = 5;
 export const LOGIN_WINDOW_SEC = 15 * 60;
 export const MIN_PASSWORD_LENGTH = 12;
+// Owner password stays long; the shared staff PIN may be short (owner decision, 4 digits) so staff can sign in quickly.
+export const MIN_STAFF_PASSWORD_LENGTH = 4;
 export const MIN_SECRET_LENGTH = 32;
 export const DEFAULT_ORDERS_PER_MINUTE = 3;
 export const DEFAULT_ORDERS_PER_MINUTE_PER_CLIENT = 30;
