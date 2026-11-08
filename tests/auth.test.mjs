@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ROUTES, handleApiRequest } from "../src/api-router.js";
-import { RULES, authMode, authorize, quickReject, rolesFor, signToken } from "../src/auth.js";
+import { RULES, authMode, authorize, quickReject, rolesFor, signToken, staffSessionExpiresAt, verifyToken } from "../src/auth.js";
+import { handleAuthRoute } from "../src/auth-routes.js";
 import { SqliteStore } from "../src/sqlite-store.js";
 import { fakeSql } from "./cf-helpers.mjs";
 
@@ -43,6 +44,24 @@ async function login(call, role, password) {
   const response = await call("POST", "/api/auth/login", { role, password });
   assert.equal(response.status, 200, `login as ${role}`);
   return cookieOf(response);
+}
+
+async function loginAt({ store, env }, role, now) {
+  const response = await handleAuthRoute(
+    new Request(`${ORIGIN}/api/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: ORIGIN },
+      body: JSON.stringify({ role, password: env[role === "staff" ? "STAFF_PASSWORD" : "OWNER_PASSWORD"] }),
+    }),
+    "login",
+    { store, env, now },
+  );
+  assert.equal(response.status, 200, `login as ${role}`);
+  const setCookie = response.headers.getSetCookie()[0];
+  const token = setCookie.match(/^jinko_session=([^;]+)/)[1];
+  const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
+  const maxAgeSec = Number(setCookie.match(/Max-Age=(\d+)/)[1]);
+  return { response, setCookie, token, payload, maxAgeSec };
 }
 
 // A shop with an owner, a staff member, one print device and one customer at table 3.
@@ -375,10 +394,46 @@ test("login: right password gives a hardened cookie, wrong password gives none",
 
   const good = await call("POST", "/api/auth/login", { role: "staff", password: ENV.STAFF_PASSWORD });
   const cookie = good.headers.getSetCookie()[0];
-  for (const part of ["jinko_session=", "HttpOnly", "SameSite=Strict", "Path=/", "Secure", "Max-Age=43200"]) assert.ok(cookie.includes(part), part);
+  for (const part of ["jinko_session=", "HttpOnly", "SameSite=Strict", "Path=/", "Secure", "Max-Age="]) assert.ok(cookie.includes(part), part);
   const me = await (await call("GET", "/api/auth/me", undefined, { cookie: cookieOf(good) })).json();
   assert.equal(me.role, "staff");
   assert.equal((await (await call("GET", "/api/auth/me")).json()).role, "public");
+});
+
+test("staff session: Monday and Tuesday logins expire at the correct Bangkok Tuesday cutoff", async () => {
+  const cases = [
+    ["Monday", "2026-11-02T12:34:56.000Z", "2026-11-02T21:00:00.000Z"],
+    ["Tuesday before 04:00 Bangkok", "2026-11-02T20:59:59.000Z", "2026-11-02T21:00:00.000Z"],
+    ["Tuesday at 04:00 Bangkok", "2026-11-02T21:00:00.000Z", "2026-11-09T21:00:00.000Z"],
+    ["Tuesday after 04:00 Bangkok", "2026-11-02T21:00:01.000Z", "2026-11-09T21:00:00.000Z"],
+    // The explicit +07:00 input proves the calculation does not use the server's timezone.
+    ["explicit Asia/Bangkok offset", "2026-11-03T03:30:00.000+07:00", "2026-11-02T21:00:00.000Z"],
+  ];
+  for (const [label, startText, expiryText] of cases) {
+    const now = Date.parse(startText);
+    const expiresAt = Date.parse(expiryText);
+    assert.equal(staffSessionExpiresAt(now), expiresAt, label);
+    const shop = setup();
+    const issued = await loginAt(shop, "staff", now);
+    assert.equal(issued.payload.exp, expiresAt, `${label}: token exp`);
+    assert.equal(issued.maxAgeSec, (expiresAt - now) / 1000, `${label}: cookie Max-Age`);
+    assert.equal(issued.payload.exp, now + issued.maxAgeSec * 1000, `${label}: token and cookie agree`);
+    assert.equal(await verifyToken(shop.env, "session", issued.token, expiresAt), null, `${label}: expired token is rejected`);
+  }
+});
+
+test("owner session remains 12 hours, while the staff cookie spans admin and kitchen pages", async () => {
+  const now = Date.parse("2026-11-02T12:00:00.000Z");
+  const owner = await loginAt(setup(), "owner", now);
+  assert.equal(owner.maxAgeSec, 12 * 60 * 60);
+  assert.equal(owner.payload.exp, now + 12 * 60 * 60 * 1000);
+
+  const shop = setup();
+  const cookie = await login(shop.call, "staff", ENV.STAFF_PASSWORD);
+  for (const page of ["/admin", "/kitchen"]) {
+    const response = await shop.call("GET", "/api/auth/me", undefined, { cookie, headers: { referer: `${ORIGIN}${page}` } });
+    assert.equal((await response.json()).role, "staff", `session from ${page}`);
+  }
 });
 
 test("login: five wrong passwords lock that role out for this client, even with the right password", async () => {

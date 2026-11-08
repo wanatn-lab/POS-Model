@@ -26,6 +26,7 @@ export const TABLE_COOKIE = "jinko_table";
 export const DEVICES_KEY = "auth:devices";
 
 export const SESSION_TTL_SEC = 12 * 60 * 60;
+export const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
 export const TABLE_PASS_TTL_SEC = 8 * 60 * 60;
 export const LOGIN_MAX_FAILS = 5;
 export const LOGIN_WINDOW_SEC = 15 * 60;
@@ -153,6 +154,26 @@ async function hmac(secret, message) {
 
 export function signingConfigured(env) {
   return typeof env.SESSION_SECRET === "string" && env.SESSION_SECRET.length >= MIN_SECRET_LENGTH;
+}
+
+// Staff sessions end at 04:00 Asia/Bangkok on Tuesday. A login before that
+// cutoff on Tuesday ends the same day; at or after it, the next Tuesday is used.
+// Bangkok has a fixed UTC+07:00 offset, so this avoids depending on the
+// Worker host timezone.
+export function staffSessionExpiresAt(now = Date.now()) {
+  const bangkok = new Date(now + BANGKOK_UTC_OFFSET_MS);
+  let daysUntilTuesday = (2 - bangkok.getUTCDay() + 7) % 7;
+  const isTuesdayAtOrAfterCutoff = daysUntilTuesday === 0 && bangkok.getUTCHours() >= 4;
+  if (isTuesdayAtOrAfterCutoff) daysUntilTuesday = 7;
+  return Date.UTC(
+    bangkok.getUTCFullYear(),
+    bangkok.getUTCMonth(),
+    bangkok.getUTCDate() + daysUntilTuesday,
+    4,
+    0,
+    0,
+    0,
+  ) - BANGKOK_UTC_OFFSET_MS;
 }
 
 // label separates the cookies ("session" vs "table") so one can never be replayed as the other.

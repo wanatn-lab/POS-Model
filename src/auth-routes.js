@@ -31,13 +31,14 @@ import {
   sha256Hex,
   signToken,
   signingConfigured,
+  staffSessionExpiresAt,
 } from "./auth.js";
 
 const PASSWORD_VARIABLE = { [STAFF]: "STAFF_PASSWORD", [OWNER]: "OWNER_PASSWORD" };
 const MAX_DEVICES = 10;
 const DEFAULT_ROTATION_GRACE_HOURS = 168;
 
-export async function handleAuthRoute(request, name, { store, env }) {
+export async function handleAuthRoute(request, name, { store, env, now = Date.now() }) {
   if (name === "me") {
     if (request.method !== "GET") return jsonResponse(405, { ok: false, error: "method not allowed" });
     const principal = await resolvePrincipal(request, { store, env });
@@ -80,15 +81,20 @@ export async function handleAuthRoute(request, name, { store, env }) {
   const configuredId = typeof env[role === STAFF ? "STAFF_ID" : "OWNER_ID"] === "string"
     ? env[role === STAFF ? "STAFF_ID" : "OWNER_ID"].trim().slice(0, 80)
     : "";
+  const expiresAt = role === STAFF ? staffSessionExpiresAt(now) : now + SESSION_TTL_SEC * 1000;
+  // Cookie lifetime comes from the exact same server-calculated expiry as the token.
+  // Ceiling keeps the cookie available through the final fractional second; verifyToken
+  // remains the authoritative expiry check at expiresAt.
+  const maxAgeSec = Math.max(0, Math.ceil((expiresAt - now) / 1000));
   const token = await signToken(env, "session", {
     r: role,
     id: configuredId || role,
-    exp: Date.now() + SESSION_TTL_SEC * 1000,
+    exp: expiresAt,
   });
   return jsonResponse(
     200,
     { ok: true, role },
-    { "set-cookie": buildCookie(request, SESSION_COOKIE, token, { path: "/", maxAgeSec: SESSION_TTL_SEC }) },
+    { "set-cookie": buildCookie(request, SESSION_COOKIE, token, { path: "/", maxAgeSec }) },
   );
 }
 
