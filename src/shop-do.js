@@ -7,7 +7,7 @@ import { SqliteStore } from "./sqlite-store.js";
 export class ShopDO extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
-    this.store = new SqliteStore(ctx.storage.sql);
+    this.store = new SqliteStore(ctx.storage.sql, Date.now, ctx.storage);
   }
 
   async fetch(request) {

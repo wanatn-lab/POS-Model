@@ -29,6 +29,31 @@ test("set overwrites, mget returns values in order (spread and array forms)", as
   assert.deepEqual(await store.mget(["a", "c"]), [2, null]);
 });
 
+test("batchSet uses Durable Object transactionSync instead of SQL BEGIN", async () => {
+  const backingSql = fakeSql();
+  const queries = [];
+  const sql = {
+    exec(query, ...bindings) {
+      queries.push(query);
+      if (/^\s*(BEGIN|COMMIT|ROLLBACK)\b/i.test(query)) throw new Error("raw transaction SQL is forbidden");
+      return backingSql.exec(query, ...bindings);
+    },
+  };
+  let transactions = 0;
+  const storage = {
+    transactionSync(callback) {
+      transactions += 1;
+      return callback();
+    },
+  };
+  const store = new SqliteStore(sql, Date.now, storage);
+  await store.batchSet([["orders", [{ id: "o1" }]], ["printJobs", [{ id: "p1" }]]]);
+  assert.equal(transactions, 1);
+  assert.equal(queries.some((query) => /^\s*(BEGIN|COMMIT|ROLLBACK)\b/i.test(query)), false);
+  assert.deepEqual(await store.get("orders"), [{ id: "o1" }]);
+  assert.deepEqual(await store.get("printJobs"), [{ id: "p1" }]);
+});
+
 test("set with ex expires after the given seconds, and a plain set clears the expiry", async () => {
   const { store, clock } = makeStore();
   await store.set("shopSpecialOpen", "2026-10-12", { ex: 60 });

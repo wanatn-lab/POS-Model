@@ -111,6 +111,17 @@ function batchSet(client, entries) {
   return Promise.all(entries.map(([key, value]) => client.set(key, value)));
 }
 
+// Bell is only a wake-up hint. A Firebase outage (or an unexpected adapter
+// failure) must never turn a saved order into HTTP 500.
+async function ringSafely(bell, reason) {
+  try {
+    await bell(reason);
+  } catch {
+    // createBell already catches its own failures; this also protects order
+    // creation if a future bell adapter rejects unexpectedly.
+  }
+}
+
 export function createOrdersHandler({ redis: redisClient = redis, bell = ringBell } = {}) {
   return async function handler(req, res) {
     if (req.method === "GET") {
@@ -162,7 +173,7 @@ export function createOrdersHandler({ redis: redisClient = redis, bell = ringBel
       const kitchenPrinted = voidJobs.length > 0;
       jobs.push(...voidJobs);
       await batchSet(redisClient, [["orders", orders.slice(-MAX_ORDERS)], ["printJobs", jobs.slice(-300)]]);
-      if (kitchenPrinted) await bell("print");
+      if (kitchenPrinted) await ringSafely(bell, "print");
       return res.status(200).json({ ok: true, order, kitchenVoidQueued: kitchenPrinted });
     }
 
@@ -212,7 +223,7 @@ export function createOrdersHandler({ redis: redisClient = redis, bell = ringBel
       ["printJobs", jobs.slice(-300)],
       ["orderIdempotency", idempotency],
     ]);
-    if (order.status === "new") await bell("print");
+    if (order.status === "new") await ringSafely(bell, "print");
     return res.status(200).json({ ok: true, order });
   };
 }

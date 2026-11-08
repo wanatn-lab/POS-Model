@@ -12,9 +12,13 @@
 // `sql` must provide exec(query, ...bindings) returning an object with toArray().
 
 export class SqliteStore {
-  constructor(sql, now = Date.now) {
+  constructor(sql, now = Date.now, storage = null) {
     this.sql = sql;
     this.now = now;
+    // A Durable Object's storage owns the transaction boundary. Direct SQL
+    // BEGIN/COMMIT statements are refused in production because they bypass
+    // Durable Objects' atomic-write coalescing.
+    this.storage = storage;
     this.sql.exec(
       "CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL, exp INTEGER)",
     );
@@ -60,8 +64,7 @@ export class SqliteStore {
   // order plus its kitchen job, or a paid bill plus its receipt job). Entries
   // are computed before this call, so no await can leave a partial commit.
   async batchSet(entries) {
-    this.sql.exec("BEGIN TRANSACTION");
-    try {
+    const writeEntries = () => {
       for (const [key, value, options = {}] of entries) {
         const ex = Number(options.ex) > 0 ? this.now() + Number(options.ex) * 1000 : null;
         this.sql.exec(
@@ -71,8 +74,20 @@ export class SqliteStore {
           ex,
         );
       }
-      this.sql.exec("COMMIT");
       return "OK";
+    };
+
+    if (this.storage && typeof this.storage.transactionSync === "function") {
+      return this.storage.transactionSync(writeEntries);
+    }
+
+    // Local tests use a synchronous SQLite shim without Durable Object storage.
+    // Keep an equivalent fallback so rollback behaviour is tested locally.
+    this.sql.exec("BEGIN TRANSACTION");
+    try {
+      const result = writeEntries();
+      this.sql.exec("COMMIT");
+      return result;
     } catch (error) {
       this.sql.exec("ROLLBACK");
       throw error;

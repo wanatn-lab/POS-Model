@@ -229,6 +229,17 @@ test("order is still saved and answered 200 when the real bell fails", async () 
   assert.equal(redis.peek("orders").length, 1);
 });
 
+test("order is still saved and answered 200 if a bell adapter rejects", async () => {
+  const redis = fakeRedis({ orders: [], menu: testMenu });
+  const res = fakeRes();
+  await createOrdersHandler({
+    redis,
+    bell: async () => { throw new Error("unexpected bell adapter rejection"); },
+  })({ method: "POST", body: { table: 5, items: [{ id: "m2", qty: 1 }] } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(redis.peek("orders").length, 1);
+});
+
 test("QR create rings qr; QR complete does not", async () => {
   const redis = fakeRedis({ qrPrintJobs: [] });
   const bell = spyBell();
