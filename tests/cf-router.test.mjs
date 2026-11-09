@@ -7,6 +7,8 @@ import { fakeSql } from "./cf-helpers.mjs";
 function setup(env = {}) {
   env = { AUTH_MODE: "off", ...env }; // these tests predate access control (see tests/auth.test.mjs)
   const store = new SqliteStore(fakeSql());
+  // The server prices orders from its own menu.
+  store.set("menu", [{ id: "m1", name: "กระเพรา", price: 59 }, { id: "m3", name: "ชาเย็น", price: 35, category: "เครื่องดื่ม" }]);
   const call = (method, path, body, headers = {}) =>
     handleApiRequest(
       new Request(`https://shop.example${path}`, {

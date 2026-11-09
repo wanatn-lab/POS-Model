@@ -4,7 +4,8 @@ import { redis } from "./_redis.js";
 const SEED_SETTINGS = { tableCount: 20, shopName: "ทองย้อย", paperWidthMm: 80, printers: [] };
 
 // What a customer's phone may read. The receipt design, tax id and printer setup stay private.
-const PUBLIC_FIELDS = ["shopName", "tableCount"];
+// `theme` (per-shop colors) and `showPrices` only change how the customer page looks.
+const PUBLIC_FIELDS = ["shopName", "tableCount", "theme", "showPrices"];
 const FULL_ACCESS_ROLES = ["device", "staff", "owner"];
 
 export default async function handler(req, res) {

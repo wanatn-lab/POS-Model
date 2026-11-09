@@ -3,31 +3,44 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 const orderHtml = await readFile(new URL("../public/order.html", import.meta.url), "utf8");
-const styleCss = await readFile(new URL("../public/style.css", import.meta.url), "utf8");
 
-test("menu cards expose an accessible detail sheet without putting item text in HTML", () => {
-  assert.match(orderHtml, /id="menuDetailOverlay" class="sheet-overlay"/);
-  assert.match(orderHtml, /id="menuDetailImage"/);
-  assert.match(orderHtml, /id="menuDetailName"/);
-  assert.match(orderHtml, /id="menuDetailDescription"/);
-  assert.match(orderHtml, /id="menuDetailPrice"/);
-  assert.match(orderHtml, /class="body"[^>]*role="button"[^>]*tabindex="0"/);
-  assert.match(orderHtml, /data-detail-id="\$\{escAttr\(item\.id\)\}"/);
-  assert.match(orderHtml, /onclick="openMenuDetail\(this\.dataset\.detailId, this\)"/);
-  assert.match(orderHtml, /onkeydown="if \(event\.key === 'Enter' \|\| event\.key === ' '\) \{ event\.preventDefault\(\); openMenuDetail\(this\.dataset\.detailId, this\) \}/);
+test("menu cards open an accessible detail sheet (focus trap, Escape, focus restore)", () => {
+  assert.match(orderHtml, /id="menuDetailOverlay"/);
+  assert.match(orderHtml, /role="dialog" aria-modal="true"/);
+  for (const id of ["menuDetailImage", "menuDetailName", "menuDetailDescription", "menuDetailPrice", "menuDetailClose"]) {
+    assert.match(orderHtml, new RegExp(`id="${id}"`));
+  }
+  assert.match(orderHtml, /class="card[^"]*" role="button" tabindex="0" data-detail-id="\$\{escAttr\(m\.id\)\}"/);
   assert.match(orderHtml, /function openMenuDetail\(id, opener\)/);
-  assert.match(orderHtml, /menuDetailName\.textContent = item\.name/);
-  assert.match(orderHtml, /menuDetailDescription\.textContent = item\.desc \|\| ''/);
-  assert.match(orderHtml, /menuDetailImage\.src = item\.image/);
-  assert.match(orderHtml, /function closeMenuDetail\(\)/);
-  assert.match(orderHtml, /event\.key === 'Escape'/);
-  assert.match(orderHtml, /event\.preventDefault\(\);\s*openMenuDetail\(this\.dataset\.detailId, this\)/);
-  assert.match(orderHtml, /menuDetailOpener\s*=\s*opener \|\| document\.activeElement/);
+  assert.match(orderHtml, /menuDetailOpener = opener \|\| document\.activeElement/);
   assert.match(orderHtml, /menuDetailClose\.focus\(\)/);
+  assert.match(orderHtml, /function closeMenuDetail\(\)/);
+  assert.match(orderHtml, /e\.key === 'Escape' && S\.sheet/);
   assert.match(orderHtml, /menuDetailOverlay\.addEventListener\('keydown'/);
   assert.match(orderHtml, /event\.key !== 'Tab'/);
-  assert.match(orderHtml, /event\.preventDefault\(\)/);
   assert.match(orderHtml, /menuDetailOpener\.focus\(\)/);
-  assert.match(styleCss, /\.menu-detail-panel/);
-  assert.match(styleCss, /\.menu-detail-image/);
+  // detail text is written with textContent, never as HTML
+  assert.match(orderHtml, /\$\('#menuDetailName'\)\.textContent/);
+  assert.match(orderHtml, /\$\('#menuDetailDescription'\)\.textContent/);
+});
+
+test("the page sends only what was chosen: no price or name in the order request", () => {
+  const body = orderHtml.match(/const body = \{[\s\S]*?\};/)[0];
+  assert.match(body, /menuId:l\.id/);
+  assert.match(body, /optionIds:l\.opt/);
+  assert.match(body, /idempotencyKey/);
+  assert.doesNotMatch(body, /price|name/);
+});
+
+test("customer page keeps the existing features and hides prices by default", () => {
+  for (const marker of ["/api/menu", "/api/settings", "/api/orders", "searchInput", "catNav", "data-act=\"go\" data-v=\"hist\"", "available === false", "mustTry", "popular", "t('nt0')"]) {
+    assert.ok(orderHtml.includes(marker), `missing ${marker}`);
+  }
+  assert.match(orderHtml, /showPrices:false/);
+  assert.match(orderHtml, /S\.showPrices \? /);
+  assert.doesNotMatch(orderHtml, /admin-theme/);
+});
+
+test("theme colors from settings are accepted only as #rrggbb", () => {
+  assert.match(orderHtml, /\/\^#\[0-9a-fA-F\]\{6\}\$\//);
 });

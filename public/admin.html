@@ -1299,6 +1299,17 @@ function renderList() {
       </div>
       <label>รายละเอียด</label>
       <input value="${escAttr(item.desc)}" oninput="MENU[${i}].desc = this.value">
+      <div class="row">
+        <div>
+          <label>ชื่อเมนู (English) <small>ไม่บังคับ — ถ้าว่างจะแสดงชื่อไทย</small></label>
+          <input value="${escAttr(item.nameEn)}" oninput="MENU[${i}].nameEn = this.value">
+        </div>
+        <div>
+          <label>รายละเอียด (English)</label>
+          <input value="${escAttr(item.descEn)}" oninput="MENU[${i}].descEn = this.value">
+        </div>
+      </div>
+      <div id="optEd${i}" class="opt-editor">${optionEditorHtml(i)}</div>
       <div class="menu-flags">
         <label class="must-try-toggle ${isMustTry(item) ? 'is-selected' : ''}">
           <input type="checkbox" ${isMustTry(item) ? 'checked' : ''}
@@ -1316,6 +1327,90 @@ function renderList() {
       <button type="button" class="menu-edit-toggle" aria-expanded="${adminMenuEditing.has(item) ? 'true' : 'false'}" onclick="toggleMenuEdit(${i}, this)">${adminMenuEditing.has(item) ? 'เสร็จสิ้น' : 'แก้ไข'}</button>
     </div>
   `).join('');
+}
+
+// ---------- ตัวเลือกเมนู (กลุ่มตัวเลือก + ราคาเพิ่ม) ----------
+// MENU[i].optionGroups = [{id, name, nameEn, type:"single"|"multi", required, options:[{id, name, nameEn, priceDelta}]}]
+// The customer page only sends option ids; the server adds priceDelta itself (api/orders.js).
+const adminOptionOpen = new Set();
+const newOptId = prefix => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+function optionEditorHtml(i) {
+  const item = MENU[i];
+  const groups = Array.isArray(item.optionGroups) ? item.optionGroups : [];
+  const open = groups.length > 0 || adminOptionOpen.has(item);
+  const head = `<label class="avail-toggle"><input type="checkbox" ${open ? 'checked' : ''} onchange="toggleOptions(${i}, this.checked)">
+    <span><strong>เมนูนี้มีตัวเลือกให้ลูกค้าเลือก</strong> <small>(เช่น ความเผ็ด, ไข่ดาว +10 บาท) — ไม่ติ๊ก = ลูกค้ากดเพิ่มได้เลย</small></span></label>`;
+  if (!open) return head;
+  const body = groups.map((g, gi) => `
+    <div class="opt-group" style="border:1px solid var(--line,#ddd);border-radius:10px;padding:10px;margin:8px 0">
+      <div class="row">
+        <div><label>ชื่อกลุ่ม (เช่น ความเผ็ด)</label><input value="${escAttr(g.name)}" oninput="setOptGroup(${i},${gi},'name',this.value)"></div>
+        <div><label>ชื่อกลุ่ม (English)</label><input value="${escAttr(g.nameEn)}" oninput="setOptGroup(${i},${gi},'nameEn',this.value)"></div>
+      </div>
+      <div class="row">
+        <div><label>ลูกค้าเลือกได้</label>
+          <select onchange="setOptGroup(${i},${gi},'type',this.value)">
+            <option value="single" ${g.type !== 'multi' ? 'selected' : ''}>เลือกได้ 1 อย่าง</option>
+            <option value="multi" ${g.type === 'multi' ? 'selected' : ''}>เลือกได้หลายอย่าง</option>
+          </select></div>
+        <div><label>&nbsp;</label><label class="avail-toggle"><input type="checkbox" ${g.required ? 'checked' : ''} onchange="setOptGroup(${i},${gi},'required',this.checked)"> <span>ลูกค้าต้องเลือก</span></label></div>
+      </div>
+      ${(g.options || []).map((o, oi) => `
+      <div class="row" style="align-items:end">
+        <div><label>ตัวเลือก</label><input value="${escAttr(o.name)}" oninput="setOpt(${i},${gi},${oi},'name',this.value)"></div>
+        <div><label>English</label><input value="${escAttr(o.nameEn)}" oninput="setOpt(${i},${gi},${oi},'nameEn',this.value)"></div>
+        <div><label>ราคาเพิ่ม (บาท)</label><input type="number" min="0" step="1" value="${escAttr(o.priceDelta || 0)}" oninput="setOpt(${i},${gi},${oi},'priceDelta',this.value)"></div>
+        <div><button type="button" class="btn danger" onclick="delOpt(${i},${gi},${oi})" aria-label="ลบตัวเลือก">ลบ</button></div>
+      </div>`).join('')}
+      <div class="item-actions">
+        <button type="button" class="btn" onclick="addOpt(${i},${gi})">+ เพิ่มตัวเลือก</button>
+        <button type="button" class="btn danger" onclick="delOptGroup(${i},${gi})">ลบกลุ่มนี้</button>
+      </div>
+    </div>`).join('');
+  return head + body + `<button type="button" class="btn" onclick="addOptGroup(${i})">+ เพิ่มกลุ่มตัวเลือก</button>`;
+}
+function refreshOptionEditor(i) {
+  const el = document.getElementById('optEd' + i);
+  if (el) el.innerHTML = optionEditorHtml(i);
+}
+function toggleOptions(i, on) {
+  const item = MENU[i];
+  if (on) {
+    adminOptionOpen.add(item);
+    if (!Array.isArray(item.optionGroups) || !item.optionGroups.length) item.optionGroups = [{ id: newOptId('g'), name: '', nameEn: '', type: 'single', required: false, options: [{ id: newOptId('o'), name: '', nameEn: '', priceDelta: 0 }] }];
+  } else {
+    if ((item.optionGroups || []).length && !confirm('ลบตัวเลือกทั้งหมดของเมนูนี้?')) { refreshOptionEditor(i); return; }
+    adminOptionOpen.delete(item);
+    delete item.optionGroups;
+  }
+  refreshOptionEditor(i);
+}
+function addOptGroup(i) {
+  (MENU[i].optionGroups = MENU[i].optionGroups || []).push({ id: newOptId('g'), name: '', nameEn: '', type: 'single', required: false, options: [{ id: newOptId('o'), name: '', nameEn: '', priceDelta: 0 }] });
+  refreshOptionEditor(i);
+}
+function delOptGroup(i, gi) {
+  MENU[i].optionGroups.splice(gi, 1);
+  if (!MENU[i].optionGroups.length) { delete MENU[i].optionGroups; adminOptionOpen.delete(MENU[i]); }
+  refreshOptionEditor(i);
+}
+function setOptGroup(i, gi, field, value) { MENU[i].optionGroups[gi][field] = value; }
+function addOpt(i, gi) { MENU[i].optionGroups[gi].options.push({ id: newOptId('o'), name: '', nameEn: '', priceDelta: 0 }); refreshOptionEditor(i); }
+function delOpt(i, gi, oi) { MENU[i].optionGroups[gi].options.splice(oi, 1); refreshOptionEditor(i); }
+function setOpt(i, gi, oi, field, value) {
+  MENU[i].optionGroups[gi].options[oi][field] = field === 'priceDelta' ? Math.max(0, Math.round(Number(value) || 0)) : value;
+}
+// Returns a Thai message for the first problem, or '' when every option group is complete.
+function optionProblem() {
+  for (const item of MENU) {
+    for (const g of item.optionGroups || []) {
+      if (!String(g.name || '').trim()) return `เมนู "${item.name || '(ไม่มีชื่อ)'}": กลุ่มตัวเลือกยังไม่มีชื่อ`;
+      if (!(g.options || []).length) return `เมนู "${item.name}": กลุ่ม "${g.name}" ยังไม่มีตัวเลือก`;
+      if ((g.options || []).some(o => !String(o.name || '').trim())) return `เมนู "${item.name}": กลุ่ม "${g.name}" มีตัวเลือกที่ยังไม่ใส่ชื่อ`;
+    }
+  }
+  return '';
 }
 
 function toggleMenuEdit(i, btn) {
@@ -1341,6 +1436,8 @@ function removeItem(i) {
 }
 
 async function saveMenu({ silent = false } = {}) {
+  const problem = optionProblem();
+  if (problem) { alert(problem); throw new Error('option group incomplete'); }
   const menuForSave = MENU.map(item => {
     const { must_try, ...normalised } = item;
     return { ...normalised, mustTry: isMustTry(item) };

@@ -11,6 +11,49 @@ function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+// Price and validate an order from the server's own menu. The client only says WHAT it wants
+// (menu id, chosen option ids, qty); names and prices always come from the saved menu.
+// Returns { items } or { error }.
+export function priceItems(rawItems, menu) {
+  const byId = new Map((Array.isArray(menu) ? menu : []).map((m) => [String(m.id), m]));
+  const items = [];
+  for (const raw of rawItems) {
+    const id = String(raw && (raw.menuId != null ? raw.menuId : raw.id));
+    const m = byId.get(id);
+    const qty = Number(raw && raw.qty);
+    if (!m) return { error: "unknown menu item" };
+    if (!Number.isInteger(qty) || qty < 1 || qty > 99) return { error: "invalid qty" };
+    if (m.available === false) return { error: "item sold out", menuId: id };
+    const groups = Array.isArray(m.optionGroups) ? m.optionGroups : [];
+    const picked = Array.isArray(raw.optionIds) ? raw.optionIds.map(String) : [];
+    if (new Set(picked).size !== picked.length) return { error: "duplicate option" };
+    const chosen = [];
+    for (const g of groups) {
+      const hits = (g.options || []).filter((o) => picked.includes(String(o.id)));
+      if (g.required && !hits.length) return { error: "option group required", menuId: id, group: g.id };
+      if (g.type === "single" && hits.length > 1) return { error: "too many options", menuId: id, group: g.id };
+      chosen.push(...hits);
+    }
+    if (chosen.length !== picked.length) return { error: "unknown option", menuId: id };
+    const delta = chosen.reduce((sum, o) => sum + (Number(o.priceDelta) || 0), 0);
+    const item = {
+      id: m.id,
+      // `name` carries the chosen options so the kitchen, printed slips, table board and bills all
+      // show them without any change; `baseName` and `options` keep the structured data.
+      name: chosen.length ? `${m.name} (${chosen.map((o) => o.name).join(", ")})` : m.name,
+      baseName: m.name,
+      price: Number(m.price) + delta,
+      category: m.category || "",
+      qty,
+    };
+    if (chosen.length) {
+      item.options = chosen.map((o) => ({ id: o.id, name: o.name, priceDelta: Number(o.priceDelta) || 0 }));
+    }
+    items.push(item);
+  }
+  return { items };
+}
+
 export function createOrdersHandler({ redis: redisClient = redis, bell = ringBell } = {}) {
   return async function handler(req, res) {
   if (req.method === "GET") {
@@ -51,11 +94,18 @@ export function createOrdersHandler({ redis: redisClient = redis, bell = ringBel
     }
     // Each item starts life "cooking" for the table-status board; harmless
     // for any caller that doesn't look at kitchenStatus.
-    const items = body.items.map((it) => ({
-      ...it,
-      kitchenStatus: it.kitchenStatus || "cooking",
-    }));
+    const menu = (await redisClient.get("menu")) || [];
+    const priced = priceItems(body.items, menu);
+    if (priced.error) return res.status(400).json({ ok: false, error: priced.error });
+    // The same idempotencyKey (a network retry) returns the order that already exists.
+    const idemKey = typeof body.idempotencyKey === "string" ? body.idempotencyKey.slice(0, 64) : "";
+    if (idemKey) {
+      const seen = orders.find((o) => o.idempotencyKey === idemKey && tableKey(o.table) === tableKey(body.table));
+      if (seen) return res.status(200).json({ ok: true, order: seen, duplicate: true });
+    }
+    const items = priced.items.map((it) => ({ ...it, kitchenStatus: "cooking" }));
     const order = {
+      ...(idemKey ? { idempotencyKey: idemKey } : {}),
       id: genId(),
       table: body.table,
       items,
