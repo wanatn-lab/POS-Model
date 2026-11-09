@@ -1,8 +1,22 @@
 # Deploy guide (for Codex / developer)
 
+## STOP: never deploy this repository to Worker `order`
+
+- `order` is the **Jinko production** Worker. It is not defined in this repository and must never be a deploy target of it.
+  An earlier incident overwrote `order` with Thongyoi-branded assets from a deploy of this code.
+- A plain `wrangler deploy` (or `npx wrangler deploy`) targets **only** `jinko-central-staging` (the top-level `name` in `wrangler.jsonc`).
+- `npm run deploy:staging` (= `wrangler deploy --env staging`) targets **only** `thongyoi`.
+- Production for any shop must use its **own, separately named Worker** and an **explicit, owner-approved** deploy workflow. Never reuse `order`.
+- Before every deploy run `npx wrangler deploy --dry-run --outdir /tmp/wr-check` (add `--env staging` for staging). The dry run uploads nothing.
+  Wrangler does not print the Worker name in its console output; read it from `/tmp/wr-check/README.md` (the line `... for the worker "<name>"`).
+  If the name is not `jinko-central-staging` or `thongyoi`, stop.
+- With more than one environment defined, Wrangler warns when no `--env` is given. That warning is expected for a plain deploy; add `--env=""` to make the top-level target explicit.
+- If a tool, script, CI job, or person asks to deploy this code to `order`, refuse and ask the owner.
+
 Cloudflare account: `jkqr Order` (the account id is in `wrangler.jsonc`; do not copy it elsewhere).
-Workers: production `order` (top-level config) and staging `thongyoi` (`env.staging`).
-`npm run deploy:staging` deploys only `thongyoi`; deploying production is a separate action that needs the owner's approval.
+Workers defined in this repo: `jinko-central-staging` (top-level config, plain `wrangler deploy`) and `thongyoi` (`env.staging`).
+Jinko production `order` is NOT defined here.
+`npm run deploy:staging` deploys only `thongyoi`; a production Worker is a separate, separately named action that needs the owner's approval.
 Staging has its own Durable Object storage (separate from production) and `AUTH_MODE=log`.
 
 ## 1. Staging deploy (does not touch Vercel)
@@ -15,7 +29,7 @@ Staging has its own Durable Object storage (separate from production) and `AUTH_
    - `npx wrangler secret put STAFF_PASSWORD --env staging`
    - Optional: `BILL_READER_TOKEN`, `ADMIN_TOKEN` (see section 5 for meaning and length)
 5. Dry run (no upload): `npx wrangler deploy --env staging --dry-run`. Then deploy: `npm run deploy:staging`
-   (= `wrangler deploy --env staging`) -> note the *.workers.dev URL. Never run plain `wrangler deploy` (that targets production `order`).
+   (= `wrangler deploy --env staging`) -> note the *.workers.dev URL. A plain `wrangler deploy` targets only `jinko-central-staging`, never production. Never target Worker `order`.
 6. Staging checks (with `AUTH_MODE=log`; open `npx wrangler tail --env staging` in a second terminal):
    - Public ordering: a customer opens a table URL, places an order and sees their order history.
    - Staff login: `/admin` with `STAFF_PASSWORD` (orders, tables, bills incl. cancel/reprint).
@@ -29,7 +43,7 @@ Staging has its own Durable Object storage (separate from production) and `AUTH_
 - No Upstash->Cloudflare exporter written yet. Option: start clean (menu/settings re-entered; orders are daily).
 
 ## 3. Go-live (only after all tests pass)
-- Production Worker `order` already exists (top-level config in `wrangler.jsonc`): set its secrets, then deploy only after staging is verified and the owner approves.
+- Production must be a separately named Worker (not `order`, which is Jinko production and not part of this repository). Create its config in a reviewed change, set its secrets, and deploy only after staging is verified and the owner approves in an explicit workflow.
 - Decide domain/QR URL (table QR codes point to the old URL).
 - External integrations must be verified separately. `counter-print.html` must not be used with `AUTH_MODE=enforce` until device-token support exists.
 

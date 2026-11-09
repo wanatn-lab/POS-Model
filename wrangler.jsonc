@@ -1,5 +1,8 @@
 {
-  "name": "order",
+  // SAFETY: this repository is the central/template system. It must NEVER deploy to the Jinko production
+  // Worker "order". A plain `wrangler deploy` targets only "jinko-central-staging" (not production).
+  // `wrangler deploy --env staging` targets "thongyoi". Read DEPLOY.md before any deploy.
+  "name": "jinko-central-staging",
   "account_id": "040db9c5b9960d8500349fd4958bded8",
   "main": "src/worker.js",
   "compatibility_date": "2026-09-01",
@@ -16,8 +19,9 @@
 
   // Staging: deploy only with `wrangler deploy --env staging` (npm run deploy:staging).
   // Wrangler does NOT inherit assets/durable_objects/migrations/vars into an environment, so they are repeated here.
-  // The Durable Object has no script_name, so its namespace belongs to the worker "thongyoi"
-  // and its SQLite storage is separate from production ("order"). No data is shared or copied.
+  // The Durable Object has no script_name, so its namespace belongs to the worker that runs it ("thongyoi" here,
+  // "jinko-central-staging" for a plain deploy). Its SQLite storage is separate from Jinko production ("order").
+  // No data is shared or copied.
   "env": {
     "staging": {
       "name": "thongyoi",
