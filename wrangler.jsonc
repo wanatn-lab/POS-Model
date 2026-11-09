@@ -1,5 +1,5 @@
 {
-  "name": "moo-daeng-pos",
+  "name": "scan",
   "account_id": "e9992412fcfd4b91eb138afac9be9abf",
   "main": "src/worker.js",
   "compatibility_date": "2026-09-01",
@@ -13,9 +13,15 @@
     "bindings": [{ "name": "SHOP", "class_name": "ShopDO" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShopDO"] }],
+  "vars": {
+    "AUTH_MODE": "enforce",
+    "BELL_ENABLED": "true",
+    "FIREBASE_DATABASE_URL": "https://thongyoibell-default-rtdb.asia-southeast1.firebasedatabase.app"
+  },
 
   // Staging: deploy only with `wrangler deploy --env staging` (npm run deploy:staging).
-  // Wrangler does NOT inherit assets/durable_objects/migrations/vars into an environment, so they are repeated here.
+  // Wrangler does NOT inherit assets/durable_objects/migrations/vars into an environment.
+  // Staging repeats its runtime bindings and deliberately uses preview-only Bell vars.
   // This environment belongs to this restaurant's staging Worker. Its Durable
   // Object namespace is separate from production; no old-shop data is shared or copied.
   "env": {
@@ -32,8 +38,9 @@
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShopDO"] }],
       "vars": {
         "AUTH_MODE": "enforce",
-        "BELL_ENABLED": "true",
-        "FIREBASE_DATABASE_URL": "https://thongyoibell-default-rtdb.asia-southeast1.firebasedatabase.app"
+        "APP_ENV": "preview",
+        "PREVIEW_BELL_ENABLED": "true",
+        "PREVIEW_FIREBASE_DATABASE_URL": "https://thongyoibell-default-rtdb.asia-southeast1.firebasedatabase.app"
       }
     }
   }

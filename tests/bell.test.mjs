@@ -110,6 +110,20 @@ test("preview never uses production settings and rings a separate path", () => {
   assert.equal(bellConfig(PROD_ENV).rootPath, "bridge");
 });
 
+test("Cloudflare staging uses APP_ENV and only PREVIEW Bell settings", () => {
+  const preview = {
+    APP_ENV: "preview",
+    ...PROD_ENV,
+    PREVIEW_BELL_ENABLED: "true",
+    PREVIEW_FIREBASE_DATABASE_URL: "https://staging-db.example.app",
+    PREVIEW_FIREBASE_SERVICE_ACCOUNT_JSON: ACCOUNT,
+  };
+  const config = bellConfig(preview);
+  assert.equal(config.ready, true);
+  assert.equal(config.databaseUrl, "https://staging-db.example.app");
+  assert.equal(config.rootPath, "bridge-preview");
+});
+
 test("disabled bell makes no network call", async () => {
   const fetchImpl = fakeFetch();
   const ring = createBell({ env: {}, fetchImpl, log: quietLog });
