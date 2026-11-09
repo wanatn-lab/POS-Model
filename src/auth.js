@@ -25,6 +25,8 @@ export const SESSION_COOKIE = "jinko_session";
 export const TABLE_COOKIE = "jinko_table";
 export const DEVICES_KEY = "auth:devices";
 
+// Tokens issued before the role-specific schedule used this 12-hour lifetime.
+// Verification always trusts the signed `exp`, so those tokens remain valid until it passes.
 export const SESSION_TTL_SEC = 12 * 60 * 60;
 export const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
 export const TABLE_PASS_TTL_SEC = 8 * 60 * 60;
@@ -156,25 +158,34 @@ export function signingConfigured(env) {
   return typeof env.SESSION_SECRET === "string" && env.SESSION_SECRET.length >= MIN_SECRET_LENGTH;
 }
 
-// Staff sessions end at 04:00 Asia/Bangkok on Tuesday. A login before that
-// cutoff on Tuesday ends the same day; at or after it, the next Tuesday is used.
-// Bangkok has a fixed UTC+07:00 offset, so this avoids depending on the
-// Worker host timezone.
-export function staffSessionExpiresAt(now = Date.now()) {
-  const bangkok = new Date(now + BANGKOK_UTC_OFFSET_MS);
-  let daysUntilTuesday = (2 - bangkok.getUTCDay() + 7) % 7;
-  const isTuesdayAtOrAfterCutoff = daysUntilTuesday === 0 && bangkok.getUTCHours() >= 4;
-  if (isTuesdayAtOrAfterCutoff) daysUntilTuesday = 7;
+// Pure session schedule: all input and output are epoch milliseconds. Bangkok has a
+// fixed UTC+07:00 offset, so the calculation never depends on the Worker host timezone.
+export function sessionExpiresAt(role, nowMs) {
+  if (!Number.isFinite(nowMs)) throw new TypeError("nowMs must be a finite timestamp");
+  const bangkok = new Date(nowMs + BANGKOK_UTC_OFFSET_MS);
+  const afterDailyCutoff = bangkok.getUTCHours() >= 4;
+  let daysUntilExpiry;
+  if (role === STAFF) {
+    daysUntilExpiry = (2 - bangkok.getUTCDay() + 7) % 7;
+    if (daysUntilExpiry === 0 && afterDailyCutoff) daysUntilExpiry = 7;
+  } else if (role === OWNER) {
+    daysUntilExpiry = afterDailyCutoff ? 1 : 0;
+  } else {
+    throw new TypeError("session role must be staff or owner");
+  }
   return Date.UTC(
     bangkok.getUTCFullYear(),
     bangkok.getUTCMonth(),
-    bangkok.getUTCDate() + daysUntilTuesday,
+    bangkok.getUTCDate() + daysUntilExpiry,
     4,
     0,
     0,
     0,
   ) - BANGKOK_UTC_OFFSET_MS;
 }
+
+// Retained for callers that only need the staff schedule.
+export const staffSessionExpiresAt = (nowMs) => sessionExpiresAt(STAFF, nowMs);
 
 // label separates the cookies ("session" vs "table") so one can never be replayed as the other.
 export async function signToken(env, label, payload) {

@@ -13,7 +13,6 @@ import {
   OWNER,
   PUBLIC,
   SESSION_COOKIE,
-  SESSION_TTL_SEC,
   STAFF,
   authMode,
   buildCookie,
@@ -31,7 +30,7 @@ import {
   sha256Hex,
   signToken,
   signingConfigured,
-  staffSessionExpiresAt,
+  sessionExpiresAt,
 } from "./auth.js";
 
 const PASSWORD_VARIABLE = { [STAFF]: "STAFF_PASSWORD", [OWNER]: "OWNER_PASSWORD" };
@@ -81,11 +80,14 @@ export async function handleAuthRoute(request, name, { store, env, now = Date.no
   const configuredId = typeof env[role === STAFF ? "STAFF_ID" : "OWNER_ID"] === "string"
     ? env[role === STAFF ? "STAFF_ID" : "OWNER_ID"].trim().slice(0, 80)
     : "";
-  const expiresAt = role === STAFF ? staffSessionExpiresAt(now) : now + SESSION_TTL_SEC * 1000;
-  // Cookie lifetime comes from the exact same server-calculated expiry as the token.
-  // Ceiling keeps the cookie available through the final fractional second; verifyToken
-  // remains the authoritative expiry check at expiresAt.
-  const maxAgeSec = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+  // HTTP Max-Age is whole seconds. Establish a server-side issue time on that
+  // boundary, so cookie Max-Age is exactly token exp minus issue time.
+  const issuedAt = Math.floor(now / 1000) * 1000;
+  const expiresAt = sessionExpiresAt(role, issuedAt);
+  const maxAgeSec = (expiresAt - issuedAt) / 1000;
+  if (!Number.isSafeInteger(maxAgeSec) || maxAgeSec <= 0) {
+    return jsonResponse(500, { ok: false, error: "session_expiry_invalid" });
+  }
   const token = await signToken(env, "session", {
     r: role,
     id: configuredId || role,

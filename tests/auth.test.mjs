@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ROUTES, handleApiRequest } from "../src/api-router.js";
-import { RULES, authMode, authorize, quickReject, rolesFor, signToken, staffSessionExpiresAt, verifyToken } from "../src/auth.js";
+import { OWNER, RULES, SESSION_TTL_SEC, STAFF, authMode, authorize, quickReject, rolesFor, sessionExpiresAt, signToken, verifyToken } from "../src/auth.js";
 import { handleAuthRoute } from "../src/auth-routes.js";
 import { SqliteStore } from "../src/sqlite-store.js";
 import { fakeSql } from "./cf-helpers.mjs";
@@ -400,40 +400,67 @@ test("login: right password gives a hardened cookie, wrong password gives none",
   assert.equal((await (await call("GET", "/api/auth/me")).json()).role, "public");
 });
 
-test("staff session: Monday and Tuesday logins expire at the correct Bangkok Tuesday cutoff", async () => {
+test("session schedule: staff reaches the Tuesday cutoff and owner reaches the next daily cutoff", async () => {
   const cases = [
-    ["Monday", "2026-11-02T12:34:56.000Z", "2026-11-02T21:00:00.000Z"],
-    ["Tuesday before 04:00 Bangkok", "2026-11-02T20:59:59.000Z", "2026-11-02T21:00:00.000Z"],
-    ["Tuesday at 04:00 Bangkok", "2026-11-02T21:00:00.000Z", "2026-11-09T21:00:00.000Z"],
-    ["Tuesday after 04:00 Bangkok", "2026-11-02T21:00:01.000Z", "2026-11-09T21:00:00.000Z"],
-    // The explicit +07:00 input proves the calculation does not use the server's timezone.
-    ["explicit Asia/Bangkok offset", "2026-11-03T03:30:00.000+07:00", "2026-11-02T21:00:00.000Z"],
+    [STAFF, "staff Monday 10:00", "2026-11-02T10:00:00.000+07:00", "2026-11-03T04:00:00.000+07:00"],
+    [STAFF, "staff Tuesday 03:59", "2026-11-03T03:59:00.000+07:00", "2026-11-03T04:00:00.000+07:00"],
+    [STAFF, "staff Tuesday 04:00", "2026-11-03T04:00:00.000+07:00", "2026-11-10T04:00:00.000+07:00"],
+    [STAFF, "staff Wednesday", "2026-11-04T10:00:00.000+07:00", "2026-11-10T04:00:00.000+07:00"],
+    [STAFF, "staff Sunday 23:59", "2026-11-08T23:59:00.000+07:00", "2026-11-10T04:00:00.000+07:00"],
+    [OWNER, "owner 03:59", "2026-11-03T03:59:00.000+07:00", "2026-11-03T04:00:00.000+07:00"],
+    [OWNER, "owner 04:00", "2026-11-03T04:00:00.000+07:00", "2026-11-04T04:00:00.000+07:00"],
+    [OWNER, "owner 23:59", "2026-11-03T23:59:00.000+07:00", "2026-11-04T04:00:00.000+07:00"],
   ];
-  for (const [label, startText, expiryText] of cases) {
+  for (const [role, label, startText, expiryText] of cases) {
     const now = Date.parse(startText);
     const expiresAt = Date.parse(expiryText);
-    assert.equal(staffSessionExpiresAt(now), expiresAt, label);
+    assert.equal(sessionExpiresAt(role, now), expiresAt, label);
     const shop = setup();
-    const issued = await loginAt(shop, "staff", now);
+    const issued = await loginAt(shop, role, now);
     assert.equal(issued.payload.exp, expiresAt, `${label}: token exp`);
     assert.equal(issued.maxAgeSec, (expiresAt - now) / 1000, `${label}: cookie Max-Age`);
+    assert.ok(issued.maxAgeSec > 0, `${label}: cookie remains live`);
     assert.equal(issued.payload.exp, now + issued.maxAgeSec * 1000, `${label}: token and cookie agree`);
     assert.equal(await verifyToken(shop.env, "session", issued.token, expiresAt), null, `${label}: expired token is rejected`);
   }
 });
 
-test("owner session remains 12 hours, while the staff cookie spans admin and kitchen pages", async () => {
-  const now = Date.parse("2026-11-02T12:00:00.000Z");
-  const owner = await loginAt(setup(), "owner", now);
-  assert.equal(owner.maxAgeSec, 12 * 60 * 60);
-  assert.equal(owner.payload.exp, now + 12 * 60 * 60 * 1000);
+test("session schedule: UTC and Bangkok timestamps give the same expiry", () => {
+  const utc = Date.parse("2026-11-02T20:59:00.000Z");
+  const bangkok = Date.parse("2026-11-03T03:59:00.000+07:00");
+  assert.equal(utc, bangkok);
+  for (const role of [STAFF, OWNER]) assert.equal(sessionExpiresAt(role, utc), sessionExpiresAt(role, bangkok), role);
+});
 
+test("session cookie Max-Age exactly matches the token expiry from the server issue second", async () => {
+  const now = Date.parse("2026-11-02T10:00:00.123+07:00");
+  const issuedAt = Math.floor(now / 1000) * 1000;
+  const issued = await loginAt(setup(), STAFF, now);
+  assert.equal(issued.payload.exp, sessionExpiresAt(STAFF, issuedAt));
+  assert.equal(issued.maxAgeSec, (issued.payload.exp - issuedAt) / 1000);
+  assert.ok(issued.maxAgeSec > 0);
+});
+
+test("session cookie is root-scoped and works from admin, kitchen and bill pages", async () => {
   const shop = setup();
-  const cookie = await login(shop.call, "staff", ENV.STAFF_PASSWORD);
-  for (const page of ["/admin", "/kitchen"]) {
+  const loginResponse = await shop.call("POST", "/api/auth/login", { role: "staff", password: ENV.STAFF_PASSWORD });
+  const setCookie = loginResponse.headers.getSetCookie()[0];
+  assert.match(setCookie, /Path=\//);
+  const cookie = cookieOf(loginResponse);
+  for (const page of ["/admin", "/kitchen", "/bill"]) {
     const response = await shop.call("GET", "/api/auth/me", undefined, { cookie, headers: { referer: `${ORIGIN}${page}` } });
     assert.equal((await response.json()).role, "staff", `session from ${page}`);
   }
+});
+
+test("session: legacy 12-hour tokens remain valid until their signed expiry", async () => {
+  const shop = setup();
+  const now = Date.now();
+  const exp = now + SESSION_TTL_SEC * 1000;
+  const legacy = await signToken(shop.env, "session", { r: STAFF, exp });
+  assert.equal((await verifyToken(shop.env, "session", legacy, exp - 1)).r, STAFF);
+  assert.equal(await verifyToken(shop.env, "session", legacy, exp), null);
+  assert.equal((await shop.call("GET", "/api/table-status", undefined, { cookie: `jinko_session=${legacy}` })).status, 200);
 });
 
 test("login: five wrong passwords lock that role out for this client, even with the right password", async () => {
