@@ -36,6 +36,7 @@ function pageFetch({ store, env, jar, overrides, log }) {
 
 async function newShop({ env = {}, loginAs, seedOrders = [] } = {}) {
   const store = new SqliteStore(fakeSql());
+  store.set("menu", [{ id: "m3", name: "ชาเย็น", price: 35, category: "เครื่องดื่ม" }]);
   const fullEnv = { ...ENV, ...env };
   const jar = {};
   if (loginAs) {

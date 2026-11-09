@@ -2,418 +2,418 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>สั่งอาหาร</title>
-<link rel="stylesheet" href="/style.css">
+<!--
+  Customer ordering page (opened from the QR code on the table: /order?table=5).
+  - The page sends only WHAT the customer wants: menuId, optionIds, qty (+ table, note, idempotencyKey).
+    Names and prices are always decided by the server (api/orders.js priceItems).
+  - Colors are CSS variables. A shop can override them with settings.theme (hex colors only).
+  - Prices are hidden in cart / review / history unless settings.showPrices === true.
+  - Menu fields used: name, nameEn, desc, descEn, image, price, category, categoryEn, available,
+    popular, mustTry, optionGroups[{id,name,nameEn,type:"single"|"multi",required,options[{id,name,nameEn,priceDelta}]}]
+-->
+<style>
+:root{--red:#a31f24;--red-d:#74151d;--paper:#F8F2E7;--card:#FFFDF8;--line:#E7D9C4;--ink:#2B1810;--soft:#7A6A5A;--caramel:#B4703A;--cream:#F0DAC2;--warn-bg:#FBEBD2;--warn:#9C5B12;--ok-bg:#EAF2E4;--ok:#3F6B33;--danger:#B84C3E;--red-soft:#FBEBEB;--bar-h:76px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans Thai","Sarabun",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.5}
+body.lock{overflow:hidden}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+svg{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#app{max-width:480px;margin:0 auto;min-height:100dvh;position:relative}
+.hd{background:var(--red);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20}
+.hd .t{flex:1;min-width:0}.hd h1{margin:0;font-size:17px;font-weight:500}
+.hd .s{margin:2px 0 0;font-size:12px;color:var(--cream)}
+.hd .back{font-size:22px;padding:4px}
+.n1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbl{background:var(--cream);color:var(--red-d);border-radius:12px;padding:5px 12px;text-align:center;flex:none;line-height:1.1}
+.tbl small{display:block;font-size:11px}.tbl b{font-size:20px;font-weight:500}
+.lg{display:flex;background:rgba(255,255,255,.18);border-radius:999px;padding:2px;font-size:12px;flex:none}
+.lg button{padding:4px 10px;border-radius:999px}.lg button.on{background:var(--paper);color:var(--red-d);font-weight:500}
+.hbtn{font-size:20px;padding:6px;flex:none}
+.sticky{position:sticky;top:var(--hd-h,56px);z-index:10;background:var(--paper)}
+.search{padding:10px 12px 2px;position:relative}
+.search input,.note{width:100%;font:inherit;font-size:14px;padding:10px 12px;background:var(--card);color:var(--ink);border:.5px solid var(--line);border-radius:12px;outline:none}
+.search input:focus,.note:focus{border-color:var(--red)}
+.cats{display:flex;gap:8px;overflow-x:auto;padding:6px 40px 10px 12px;scrollbar-width:none;scroll-snap-type:x proximity}
+.cats::-webkit-scrollbar{display:none}
+.chip{padding:7px 14px;border-radius:999px;border:.5px solid var(--line);background:var(--card);font-size:13px;white-space:nowrap;color:var(--soft);scroll-snap-align:start;flex:none}
+.chip.on{background:var(--red);border-color:var(--red);color:#fff}
+.list{padding:2px 0 calc(var(--bar-h) + 16px + env(safe-area-inset-bottom))}
+.cat-h{margin:10px 14px 8px;font-size:14px;font-weight:500;color:var(--red-d)}
+.card{display:flex;gap:10px;background:var(--card);border:.5px solid var(--line);border-radius:14px;padding:10px;margin:0 12px 10px;width:calc(100% - 24px);text-align:left;align-items:stretch}
+.card.out{opacity:.55}
+.img{width:92px;min-height:92px;align-self:stretch;border-radius:10px;background:var(--cream);color:var(--caramel);display:flex;align-items:center;justify-content:center;font-size:28px;flex:none;overflow:hidden;position:relative}
+.img img{width:100%;height:100%;object-fit:cover;display:block}
+.tagc{position:absolute;left:4px;top:4px;font-size:10px;line-height:1;padding:3px 6px;border-radius:999px;background:var(--red);color:#fff}
+.card .b{flex:1;min-width:0}
+.nm{margin:0;font-size:15px;font-weight:500}
+.sub{margin:2px 0 0;font-size:12px;line-height:18px;color:var(--soft)}
+.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:36px}
+.row{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.price{font-size:15px;font-weight:500;color:var(--red)}
+.round{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.pl{background:var(--red);color:#fff}.mi{background:var(--cream);color:var(--red-d)}
+.qty{display:flex;align-items:center;gap:10px}.qty span{font-weight:500;min-width:14px;text-align:center}
+.empty{text-align:center;color:var(--soft);font-size:14px;padding:32px 16px}
+.so{font-size:11px;background:var(--cream);color:var(--red-d);border-radius:999px;padding:2px 10px}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:480px;margin:0 auto;background:var(--paper);border-top:.5px solid var(--line);padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
+.cta{width:100%;background:var(--red);color:#fff;border-radius:14px;padding:13px 16px;font-size:16px;font-weight:500;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cta.c{justify-content:center}.cta:disabled{opacity:.6}
+.cta .in{display:flex;align-items:center;gap:8px}
+.badge{background:var(--cream);color:var(--red-d);border-radius:999px;min-width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;padding:0 6px}
+.back-drop{position:fixed;inset:0 0 var(--bar-h) 0;z-index:25;background:rgba(43,24,16,.5);display:none;align-items:flex-end;justify-content:center}
+.back-drop.open{display:flex}
+.back-drop.full{inset:0;z-index:40;align-items:center}
+.sheet{background:var(--paper);width:100%;max-width:480px;max-height:100%;border-radius:20px 20px 0 0;display:flex;flex-direction:column}
+.sheet .sc{overflow-y:auto;padding:16px 16px 8px}
+.sheet .sf{padding:10px 12px 12px;border-top:.5px solid var(--line)}
+.sh{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.sh .img{width:72px;height:72px;min-height:0;align-self:auto}
+.sh-txt{flex:1;min-width:0}
+.gt{display:flex;align-items:center;font-size:13px;font-weight:500;margin:0 0 6px}
+.req{font-size:11px;font-weight:400;color:var(--warn);background:var(--warn-bg);border-radius:999px;padding:1px 8px;margin-left:8px}
+.opn{font-size:11px;font-weight:400;color:var(--soft);margin-left:8px}
+.gerr{color:var(--danger);font-size:12px;margin:-8px 0 12px}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.opt{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:12px;border:.5px solid var(--line);background:var(--card);font-size:14px}
+.opt.on{border:1.5px solid var(--red);background:var(--red-soft);color:var(--red-d)}
+.opt svg{width:14px;height:14px}.opt small{color:var(--caramel);font-size:12px}
+.step{display:flex;gap:12px;align-items:center;margin-bottom:12px;font-size:15px}
+.dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--cream);color:var(--caramel);flex:none}
+.dot.on{background:var(--red);color:#fff}.step.off{color:var(--soft)}.step.on{font-weight:500}
+.info{margin:0 12px 10px;background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:10px 12px;font-size:13px}
+.warn{margin:10px 12px 0;background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:10px 12px;font-size:13px}
+.err{color:var(--danger);font-size:13px;margin:6px 0 0;text-align:center}
+.hc{margin:0 12px 10px;background:var(--card);border:.5px solid var(--line);border-radius:14px;padding:12px}
+.hc .tp{display:flex;justify-content:space-between;font-size:13px;color:var(--soft);margin-bottom:6px}
+.hc ul{list-style:none;margin:0;padding:0}.hc li{display:flex;justify-content:space-between;gap:8px;font-size:14px;padding:2px 0}
+.toast{position:fixed;left:50%;bottom:calc(var(--bar-h) + 20px);transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:12px;padding:10px 16px;font-size:14px;z-index:60;max-width:90%}
+.hint{margin:10px 12px 0;color:var(--soft);font-size:13px}
+</style>
 </head>
 <body>
-<div class="topbar">
-  <h1 id="shopTitle">เมนูอาหาร</h1>
-  <div style="display:flex;align-items:center;gap:8px">
-    <button class="history-btn" onclick="openHistory()">🧾 ประวัติการสั่ง</button>
-    <span class="table-tag">โต๊ะ <span id="tableTag">-</span></span>
-  </div>
-</div>
-<div class="welcome-line" id="welcomeLine" style="background:#3B2A20"></div>
-
-<div class="search-wrap">
-  <div class="search-box">
-    <span class="search-icon">🔍</span>
-    <input id="searchInput" type="text" placeholder="ค้นหาเมนู เช่น กระเพรา, ชาเย็น..." oninput="onSearchInput()">
-    <button id="searchClear" class="search-clear" style="display:none" onclick="clearSearch()">✕</button>
-  </div>
-</div>
-<div id="catNav" class="cat-nav"></div>
-
-<div class="wrap" style="padding-top:6px">
-  <div id="menuRoot"><div class="empty-state">🍜 กำลังโหลดเมนูอร่อยๆ ให้อยู่...</div></div>
-</div>
-
-<!-- collapsed hint / expanded cart bar -->
-<button id="cartBar" class="cart-bar2 empty" onclick="openReview()">
-  <div class="inner">แตะเมนูด้านบนเพื่อเริ่มสั่งอาหารได้เลย 👆</div>
-</button>
-
-<!-- review-before-send sheet -->
-<div id="reviewOverlay" class="sheet-overlay" onclick="if(event.target===this) closeReview()">
-  <div class="sheet-panel">
-    <div class="sheet-head">
-      <h2>ตรวจสอบออเดอร์ 🧾</h2>
-      <button class="history-close" onclick="closeReview()">✕</button>
-    </div>
-    <div id="reviewList"></div>
-    <div class="review-total-row">
-      <span>รวมทั้งหมด</span>
-      <span id="reviewTotal">฿0</span>
-    </div>
-    <div class="sheet-note">มีอะไรอยากบอกครัวไหม (ไม่ใส่ผัก, เผ็ดน้อย ฯลฯ) — ไม่บังคับ</div>
-    <input id="orderNote" type="text" placeholder="พิมพ์ตรงนี้ได้เลย...">
-    <button id="submitBtn" class="confirm-cta" onclick="submitOrder()">ส่งออเดอร์เข้าครัว 🍳</button>
-  </div>
-</div>
-
-<!-- menu detail bottom sheet -->
-<div id="menuDetailOverlay" class="sheet-overlay" onclick="if(event.target===this) closeMenuDetail()">
-  <div class="menu-detail-panel" role="dialog" aria-modal="true" aria-labelledby="menuDetailName">
-    <div class="sheet-head">
-      <h2>รายละเอียดเมนู</h2>
-      <button class="history-close" aria-label="ปิดรายละเอียดเมนู" onclick="closeMenuDetail()">✕</button>
-    </div>
-    <img id="menuDetailImage" class="menu-detail-image" alt="">
-    <h2 id="menuDetailName"></h2>
-    <p id="menuDetailDescription" class="menu-detail-description"></p>
-    <div id="menuDetailPrice" class="menu-detail-price"></div>
-  </div>
-</div>
-
-<!-- success state -->
-<div id="successOverlay" class="success-overlay">
-  <div class="success-card">
-    <div class="emoji">🎉</div>
-    <h2>ส่งออเดอร์แล้ว!</h2>
-    <p>ครัวกำลังทำอาหารให้ ✨<br>ดูสถานะออเดอร์ได้ที่ "ประวัติการสั่ง" มุมขวาบน</p>
-    <button class="btn" style="width:100%" onclick="closeSuccess()">สั่งเมนูอื่นต่อ</button>
-  </div>
-</div>
-
-<div id="historyOverlay" class="history-overlay">
-  <div class="history-panel">
-    <div class="history-panel-head">
-      <h2>ประวัติการสั่งของโต๊ะนี้</h2>
-      <button class="history-close" onclick="closeHistory()">✕</button>
-    </div>
-    <div class="history-sub">ย้อนหลัง 24 ชั่วโมงล่าสุด</div>
-    <div id="historyList"></div>
-  </div>
-</div>
-
+<div id="app"></div>
 <div id="toastRoot"></div>
 
+<!-- menu detail + option picker (bottom sheet) -->
+<div id="menuDetailOverlay" class="back-drop" role="presentation">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuDetailName">
+    <div class="sc">
+      <div class="sh">
+        <div class="img" id="menuDetailImageBox"><img id="menuDetailImage" alt="" hidden></div>
+        <div class="sh-txt"><p class="nm" id="menuDetailName" style="font-size:18px"></p><span class="price" id="menuDetailPrice" style="font-size:16px"></span></div>
+        <button class="round mi" id="menuDetailClose" type="button" data-act="close-detail"></button>
+      </div>
+      <p id="menuDetailDescription" style="font-size:14px;line-height:1.7;margin:0 0 12px"></p>
+      <div id="menuDetailGroups"></div>
+    </div>
+    <div class="sf" id="menuDetailFoot"></div>
+  </div>
+</div>
+
 <script>
+'use strict';
 const params = new URLSearchParams(location.search);
-const TABLE = params.get('table') || '';
-document.getElementById('tableTag').textContent = TABLE || '-';
-document.getElementById('welcomeLine').textContent = TABLE
-  ? `👋 สวัสดีครับ กำลังสั่งจากโต๊ะ ${TABLE} — แตะรูปเมนูที่ชอบเพื่อสั่งได้เลย`
-  : '⚠️ ไม่พบหมายเลขโต๊ะ กรุณาแสกน QR ที่โต๊ะใหม่อีกครั้ง';
+const TABLE = (params.get('table') || '').trim();
 
-let MENU = [];
-let cart = {}; // id -> qty
-let activeCat = null; // null = ทั้งหมด
-let searchQuery = '';
+/* ---------- text [thai, english] ---------- */
+const T = {
+  tag:['สั่งได้เลย ไม่ต้องรอพนักงาน','Order here, no need to wait for staff'], tb:['โต๊ะ','Table'],
+  sr:['ค้นหาเมนู เช่น กระเพรา, ชาเย็น','Search menu, e.g. basil, iced tea'], all:['ทั้งหมด','All'],
+  nr:['ไม่เจอเมนูที่ค้นหา ลองพิมพ์คำอื่นดูนะครับ','No dishes found. Try another word.'], nm:['ยังไม่มีเมนูตอนนี้ 🙏','No menu yet 🙏'], loading:['🍜 กำลังโหลดเมนูอร่อยๆ ให้อยู่...','🍜 Loading the menu...'],
+  hint:['แตะเมนูเพื่อเริ่มสั่งอาหารได้เลย 👆','Tap a dish to start ordering 👆'],
+  cart:['ตะกร้า','Cart'], view:['ดูรายการ','View'], emp:['ยังไม่มีรายการ','Empty'], add:['เพิ่มลงตะกร้า','Add to cart'],
+  rv:['ตรวจสอบออเดอร์','Review order'], ni:['ยังไม่มีรายการ','Nothing here yet'], nis:['เลือกเมนูที่ชอบ แล้วกลับมาตรวจสอบที่นี่','Pick a dish, then come back to review.'],
+  nt:['หมายเหตุถึงครัว เช่น ไม่ใส่ผักชี','Note for the kitchen, e.g. no cilantro'], pay:['ร้านจะคิดเงินที่โต๊ะ เมื่อทานเสร็จ','Payment is taken at your table after your meal.'],
+  send:['ส่งออเดอร์เข้าครัว 🍳','Send order to kitchen 🍳'], sending:['กำลังส่ง...','Sending...'], pcs:['ชิ้น','items'],
+  er1:['ตะกร้ายังว่าง เลือกเมนูก่อนส่งออเดอร์','Your cart is empty. Pick a dish first.'],
+  er2:['สั่งไม่สำเร็จ ลองใหม่อีกครั้งนะครับ (จะไม่ซ้ำกับออเดอร์เดิม)','Could not send. Please try again (it will not be duplicated).'],
+  er3:['เมนูหรือตัวเลือกมีการเปลี่ยนแปลง กรุณาตรวจตะกร้าอีกครั้ง','The menu changed. Please check your cart again.'],
+  sent:['ส่งออเดอร์แล้ว','Order sent'], more:['สั่งเมนูอื่นต่อ','Order more'], close:['ปิด','Close'], back:['ย้อนกลับ','Back'],
+  hp:['แก้ไขหรือยกเลิกรายการ แจ้งพนักงานได้ที่โต๊ะ','To change or cancel an item, tell the staff at your table.'],
+  hs:['ประวัติการสั่ง','Order history'], hn:['ยังไม่มีประวัติการสั่งของโต๊ะนี้','No orders from this table yet'],
+  doing:['กำลังทำ','In progress'], done:['เสิร์ฟแล้ว','Served'],
+  out:['ของหมดวันนี้','Sold out today'], must:['✨ ต้องลอง','✨ Must try'], pop:['ยอดนิยม 🔥','Popular 🔥'],
+  req:['ต้องเลือก','Required'], opn:['ไม่บังคับ','Optional'], pick:['กรุณาเลือก 1 อย่าง','Please choose one'],
+  nt0:['⚠️ ไม่พบหมายเลขโต๊ะ กรุณาสแกน QR ที่โต๊ะใหม่อีกครั้ง','⚠️ Table number not found. Please scan the QR code at your table again.'],
+  tot:['รวม','Total']
+};
+const S = { l:0, scr:'menu', cat:'', q:'', cart:[], note:'', idem:'', busy:false, err:0, sheet:null, shopName:'', showPrices:false, menu:[], loaded:false, hist:null };
+try { const v = localStorage.getItem('jo_lang'); S.l = v === 'en' ? 1 : v === 'th' ? 0 : ((navigator.language || '').toLowerCase().startsWith('th') ? 0 : 1); } catch (e) {}
+const CART_KEY = 'jo_cart_' + TABLE;
 let menuDetailOpener = null;
-const menuDetailOverlay = document.getElementById('menuDetailOverlay');
-const menuDetailClose = menuDetailOverlay.querySelector('.history-close');
 
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const t = k => T[k][S.l];
+const L = (th, en) => (S.l === 1 && en) ? en : (th == null ? '' : th);
+function escAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+const baht = n => '฿' + Number(n || 0).toLocaleString('en-US');
+const ic = {
+  plus:'<path d="M12 5v14M5 12h14"/>', minus:'<path d="M5 12h14"/>', x:'<path d="M18 6 6 18M6 6l12 12"/>', back:'<path d="M5 12h14M5 12l6 6M5 12l6-6"/>',
+  next:'<path d="m9 6 6 6-6 6"/>', check:'<path d="m5 12 5 5L20 7"/>', cart:'<circle cx="8" cy="19" r="2"/><circle cx="17" cy="19" r="2"/><path d="M17 17H6V3H4M6 5l14 1-1 7H6"/>',
+  dish:'<path d="M4 11h16a8 8 0 0 1-16 0zM8 4c0 2 2 2 2 4M13 4c0 2 2 2 2 4"/>', hist:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/>'
+};
+const svg = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${ic[n]}</svg>`;
+// Cloudinary photos are resized/compressed on the fly; any other URL is used as is.
+function imgUrl(u, w) {
+  u = String(u || '');
+  const m = u.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.*)$/);
+  if (m && !/^(?:[a-z]{1,3}_[^/]+,?)+\//.test(m[2])) return m[1] + `f_auto,q_auto,w_${w},c_fill/` + m[2];
+  return u;
+}
+const mi = id => S.menu.find(m => String(m.id) === String(id));
+const groups = m => Array.isArray(m && m.optionGroups) ? m.optionGroups : [];
+const optOf = (m, oid) => { for (const g of groups(m)) { const o = (g.options || []).find(x => String(x.id) === String(oid)); if (o) return o; } return null; };
+const optNames = (m, ids) => (ids || []).map(i => optOf(m, i)).filter(Boolean).map(o => L(o.name, o.nameEn)).join(', ');
+const key = a => (a || []).slice().sort().join(',');
+const unit = (m, ids) => Number(m.price || 0) + (ids || []).reduce((s, i) => s + (optOf(m, i) ? Number(optOf(m, i).priceDelta) || 0 : 0), 0);
+const cnt = id => S.cart.filter(l => String(l.id) === String(id)).reduce((s, l) => s + l.q, 0);
+const total = () => S.cart.reduce((s, l) => s + l.q, 0);
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'k' + Date.now() + Math.random().toString(16).slice(2));
+function save() { try { sessionStorage.setItem(CART_KEY, JSON.stringify({ cart:S.cart, note:S.note, idem:S.idem })); } catch (e) {} }
+function load() { try { const c = JSON.parse(sessionStorage.getItem(CART_KEY) || 'null'); if (c) { S.cart = c.cart || []; S.note = c.note || ''; S.idem = c.idem || ''; } } catch (e) {} }
+function showToast(msg) {
+  const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+  $('#toastRoot').appendChild(el); setTimeout(() => el.remove(), 2800);
+}
+
+/* ---------- data ---------- */
+const THEME_KEYS = ['red','red-d','paper','card','line','ink','soft','caramel','cream','red-soft'];
 async function loadMenu() {
-  const [menuRes, settingsRes] = await Promise.all([
-    fetch('/api/menu'),
-    fetch('/api/settings')
-  ]);
-  MENU = await menuRes.json();
-  const settings = await settingsRes.json();
-  if (settings.shopName) document.getElementById('shopTitle').textContent = settings.shopName;
-  renderCatNav();
-  renderMenu();
+  try {
+    const [menuRes, settingsRes] = await Promise.all([fetch('/api/menu'), fetch('/api/settings')]);
+    const menu = await menuRes.json();
+    S.menu = Array.isArray(menu) ? menu : [];
+    const settings = settingsRes.ok ? await settingsRes.json() : {};
+    if (settings.shopName) S.shopName = String(settings.shopName);
+    S.showPrices = settings.showPrices === true;
+    if (settings.theme && typeof settings.theme === 'object') {
+      THEME_KEYS.forEach(k => { const v = settings.theme[k]; if (/^#[0-9a-fA-F]{6}$/.test(v || '')) document.documentElement.style.setProperty('--' + k, v); });
+    }
+  } catch (e) { /* keep the empty state */ }
+  S.loaded = true;
+  // drop anything that is no longer orderable (menu changed, sold out, option removed)
+  S.cart = S.cart.filter(l => { const m = mi(l.id); return m && m.available !== false && (l.opt || []).every(o => optOf(m, o)); });
+  save();
+  render();
 }
 
-function escAttr(s) {
-  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+/* ---------- cart ---------- */
+function addItem(id, opt, q) {
+  const k = key(opt), l = S.cart.find(x => String(x.id) === String(id) && key(x.opt) === k);
+  if (l) l.q += q; else S.cart.push({ id, opt:(opt || []).slice().sort(), q });
+  if (!S.idem) S.idem = uuid();
+  S.err = 0; save();
+}
+function changeLine(id, k, d) {
+  const l = S.cart.find(x => String(x.id) === String(id) && key(x.opt) === k); if (!l) return;
+  l.q += d; if (l.q <= 0) S.cart = S.cart.filter(x => x !== l);
+  save();
 }
 
-// ---------- search + category filter ----------
-function onSearchInput() {
-  searchQuery = document.getElementById('searchInput').value.trim();
-  document.getElementById('searchClear').style.display = searchQuery ? 'block' : 'none';
-  renderMenu();
-}
-function clearSearch() {
-  searchQuery = '';
-  document.getElementById('searchInput').value = '';
-  document.getElementById('searchClear').style.display = 'none';
-  renderMenu();
-}
-
-function renderCatNav() {
-  const cats = [...new Set(MENU.map(i => (i.category || '').trim()).filter(Boolean))];
-  const nav = document.getElementById('catNav');
-  if (cats.length < 2) { nav.innerHTML = ''; return; }
-  const chip = (label, cat) => `<a class="${activeCat === cat ? 'active' : ''}" data-cat="${cat === null ? '' : escAttr(cat)}">${escAttr(label)}</a>`;
-  nav.innerHTML = chip('ทั้งหมด', null) + cats.map(c => chip(c, c)).join('');
-  nav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
-    activeCat = a.dataset.cat || null;
-    renderCatNav();
-    renderMenu();
-  }));
+async function submitOrder() {
+  if (!TABLE || S.busy) return;
+  if (!S.cart.length) { S.err = 1; return render(); }
+  S.busy = true; S.err = 0; render();
+  const body = { table:TABLE, idempotencyKey:S.idem || (S.idem = uuid()), note:S.note.trim(),
+    items:S.cart.map(l => ({ menuId:l.id, optionIds:l.opt || [], qty:l.q })) };
+  try {
+    const res = await fetch('/api/orders', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+    if (res.status === 400) { S.err = 3; await loadMenu(); S.busy = false; return render(); }
+    if (!res.ok) throw new Error('failed');
+    S.sentCount = total(); S.cart = []; S.note = ''; S.idem = ''; S.scr = 'done'; save();
+  } catch (e) { S.err = 2; showToast(t('er2')); }
+  S.busy = false; render();
 }
 
-function matchesSearch(item, q) {
+async function loadHistory() {
+  S.hist = null;
+  try {
+    const res = await fetch('/api/orders');
+    if (!res.ok) throw new Error('x');
+    const all = await res.json();
+    S.hist = all.filter(o => String(o.table).trim() === TABLE).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  } catch (e) { S.hist = []; }
+  if (S.scr === 'hist') render();
+}
+
+/* ---------- views ---------- */
+function langBtn() {
+  return `<div class="lg" role="group" aria-label="Language"><button type="button" data-act="lang" data-v="0" class="${S.l ? '' : 'on'}">ไทย</button><button type="button" data-act="lang" data-v="1" class="${S.l ? 'on' : ''}">EN</button></div>`;
+}
+function thumb(m, w) {
+  const badge = m.available === false ? '' : (m.mustTry === true || m.mustTry === 'true' || m.must_try === true || m.must_try === 'true') ? `<span class="tagc">${t('must')}</span>` : (m.popular ? `<span class="tagc">${t('pop')}</span>` : '');
+  return `<div class="img">${m.image ? `<img src="${escAttr(imgUrl(m.image, w || 240))}" alt="" loading="lazy" decoding="async">` : svg('dish')}${badge}</div>`;
+}
+function catOf(m) { return String(m.category || '').trim(); }
+function catLabel(c) { const m = S.menu.find(x => catOf(x) === c && x.categoryEn); return L(c, m && m.categoryEn); }
+function matches(m, q) {
   if (!q) return true;
-  const hay = (item.name + ' ' + (item.desc || '')).toLowerCase();
+  const hay = [m.name, m.nameEn, m.desc, m.descEn].join(' ').toLowerCase();
   return hay.includes(q.toLowerCase());
 }
-
-function isMustTry(item) {
-  return Boolean(item) && (item.mustTry === true || item.mustTry === 'true' ||
-    item.must_try === true || item.must_try === 'true');
+function listHtml() {
+  if (!S.loaded) return `<p class="empty">${t('loading')}</p>`;
+  if (!S.menu.length) return `<p class="empty">${t('nm')}</p>`;
+  const q = S.q.trim();
+  const a = S.menu.filter(m => matches(m, q) && (!S.cat || catOf(m) === S.cat));
+  if (!a.length) return `<p class="empty">${t('nr')}</p>`;
+  const card = m => {
+    const out = m.available === false, c = cnt(m.id), has = groups(m).length > 0;
+    const ctl = out ? `<span class="so">${t('out')}</span>` : c
+      ? `<div class="qty"><button type="button" class="round mi" data-act="minus" data-id="${escAttr(m.id)}" aria-label="-">${svg('minus')}</button><span>${c}</span><button type="button" class="round pl" data-act="add" data-id="${escAttr(m.id)}" aria-label="+">${svg('plus')}</button></div>`
+      : `<button type="button" class="round pl" data-act="add" data-id="${escAttr(m.id)}" aria-label="+">${svg('plus')}</button>`;
+    return `<div class="card${out ? ' out' : ''}" role="button" tabindex="0" data-detail-id="${escAttr(m.id)}" data-act="open">${thumb(m)}<div class="b"><p class="nm n1">${escAttr(L(m.name, m.nameEn))}</p><p class="sub clamp">${escAttr(L(m.desc, m.descEn))}</p><div class="row"><span class="price">${baht(m.price)}</span>${ctl}</div></div></div>`;
+  };
+  if (S.cat || q) return a.map(card).join('');
+  const cats = [...new Set(S.menu.map(catOf))];
+  return cats.map(c => { const items = a.filter(m => catOf(m) === c); return items.length ? (c && cats.length > 1 ? `<h2 class="cat-h">${escAttr(catLabel(c))}</h2>` : '') + items.map(card).join('') : ''; }).join('');
 }
-
-function renderMenu() {
-  const root = document.getElementById('menuRoot');
-  if (!MENU.length) {
-    root.innerHTML = '<div class="empty-state">ยังไม่มีเมนูตอนนี้ 🙏</div>';
-    return;
-  }
-  const filtered = MENU.filter(i => matchesSearch(i, searchQuery) && (!activeCat || (i.category || '').trim() === activeCat));
-
-  if (!filtered.length) {
-    root.innerHTML = `<div class="empty-state">ไม่เจอเมนูที่ค้นหา 🔍<br>ลองพิมพ์คำอื่นดูนะครับ</div>`;
-    return;
-  }
-
-  // While searching or filtering to one category, skip the grouped headings —
-  // just show a flat, compact grid so results are easy to scan.
-  if (searchQuery || activeCat) {
-    root.innerHTML = `<div class="menu-grid">${filtered.map(renderCard).join('')}</div>`;
-    return;
-  }
-
-  // Single continuous grid for the whole page — category headings are
-  // full-width grid items that break the row, but cards themselves always
-  // flow 2-per-row instead of each category getting its own separate
-  // (and often half-empty-looking) grid.
-  const cats = [...new Set(MENU.map(i => (i.category || '').trim()).filter(Boolean))];
-  const groups = cats.length ? cats : [''];
-  const pieces = groups.map(cat => {
-    const items = filtered.filter(i => (i.category || '').trim() === cat);
-    if (!items.length) return '';
-    const heading = cat ? `<h2 id="cat-${escAttr(cat)}" class="cat-heading">${escAttr(cat)}</h2>` : '';
-    return heading + items.map(renderCard).join('');
+function cartBar() {
+  const n = total();
+  return `<div class="bar" id="cartBar"><button type="button" class="cta" data-act="go" data-v="cart"><span class="in">${svg('cart')}${t('cart')} <span class="badge">${n}</span></span><span class="in" style="font-size:15px">${n ? t('view') : t('emp')} ${svg('next')}</span></button></div>`;
+}
+function histHtml() {
+  if (S.hist === null) return `<p class="empty">${t('loading')}</p>`;
+  if (!S.hist.length) return `<p class="empty">${t('hn')}</p>`;
+  return S.hist.map(o => {
+    const sum = (o.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.qty || 0), 0);
+    return `<div class="hc"><div class="tp"><span>${escAttr(new Date(o.createdAt).toLocaleTimeString(S.l ? 'en-GB' : 'th-TH', { hour:'2-digit', minute:'2-digit' }))}</span><span>${o.status === 'done' ? t('done') : t('doing')}</span></div>
+    <ul>${(o.items || []).map(it => `<li><span>${escAttr(it.name)} x${escAttr(it.qty)}</span>${S.showPrices ? `<span>${baht(Number(it.price) * Number(it.qty))}</span>` : ''}</li>`).join('')}</ul>
+    ${o.note ? `<p class="sub">📝 ${escAttr(o.note)}</p>` : ''}${S.showPrices ? `<p class="price" style="text-align:right;margin:6px 0 0">${t('tot')} ${baht(sum)}</p>` : ''}</div>`;
   }).join('');
-  root.innerHTML = `<div class="menu-grid">${pieces}</div>`;
 }
-
-function renderCard(item) {
-  const soldOut = item.available === false;
-  const mustTry = isMustTry(item);
-  const qty = cart[item.id] || 0;
-  const tapAdd = soldOut ? '' : `onclick="changeQty('${item.id}', 1)"`;
-  const control = soldOut ? '' : (qty > 0
-    ? `<div class="stepper-fab" onclick="event.stopPropagation()">
-         <button onclick="changeQty('${item.id}', -1)">−</button>
-         <span class="qty-num">${qty}</span>
-         <button onclick="changeQty('${item.id}', 1)">+</button>
-       </div>`
-    : `<button class="add-fab" onclick="event.stopPropagation(); changeQty('${item.id}', 1)">+</button>`);
-  return `
-    <div class="menu-card2 ${soldOut ? 'sold-out' : ''} ${mustTry ? 'must-try' : ''}">
-      <div class="thumb-wrap ${soldOut ? '' : 'tap-add'}" ${tapAdd}>
-        <img src="${escAttr(item.image)}" alt="${escAttr(item.name)}" loading="lazy" decoding="async">
-        ${mustTry ? '<span class="badge-must-try" aria-label="เมนูต้องลอง">✨ ต้องลอง</span>' : ''}
-        ${soldOut ? '<span class="badge-soldout">ของหมดวันนี้</span>' : (item.popular ? '<span class="badge-popular">ยอดนิยม 🔥</span>' : '')}
-        ${control}
-      </div>
-      <div class="body" role="button" tabindex="0" data-detail-id="${escAttr(item.id)}" onclick="openMenuDetail(this.dataset.detailId, this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openMenuDetail(this.dataset.detailId, this) }">
-        <h3>${escAttr(item.name)}</h3>
-        ${item.desc ? `<p>${escAttr(item.desc)}</p>` : ''}
-        <div class="price-row">
-          <span class="price">฿${escAttr(item.price)}</span>
-        </div>
-      </div>
-    </div>`;
-}
-
-function changeQty(id, delta) {
-  const next = (cart[id] || 0) + delta;
-  if (next <= 0) delete cart[id];
-  else cart[id] = next;
-  renderMenu();
-  updateCartBar();
-}
-
-function cartItems() {
-  return Object.entries(cart).map(([id, qty]) => {
-    const item = MENU.find(i => i.id === id);
-    return item ? { id, name: item.name, price: item.price, category: item.category || '', qty } : null;
-  }).filter(Boolean);
-}
-
-function cartCountTotal() {
-  const items = cartItems();
-  const count = items.reduce((s, i) => s + i.qty, 0);
-  const total = items.reduce((s, i) => s + i.qty * i.price, 0);
-  return { count, total };
-}
-
-function updateCartBar() {
-  const { count, total } = cartCountTotal();
-  const bar = document.getElementById('cartBar');
-  if (count === 0) {
-    bar.classList.add('empty');
-    bar.innerHTML = `<div class="inner">แตะเมนูด้านบนเพื่อเริ่มสั่งอาหารได้เลย 👆</div>`;
+function render() {
+  const app = $('#app'); let h = '';
+  document.documentElement.lang = S.l ? 'en' : 'th';
+  document.body.classList.toggle('lock', !!S.sheet);
+  const tbl = TABLE ? `<div class="tbl"><small>${t('tb')}</small><b>${escAttr(TABLE)}</b></div>` : '';
+  const noTbl = TABLE ? '' : `<div class="warn">${t('nt0')}</div>`;
+  const shop = S.shopName || (S.l ? 'Menu' : 'เมนูอาหาร');
+  const back = `<button type="button" class="back" data-act="go" data-v="menu" aria-label="${t('back')}">${svg('back')}</button>`;
+  if (S.scr === 'menu') {
+    h = `<header class="hd" id="hd"><div class="t"><h1 class="n1" id="shopTitle">${escAttr(shop)}</h1><p class="s n1">${t('tag')}</p></div>${langBtn()}<button type="button" class="hbtn" data-act="go" data-v="hist" aria-label="${t('hs')}">${svg('hist')}</button>${tbl}</header>${noTbl}
+    <div class="sticky"><div class="search"><input id="searchInput" type="search" placeholder="${escAttr(t('sr'))}" value="${escAttr(S.q)}" autocomplete="off"></div>
+    <div class="cats" id="catNav">${[''].concat([...new Set(S.menu.map(catOf).filter(Boolean))]).length > 2 ? [''].concat([...new Set(S.menu.map(catOf).filter(Boolean))]).map(c => `<button type="button" class="chip${S.cat === c ? ' on' : ''}" data-act="cat" data-v="${escAttr(c)}">${escAttr(c ? catLabel(c) : t('all'))}</button>`).join('') : ''}</div></div>
+    ${total() ? '' : `<p class="hint">${t('hint')}</p>`}<main class="list" id="menuRoot">${listHtml()}</main>${cartBar()}`;
+  } else if (S.scr === 'hist') {
+    h = `<header class="hd" id="hd">${back}<div class="t"><h1 class="n1">${t('hs')} · ${t('tb')} ${escAttr(TABLE)}</h1></div>${langBtn()}</header>
+    <main style="padding:12px 0 calc(var(--bar-h) + 16px)" id="historyList">${histHtml()}</main>${cartBar()}`;
+  } else if (S.scr === 'cart') {
+    const lines = S.cart.map(l => { const m = mi(l.id); if (!m) return ''; const k = key(l.opt);
+      return `<div class="card" style="align-items:center"><div class="b"><p class="nm">${escAttr(L(m.name, m.nameEn))}</p><p class="sub">${escAttr(optNames(m, l.opt)) || '&nbsp;'}${S.showPrices ? ` · ${baht(unit(m, l.opt) * l.q)}` : ''}</p></div><div class="qty"><button type="button" class="round mi" data-act="line" data-id="${escAttr(l.id)}" data-k="${escAttr(k)}" data-d="-1" aria-label="-">${svg('minus')}</button><span>${l.q}</span><button type="button" class="round pl" data-act="line" data-id="${escAttr(l.id)}" data-k="${escAttr(k)}" data-d="1" aria-label="+">${svg('plus')}</button></div></div>`; }).join('');
+    const sum = S.cart.reduce((s, l) => s + (mi(l.id) ? unit(mi(l.id), l.opt) * l.q : 0), 0);
+    h = `<header class="hd" id="hd">${back}<div class="t"><h1 class="n1">${t('rv')} · ${t('tb')} ${escAttr(TABLE)}</h1></div>${langBtn()}</header>${noTbl}
+    <main style="padding:12px 0 calc(var(--bar-h) + 16px)">${S.cart.length ? lines + (S.showPrices ? `<p class="price" style="text-align:right;margin:0 12px 10px">${t('tot')} ${baht(sum)}</p>` : '') + `<div style="margin:0 12px 10px"><textarea class="note" id="orderNote" rows="2" maxlength="300" placeholder="${escAttr(t('nt'))}">${escAttr(S.note)}</textarea></div><div class="info">${t('pay')}</div>`
+      : `<div class="empty"><p class="nm">${t('ni')}</p><p class="sub">${t('nis')}</p></div>`}</main>
+    <div class="bar"><button type="button" class="cta c" id="submitBtn" data-act="send"${S.busy || !TABLE ? ' disabled' : ''}>${S.busy ? t('sending') : `${t('send')} (${total()} ${t('pcs')})`}</button>${S.err ? `<p class="err">${S.err === 1 ? t('er1') : S.err === 3 ? t('er3') : t('er2')}</p>` : ''}</div>`;
   } else {
-    bar.classList.remove('empty');
-    bar.innerHTML = `
-      <div class="inner">
-        <div>
-          <div class="cart-summary">${count} รายการ — แตะเพื่อตรวจสอบ</div>
-          <div class="cart-total">฿${total}</div>
-        </div>
-        <div class="cart-cta">ดูตะกร้า →</div>
-      </div>`;
+    h = `<header class="hd" id="hd"><div class="t"><h1 class="n1">${t('sent')} · ${t('tb')} ${escAttr(TABLE)}</h1></div>${langBtn()}</header>
+    <main style="padding:24px 16px calc(var(--bar-h) + 40px);text-align:center"><div class="dot on" style="width:56px;height:56px;font-size:30px;background:var(--ok-bg);color:var(--ok);display:inline-flex">${svg('check')}</div>
+    <p class="nm" style="font-size:17px;margin-top:8px">${t('sent')}</p><p class="sub">${S.sentCount} ${t('pcs')}</p><p class="sub" style="margin-top:14px">${t('hp')}</p></main>
+    <div class="bar"><button type="button" class="cta c" data-act="again">${t('more')}</button></div>`;
   }
+  app.innerHTML = h;
+  const hd = $('#hd'); if (hd) document.documentElement.style.setProperty('--hd-h', hd.offsetHeight + 'px');
+  if (S.sheet) renderSheet();
 }
 
-// ---------- review sheet ----------
-function openReview() {
-  const { count } = cartCountTotal();
-  if (count === 0) return;
-  renderReview();
-  document.getElementById('reviewOverlay').classList.add('open');
+/* ---------- menu detail / option picker ---------- */
+const menuDetailOverlay = $('#menuDetailOverlay');
+const menuDetailClose = $('#menuDetailClose');
+function groupHtml(g, sheet) {
+  const sel = sheet.sel[g.id] || [];
+  const opts = (g.options || []).map(o => {
+    const on = sel.includes(String(o.id));
+    return `<button type="button" class="opt${on ? ' on' : ''}" data-act="opt" data-g="${escAttr(g.id)}" data-o="${escAttr(o.id)}" aria-pressed="${on}">${on ? svg('check') : ''}${escAttr(L(o.name, o.nameEn))}${Number(o.priceDelta) ? ` <small>+${baht(o.priceDelta)}</small>` : ''}</button>`;
+  }).join('');
+  return `<div id="g-${escAttr(g.id)}"><p class="gt">${escAttr(L(g.name, g.nameEn))}${g.required ? `<span class="req">${t('req')}</span>` : `<span class="opn">${t('opn')}</span>`}</p><div class="opts">${opts}</div>${sheet.bad[g.id] ? `<p class="gerr">${t('pick')}</p>` : ''}</div>`;
 }
-function closeReview() {
-  document.getElementById('reviewOverlay').classList.remove('open');
+function renderSheet() {
+  const s = S.sheet, item = mi(s.id); if (!item) return;
+  const img = $('#menuDetailImage');
+  if (item.image) { img.src = imgUrl(item.image, 600); img.hidden = false; } else { img.removeAttribute('src'); img.hidden = true; }
+  img.alt = L(item.name, item.nameEn);
+  $('#menuDetailName').textContent = L(item.name, item.nameEn);
+  $('#menuDetailDescription').textContent = L(item.desc, item.descEn);
+  $('#menuDetailPrice').textContent = baht(item.price);
+  menuDetailClose.innerHTML = svg('x'); menuDetailClose.setAttribute('aria-label', t('close'));
+  $('#menuDetailGroups').innerHTML = groups(item).map(g => groupHtml(g, s)).join('');
+  if (item.available === false) { $('#menuDetailFoot').innerHTML = `<p class="sub" style="text-align:center;margin:6px 0">${t('out')}</p>`; menuDetailOverlay.classList.add('open'); return; }
+  $('#menuDetailFoot').innerHTML = `<div class="qty" style="justify-content:center;gap:18px;margin-bottom:10px"><button type="button" class="round mi" data-act="sq" data-d="-1" aria-label="-">${svg('minus')}</button><span style="font-size:18px">${s.q}</span><button type="button" class="round pl" data-act="sq" data-d="1" aria-label="+">${svg('plus')}</button></div>
+  <button type="button" class="cta c" data-act="sheetadd">${t('add')}</button>`;
+  menuDetailOverlay.classList.add('open');
 }
-
 function openMenuDetail(id, opener) {
-  const item = MENU.find(i => String(i.id) === String(id));
+  const item = mi(id);
   if (!item) return;
   menuDetailOpener = opener || document.activeElement;
-  const menuDetailImage = document.getElementById('menuDetailImage');
-  const menuDetailName = document.getElementById('menuDetailName');
-  const menuDetailDescription = document.getElementById('menuDetailDescription');
-  const menuDetailPrice = document.getElementById('menuDetailPrice');
-  menuDetailImage.src = item.image || '';
-  menuDetailImage.alt = item.name || '';
-  menuDetailName.textContent = item.name || '';
-  menuDetailDescription.textContent = item.desc || '';
-  menuDetailPrice.textContent = `฿${item.price == null ? '' : item.price}`;
-  menuDetailOverlay.classList.add('open');
+  S.sheet = { id:item.id, sel:{}, q:1, bad:{} };
+  render();
   menuDetailClose.focus();
 }
-
 function closeMenuDetail() {
+  S.sheet = null;
   menuDetailOverlay.classList.remove('open');
-  if (menuDetailOpener && typeof menuDetailOpener.focus === 'function') menuDetailOpener.focus();
+  document.body.classList.remove('lock');
+  if (menuDetailOpener && typeof menuDetailOpener.focus === 'function' && document.contains(menuDetailOpener)) menuDetailOpener.focus();
   menuDetailOpener = null;
 }
-
 menuDetailOverlay.addEventListener('keydown', event => {
   if (event.key !== 'Tab') return;
-  const focusable = [...menuDetailOverlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
-    .filter(element => !element.disabled);
+  const focusable = [...menuDetailOverlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(el => !el.disabled && !el.hidden);
   if (!focusable.length) return;
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
+  const first = focusable[0], last = focusable[focusable.length - 1];
   if (event.shiftKey ? document.activeElement === first : document.activeElement === last) {
     event.preventDefault();
     (event.shiftKey ? last : first).focus();
   }
 });
 
-function renderReview() {
-  const items = cartItems();
-  const list = document.getElementById('reviewList');
-  list.innerHTML = items.map(it => `
-    <div class="review-row">
-      <div style="flex:1">
-        <div class="rname">${escAttr(it.name)}</div>
-        <div class="rprice">฿${it.price} / ชิ้น</div>
-      </div>
-      <div class="rstepper">
-        <button onclick="changeQty('${it.id}', -1); renderReview();">−</button>
-        <span class="qty-num">${it.qty}</span>
-        <button onclick="changeQty('${it.id}', 1); renderReview();">+</button>
-      </div>
-      <div class="rsubtotal">฿${it.price * it.qty}</div>
-    </div>
-  `).join('');
-  const { count, total } = cartCountTotal();
-  document.getElementById('reviewTotal').textContent = `฿${total}`;
-  document.getElementById('submitBtn').disabled = count === 0;
-  if (count === 0) closeReview();
-}
-
-async function submitOrder() {
-  const items = cartItems();
-  if (!items.length) return;
-  const note = document.getElementById('orderNote').value.trim();
-  const btn = document.getElementById('submitBtn');
-  btn.disabled = true;
-  btn.textContent = 'กำลังส่ง...';
-  try {
-    const res = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: TABLE, items, note })
-    });
-    if (!res.ok) throw new Error('failed');
-    cart = {};
-    document.getElementById('orderNote').value = '';
-    renderMenu();
-    updateCartBar();
-    closeReview();
-    document.getElementById('successOverlay').classList.add('open');
-  } catch (e) {
-    showToast('สั่งไม่สำเร็จ ลองใหม่อีกครั้งนะครับ');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'ส่งออเดอร์เข้าครัว 🍳';
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  if (e.target === menuDetailOverlay) { closeMenuDetail(); return; }
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const a = el.dataset.act, id = el.dataset.id;
+  if (a === 'lang') { S.l = +el.dataset.v; try { localStorage.setItem('jo_lang', S.l ? 'en' : 'th'); } catch (x) {} }
+  else if (a === 'cat') S.cat = el.dataset.v;
+  else if (a === 'open') { if (e.target.closest('.round')) return; openMenuDetail(el.dataset.detailId, el); return; }
+  else if (a === 'add') { const m = mi(id); if (!m || m.available === false) return; if (groups(m).length) { openMenuDetail(id, el); return; } addItem(id, [], 1); }
+  else if (a === 'minus') { const ls = S.cart.filter(l => String(l.id) === String(id)); if (ls.length) changeLine(id, key(ls[ls.length - 1].opt), -1); }
+  else if (a === 'close-detail') { closeMenuDetail(); return; }
+  else if (a === 'opt') {
+    const m = mi(S.sheet.id), g = groups(m).find(x => String(x.id) === el.dataset.g), o = el.dataset.o, cur = S.sheet.sel[g.id] || [];
+    if (g.type === 'single') S.sheet.sel[g.id] = (cur.includes(o) && !g.required) ? [] : [o];
+    else S.sheet.sel[g.id] = cur.includes(o) ? cur.filter(x => x !== o) : cur.concat(o);
+    delete S.sheet.bad[g.id];
   }
-}
-
-function closeSuccess() {
-  document.getElementById('successOverlay').classList.remove('open');
-}
-
-function showToast(msg) {
-  const root = document.getElementById('toastRoot');
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.textContent = msg;
-  root.appendChild(el);
-  setTimeout(() => el.remove(), 2500);
-}
-
-// ---------- history ----------
-async function openHistory() {
-  document.getElementById('historyOverlay').classList.add('open');
-  const list = document.getElementById('historyList');
-  list.innerHTML = '<div class="empty-state">กำลังโหลด...</div>';
-  const res = await fetch('/api/orders');
-  if (!res.ok) {
-    list.innerHTML = '<div class="empty-state">ยังไม่มีประวัติการสั่งของโต๊ะนี้</div>';
-    return;
+  else if (a === 'sq') S.sheet.q = Math.max(1, Math.min(99, S.sheet.q + +el.dataset.d));
+  else if (a === 'sheetadd') {
+    const m = mi(S.sheet.id), bad = {};
+    groups(m).forEach(g => { if (g.required && !(S.sheet.sel[g.id] || []).length) bad[g.id] = 1; });
+    if (Object.keys(bad).length) { S.sheet.bad = bad; render(); const f = $('#g-' + Object.keys(bad)[0]); if (f) f.scrollIntoView({ block:'center' }); return; }
+    addItem(S.sheet.id, [].concat(...Object.values(S.sheet.sel)), S.sheet.q);
+    closeMenuDetail();
   }
-  const orders = (await res.json()).filter(o => String(o.table) === String(TABLE))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  if (!orders.length) {
-    list.innerHTML = '<div class="empty-state">ยังไม่มีประวัติการสั่งของโต๊ะนี้</div>';
-    return;
-  }
-  list.innerHTML = orders.map(o => `
-    <div class="history-card">
-      <div class="history-card-top">
-        <span class="history-time">${new Date(o.createdAt).toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})}</span>
-        <span class="history-status ${o.status === 'done' ? 'done' : ''}">${o.status === 'done' ? 'เสิร์ฟแล้ว' : 'กำลังทำ'}</span>
-      </div>
-      <ul class="history-items">
-        ${o.items.map(it => `<li><span>${escAttr(it.name)} x${it.qty}</span><span>฿${it.price * it.qty}</span></li>`).join('')}
-      </ul>
-      ${o.note ? `<div class="history-note">📝 ${escAttr(o.note)}</div>` : ''}
-      <div class="history-total">รวม ฿${o.items.reduce((s, it) => s + it.price * it.qty, 0)}</div>
-    </div>
-  `).join('');
-}
-
-function closeHistory() {
-  document.getElementById('historyOverlay').classList.remove('open');
-}
-
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') closeMenuDetail();
+  else if (a === 'go') { S.scr = el.dataset.v; S.err = 0; window.scrollTo(0, 0); if (S.scr === 'hist') loadHistory(); }
+  else if (a === 'line') changeLine(id, el.dataset.k, +el.dataset.d);
+  else if (a === 'send') { submitOrder(); return; }
+  else if (a === 'again') { S.scr = 'menu'; window.scrollTo(0, 0); }
+  render();
+});
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.card[role="button"]')) { e.preventDefault(); openMenuDetail(e.target.dataset.detailId, e.target); }
+  if (e.key === 'Escape' && S.sheet) closeMenuDetail();
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'searchInput') { S.q = e.target.value; $('#menuRoot').innerHTML = listHtml(); }
+  else if (e.target.id === 'orderNote') { S.note = e.target.value; save(); }
 });
 
+load();
+render();
 loadMenu();
 </script>
 </body>

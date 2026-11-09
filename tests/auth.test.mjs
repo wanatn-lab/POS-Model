@@ -17,6 +17,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function setup(env = {}) {
   const store = new SqliteStore(fakeSql());
+  // The server prices orders from its own menu, so the shop needs this dish on its menu.
+  store.set("menu", [{ id: "m1", name: "กระเพรา", price: 59, category: "อาหาร" }, { id: "m2", name: "ข้าวผัด", price: 50, category: "อาหาร" }]);
   const fullEnv = { ...ENV, ...env };
   const call = (method, path, body, { cookie, bearer, origin = ORIGIN, headers = {}, base = ORIGIN } = {}) =>
     handleApiRequest(
@@ -206,7 +208,7 @@ test("customer: after staff clears the table the old pass stops working and the 
   assert.equal((await w.call("GET", "/api/orders", undefined, old)).status, 401);
 
   await sleep(5);
-  const next = await w.call("POST", "/api/orders", { table: 3, items: [{ ...ITEM, name: "ข้าวผัด" }] });
+  const next = await w.call("POST", "/api/orders", { table: 3, items: [{ ...ITEM, id: "m2", name: "ข้าวผัด" }] });
   const seen = await (await w.call("GET", "/api/orders", undefined, { cookie: cookieOf(next) })).json();
   assert.equal(seen.length, 1);
   assert.equal(seen[0].items[0].name, "ข้าวผัด"); // not the previous customer's กระเพรา

@@ -176,11 +176,11 @@ test("a hanging Firebase is abandoned at the timeout", async () => {
 // ---------- call sites: ring only where NEW printable work appears ----------
 
 test("new order rings print; marking done does not", async () => {
-  const redis = fakeRedis({ orders: [] });
+  const redis = fakeRedis({ orders: [], menu: [{ id: "m1", name: "ข้าวซอย", price: 50 }] });
   const bell = spyBell();
   const handler = createOrdersHandler({ redis, bell });
   const res = fakeRes();
-  await handler({ method: "POST", body: { table: 3, items: [{ name: "ข้าวซอย", qty: 1 }] } }, res);
+  await handler({ method: "POST", body: { table: 3, items: [{ id: "m1", qty: 1 }] } }, res);
   assert.equal(res.statusCode, 200);
   assert.deepEqual(bell.rung, ["print"]);
 
@@ -198,7 +198,7 @@ test("invalid order is rejected and does not ring", async () => {
 });
 
 test("order is still saved and answered 200 when the real bell fails", async () => {
-  const redis = fakeRedis({ orders: [] });
+  const redis = fakeRedis({ orders: [], menu: [{ id: "m1", name: "ข้าวซอย", price: 50 }] });
   const failingBell = createBell({
     env: PROD_ENV,
     fetchImpl: async () => { throw new Error("firebase down"); },
@@ -206,7 +206,7 @@ test("order is still saved and answered 200 when the real bell fails", async () 
   });
   const res = fakeRes();
   await createOrdersHandler({ redis, bell: failingBell })(
-    { method: "POST", body: { table: 5, items: [{ name: "แคบหมู", qty: 2 }] } },
+    { method: "POST", body: { table: 5, items: [{ id: "m1", qty: 2 }] } },
     res,
   );
   assert.equal(res.statusCode, 200);
