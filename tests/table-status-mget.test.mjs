@@ -112,13 +112,18 @@ test("POST still uses its existing separate GET/SET path, never MGET", async () 
 
 const atBangkok = (value) => new Date(`${value}+07:00`);
 
-test("legacy page outside hours is rejected before any Redis command", async () => {
+const SCHEDULE_AND_OVERRIDE_READS = [
+  { command: "GET", key: "shopSchedule" },
+  { command: "GET", key: "shopOverride" },
+];
+
+test("legacy page outside hours is rejected after reading only the shop hours", async () => {
   const redis = fakeRedis({ orders: [] });
-  const handler = createTableStatusHandler({ redis, now: () => atBangkok("2026-10-13T11:19:00") });
+  const handler = createTableStatusHandler({ redis, now: () => atBangkok("2026-10-13T05:59:00") });
   const result = await response(handler, { method: "GET", headers: {} });
   assert.equal(result.code, 200);
   assert.equal(result.body.closed, true);
-  assert.deepEqual(redis.commands, []);
+  assert.deepEqual(redis.commands, SCHEDULE_AND_OVERRIDE_READS);
 });
 
 test("new table-status client still works outside hours", async () => {
@@ -139,7 +144,7 @@ test("new table-status client still works outside hours", async () => {
 
 test("new client and in-hours legacy client both receive normal data", async () => {
   const values = { orders: [], tableClears: {}, settings: { tableCount: 2 } };
-  const now = () => atBangkok("2026-10-13T11:20:00");
+  const now = () => atBangkok("2026-10-13T11:20:00"); // inside the default 06:00-18:00 hours
   const newRedis = fakeRedis(values);
   const legacyRedis = fakeRedis(values);
   const newResult = await response(createTableStatusHandler({ redis: newRedis, now }), {
@@ -148,39 +153,46 @@ test("new client and in-hours legacy client both receive normal data", async () 
   const legacyResult = await response(createTableStatusHandler({ redis: legacyRedis, now }), { method: "GET", headers: {} });
   assert.deepEqual(newResult.body, legacyResult.body);
   assert.deepEqual(newRedis.commands, [{ command: "MGET", keys: ["orders", "tableClears", "settings"] }]);
-  assert.deepEqual(legacyRedis.commands, [{ command: "MGET", keys: ["orders", "tableClears", "settings"] }]);
+  assert.deepEqual(legacyRedis.commands, [
+    ...SCHEDULE_AND_OVERRIDE_READS,
+    { command: "MGET", keys: ["orders", "tableClears", "settings"] },
+  ]);
 });
 
-test("legacy page is allowed at 20:59 but rejected at 21:00 without Redis", async () => {
+test("legacy page is allowed at 17:59 but rejected at 18:00 (default hours)", async () => {
   const values = { orders: [], tableClears: {}, settings: {} };
   const allowedRedis = fakeRedis(values);
   const allowed = await response(createTableStatusHandler({
-    redis: allowedRedis, now: () => atBangkok("2026-10-13T20:59:00"),
+    redis: allowedRedis, now: () => atBangkok("2026-10-13T17:59:00"),
   }), { method: "GET", headers: {} });
   assert.equal(allowed.body.closed, undefined);
-  assert.deepEqual(allowedRedis.commands, [{ command: "MGET", keys: ["orders", "tableClears", "settings"] }]);
+  assert.deepEqual(allowedRedis.commands, [
+    ...SCHEDULE_AND_OVERRIDE_READS,
+    { command: "MGET", keys: ["orders", "tableClears", "settings"] },
+  ]);
 
   const blockedRedis = fakeRedis(values);
   const blocked = await response(createTableStatusHandler({
-    redis: blockedRedis, now: () => atBangkok("2026-10-13T21:00:00"),
+    redis: blockedRedis, now: () => atBangkok("2026-10-13T18:00:00"),
   }), { method: "GET", headers: {} });
   assert.equal(blocked.body.closed, true);
-  assert.deepEqual(blockedRedis.commands, []);
+  assert.deepEqual(blockedRedis.commands, SCHEDULE_AND_OVERRIDE_READS);
 });
 
-test("Monday legacy page checks special opening once, then proceeds only when open", async () => {
-  const values = { orders: [], tableClears: {}, settings: {} };
-  const now = () => atBangkok("2026-10-12T15:00:00");
-  const closedRedis = fakeRedis(values);
-  const closed = await response(createTableStatusHandler({ redis: closedRedis, now }), { method: "GET", headers: {} });
-  assert.equal(closed.body.closed, true);
-  assert.deepEqual(closedRedis.commands, [{ command: "GET", key: "shopSpecialOpen" }]);
+test("legacy page follows the saved schedule and the manual switch", async () => {
+  const now = () => atBangkok("2026-10-13T20:00:00"); // a Tuesday evening, after the default close
+  const hours = {};
+  for (const key of ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]) hours[key] = { closed: false, open: "06:00", close: "22:00" };
+  const base = { orders: [], tableClears: {}, settings: {} };
 
-  const openRedis = fakeRedis({ ...values, shopSpecialOpen: "2026-10-12" });
-  const open = await response(createTableStatusHandler({ redis: openRedis, now }), { method: "GET", headers: {} });
+  const late = await response(createTableStatusHandler({ redis: fakeRedis({ ...base, shopSchedule: hours }), now }), { method: "GET", headers: {} });
+  assert.equal(late.body.closed, undefined); // saved hours run until 22:00
+
+  const forcedOpen = { mode: "open", expiresAt: "2026-10-13T23:00:00+07:00" };
+  const open = await response(createTableStatusHandler({ redis: fakeRedis({ ...base, shopOverride: forcedOpen }), now }), { method: "GET", headers: {} });
   assert.equal(open.body.closed, undefined);
-  assert.deepEqual(openRedis.commands, [
-    { command: "GET", key: "shopSpecialOpen" },
-    { command: "MGET", keys: ["orders", "tableClears", "settings"] },
-  ]);
+
+  const forcedClosed = { mode: "closed", expiresAt: "2026-10-14T06:00:00+07:00" };
+  const closed = await response(createTableStatusHandler({ redis: fakeRedis({ ...base, shopSchedule: hours, shopOverride: forcedClosed }), now }), { method: "GET", headers: {} });
+  assert.equal(closed.body.closed, true);
 });

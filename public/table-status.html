@@ -760,7 +760,14 @@ document.getElementById("confirmClear").onclick = async ()=>{
 
 /* ---------------- Remove single item ---------------- */
 function openItemRemoveConfirm(item){
-  pendingRemove = item;
+  pendingRemove = {
+    ...item,
+    // Reuse this id if the browser retries after a lost response, so one
+    // cancelled line can never create two void tickets.
+    removalId: typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `remove-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  };
   document.getElementById("itemConfirmTitle").textContent = `ยกเลิก "${item.name}"?`;
   document.getElementById("itemConfirmWrap").style.display = "flex";
   document.getElementById("overlay").classList.add("show");
@@ -779,7 +786,7 @@ document.getElementById("confirmItemRemove").onclick = async ()=>{
     await fetch('/api/table-status', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:"remove-item", orderId:item.orderId, itemIndex:item.itemIndex }),
+      body: JSON.stringify({ action:"remove-item", orderId:item.orderId, itemIndex:item.itemIndex, removalId:item.removalId }),
     });
     closeItemConfirmFn();
     await refreshAll();

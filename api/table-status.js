@@ -1,4 +1,5 @@
 import { redis } from "./_redis.js";
+import { shopState } from "./_shop-hours.js";
 import { ringBell } from "./_bell.js";
 
 // Aggregates recent orders per table for the "สถานะโต๊ะ" dashboard, and lets
@@ -21,30 +22,9 @@ const BANGKOK_DAY_FMT = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
-const BANGKOK_PARTS_FMT = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Asia/Bangkok",
-  weekday: "short",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
 const LEGACY_CLIENT_HEADER = "x-jinko-client";
-const SPECIAL_OPEN_KEY = "shopSpecialOpen";
-const OPEN_MINUTE = 11 * 60 + 20;
-const CLOSE_MINUTE = 21 * 60;
-
-function bangkokParts(date) {
-  const values = {};
-  BANGKOK_PARTS_FMT.formatToParts(date).forEach((part) => { values[part.type] = part.value; });
-  return {
-    weekday: values.weekday,
-    date: `${values.year}-${values.month}-${values.day}`,
-    minute: (Number(values.hour) % 24) * 60 + Number(values.minute),
-  };
-}
+const SHOP_SCHEDULE_KEY = "shopSchedule";
+const SHOP_OVERRIDE_KEY = "shopOverride";
 
 function isNewTableStatusClient(req) {
   const headers = req.headers || {};
@@ -77,10 +57,42 @@ function compareTables(first, second) {
 
 const BILL_HISTORY_MAX = 1000;
 const BILL_HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_PRINT_JOBS = 300;
 
 function batchSet(client, entries) {
   if (typeof client.batchSet === "function") return client.batchSet(entries);
   return Promise.all(entries.map(([key, value]) => client.set(key, value)));
+}
+
+function stationOf(item) {
+  return item && item.printer === "counter" ? "counter" : "kitchen";
+}
+
+function sameTicketItem(first, second) {
+  if (first === second) return true;
+  if (!first || !second) return false;
+  return first.id === second.id &&
+    first.name === second.name &&
+    Number(first.price) === Number(second.price) &&
+    Number(first.qty) === Number(second.qty) &&
+    JSON.stringify(first.options || []) === JSON.stringify(second.options || []);
+}
+
+function removalId(value, order, itemIndex, removedAt) {
+  const supplied = typeof value === "string" ? value.trim() : "";
+  if (/^[A-Za-z0-9_-]{8,120}$/.test(supplied)) return supplied;
+  // Current table-status pages always send an id. A legacy caller still gets
+  // a unique accepted action, without treating a later shifted array index as
+  // a duplicate removal.
+  return `remove-${order.id}-${itemIndex}-${removedAt.getTime()}-${(order.removedItems || []).length}`;
+}
+
+async function ringSafely(bell, reason) {
+  try {
+    await bell(reason);
+  } catch {
+    // The order/job transaction has already succeeded. Bell is only a wake-up hint.
+  }
 }
 
 function recentBills(value, now) {
@@ -242,9 +254,11 @@ export function createTableStatusHandler({ redis: redisClient = redis, now = () 
     // read endpoint receives the compatibility guard: customer ordering and
     // every POST intentionally remain unchanged.
     if (!isNewTableStatusClient(req)) {
-      const current = now();
-      const local = bangkokParts(current);
-      if (local.minute < OPEN_MINUTE || local.minute >= CLOSE_MINUTE) {
+      const [schedule, override] = await Promise.all([
+        redisClient.get(SHOP_SCHEDULE_KEY),
+        redisClient.get(SHOP_OVERRIDE_KEY),
+      ]);
+      if (!shopState(now().getTime(), schedule, override).open) {
         return res.status(200).json({
           ok: false,
           closed: true,
@@ -252,20 +266,6 @@ export function createTableStatusHandler({ redis: redisClient = redis, now = () 
           tableCount: 0,
           tables: [],
         });
-      }
-      if (local.weekday === "Mon") {
-        // The special-open value is the sole Redis read added by this guard,
-        // and is needed only during Monday's otherwise-open time window.
-        const specialOpenDate = await redisClient.get(SPECIAL_OPEN_KEY);
-        if (specialOpenDate !== local.date) {
-          return res.status(200).json({
-            ok: false,
-            closed: true,
-            error: "outdated page - please reload",
-            tableCount: 0,
-            tables: [],
-          });
-        }
       }
     }
     const [orders, clears, settings] = await redisClient.mget(
@@ -376,14 +376,93 @@ export function createTableStatusHandler({ redis: redisClient = redis, now = () 
       if (!orderId || itemIndex == null) {
         return res.status(400).json({ ok: false, error: "missing orderId/itemIndex" });
       }
-      const orders = (await redisClient.get("orders")) || [];
+      const [ordersValue, jobsValue] = await Promise.all([
+        redisClient.get("orders"),
+        redisClient.get("printJobs"),
+      ]);
+      const orders = Array.isArray(ordersValue) ? ordersValue : [];
+      const jobs = Array.isArray(jobsValue) ? jobsValue : [];
       const order = orders.find((o) => o.id === orderId);
-      if (!order || !order.items || !order.items[itemIndex]) {
+      if (!order || !Array.isArray(order.items)) {
         return res.status(404).json({ ok: false, error: "order or item not found" });
       }
+      const existingRemovals = Array.isArray(order.removedItems) ? order.removedItems : [];
+      const suppliedRemovalId = typeof body.removalId === "string" ? body.removalId.trim() : "";
+      const repeatedRemoval = suppliedRemovalId
+        ? existingRemovals.find((entry) => entry && entry.removalId === suppliedRemovalId)
+        : null;
+      if (repeatedRemoval) {
+        return res.status(200).json({ ok: true, alreadyRemoved: true, voidJobId: repeatedRemoval.voidJobId || null });
+      }
+      if (!order.items[itemIndex]) {
+        return res.status(404).json({ ok: false, error: "order or item not found" });
+      }
+
+      const removedAt = now();
+      const removedItem = order.items[itemIndex];
+      const station = stationOf(removedItem);
+      const id = removalId(body.removalId, order, itemIndex, removedAt);
+      let voidJobId = null;
+
+      // A ticket that is queued, failed or expired has not reached paper through
+      // automatic delivery. Remove this one line so a later manual retry cannot
+      // resurrect it. If no lines remain, cancel the ticket outright. A claimed
+      // or printing ticket is left intact: the bridge completes it first, then
+      // the already-queued void ticket is picked up next.
+      const stationOrderJobs = jobs.filter((job) =>
+        job && job.orderId === order.id && job.type === "kitchen" &&
+        (job.kind || "order") === "order" && job.station === station,
+      );
+      for (const job of stationOrderJobs) {
+        if (!["queued", "failed", "expired"].includes(job.status) || !Array.isArray(job.items)) continue;
+        const ticketIndex = job.items.findIndex((item) => sameTicketItem(item, removedItem));
+        if (ticketIndex < 0) continue;
+        job.items.splice(ticketIndex, 1);
+        if (!job.items.length) {
+          job.status = "cancelled";
+          job.cancelledAt = removedAt.toISOString();
+        }
+      }
+
+      // Only a matching line in a printed, claimed or printing ticket is
+      // committed to paper. A station may have printed an earlier add-on while
+      // this particular line is still queued, which must not produce a void.
+      const hasCommittedTicket = stationOrderJobs.some((job) =>
+        ["printed", "claimed", "printing"].includes(job.status) &&
+        Array.isArray(job.items) && job.items.some((item) => sameTicketItem(item, removedItem)),
+      );
+      if (hasCommittedTicket) {
+        voidJobId = `${station}-void-${order.id}-${id}`;
+        if (!jobs.some((job) => job && job.id === voidJobId)) {
+          jobs.push({
+            id: voidJobId,
+            printId: voidJobId,
+            type: "kitchen",
+            station,
+            kind: "void",
+            orderId: order.id,
+            table: order.table,
+            items: [removedItem],
+            status: "queued",
+            queuedAt: removedAt.toISOString(),
+          });
+        }
+      }
+
       order.items.splice(itemIndex, 1);
-      await redisClient.set("orders", orders);
-      return res.status(200).json({ ok: true });
+      order.removedItems = [...existingRemovals, {
+        removalId: id,
+        itemIndex: Number(itemIndex),
+        removedAt: removedAt.toISOString(),
+        station,
+        voidJobId,
+      }];
+      await batchSet(redisClient, [
+        ["orders", orders],
+        ["printJobs", jobs.slice(-MAX_PRINT_JOBS)],
+      ]);
+      if (voidJobId) await ringSafely(bell, "print");
+      return res.status(200).json({ ok: true, voidJobId });
     }
 
     return res.status(400).json({ ok: false, error: "unknown action" });
