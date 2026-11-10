@@ -1,8 +1,10 @@
 import { redis } from "./_redis.js";
+import { normalizeCategories, orderedCategories, sortMenuByCategories } from "./_menu-categories.js";
 
 // A new shop starts with no fabricated products or prices. The owner imports or
 // enters the real menu in Admin before accepting customer orders.
 const SEED_MENU = [];
+const CATEGORIES_KEY = "menuCategories";
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
@@ -11,7 +13,15 @@ export default async function handler(req, res) {
       menu = SEED_MENU;
       await redis.set("menu", menu);
     }
-    return res.status(200).json(menu);
+    const stored = await redis.get(CATEGORIES_KEY);
+    const categories = orderedCategories(menu, stored);
+    // Items are returned grouped in category order, so the customer page follows
+    // the owner's order without any change. Without a stored list nothing moves.
+    const sorted = Array.isArray(stored) ? sortMenuByCategories(menu, categories) : menu;
+    if (req.query && req.query.include === "categories") {
+      return res.status(200).json({ menu: sorted, categories });
+    }
+    return res.status(200).json(sorted);
   }
 
   if (req.method === "POST") {
@@ -37,12 +47,26 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, item: menu[index] });
     }
 
-    const menu = body;
+    // Admin save: { menu: [...], categories: [...] } (legacy: a bare array).
+    let menu = body;
+    let categories = null;
+    if (body && !Array.isArray(body) && Array.isArray(body.menu)) {
+      menu = body.menu;
+      categories = normalizeCategories(body.categories);
+      if (body.categories !== undefined && categories === null) {
+        return res.status(400).json({ ok: false, error: "categories must be an array" });
+      }
+    }
     if (!Array.isArray(menu)) {
       return res.status(400).json({ ok: false, error: "expected an array of menu items" });
     }
+    if (categories !== null) {
+      categories = orderedCategories(menu, categories);
+      menu = sortMenuByCategories(menu, categories);
+      await redis.set(CATEGORIES_KEY, categories);
+    }
     await redis.set("menu", menu);
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, categories: categories || undefined });
   }
 
   res.setHeader("Allow", "GET, POST");
