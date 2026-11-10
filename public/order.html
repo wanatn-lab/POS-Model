@@ -22,6 +22,7 @@
     <span class="table-tag"><span data-i18n="table">โต๊ะ</span> <span id="tableTag">-</span></span>
   </div>
 </div>
+<div id="shopClosedBanner" role="status" style="display:none;margin:8px 12px 0;padding:10px 12px;border-radius:10px;background:#fff4d6;color:#7a4b00;font-size:14px;line-height:1.5"></div>
 <div class="welcome-line" id="welcomeLine" style="background:#3B2A20"></div>
 
 <div class="search-wrap">
@@ -124,9 +125,11 @@ const I18N = {
     historyLoading: 'กำลังโหลด...', historyEmpty: 'ยังไม่มีประวัติการสั่งของโต๊ะนี้',
     statusDone: 'เสิร์ฟแล้ว', statusCooking: 'กำลังทำ', historyTotal: 'รวม',
     emptyMenu: 'ยังไม่มีเมนูตอนนี้ 🙏',
+    otherCat: 'อื่น ๆ',
     noResults: 'ไม่เจอเมนูที่ค้นหา 🔍<br>ลองพิมพ์คำอื่นดูนะครับ',
     soldOut: 'ของหมดวันนี้', popular: 'ยอดนิยม 🔥', mustTry: '✨ ต้องลอง', mustTryAria: 'เมนูต้องลอง',
     perItem: 'ชิ้น', orderFail: 'สั่งไม่สำเร็จ ลองใหม่อีกครั้งนะครับ',
+    shopClosed: 'ร้านปิดอยู่ตอนนี้', shopOpensAt: 'เปิดอีกครั้ง', shopClosedNote: 'โต๊ะที่สั่งไว้แล้วยังสั่งเพิ่มได้', shopClosedFail: 'ร้านปิดอยู่ ยังรับออเดอร์ใหม่ไม่ได้ในตอนนี้',
     cartCta: 'ดูตะกร้า →',
     welcome: n => `👋 สวัสดีครับ กำลังสั่งจากโต๊ะ ${n} — แตะรูปเมนูที่ชอบเพื่อสั่งได้เลย`,
     noTable: '⚠️ ไม่พบหมายเลขโต๊ะ กรุณาแสกน QR ที่โต๊ะใหม่อีกครั้ง',
@@ -149,9 +152,11 @@ const I18N = {
     historyLoading: 'Loading...', historyEmpty: 'No orders from this table yet',
     statusDone: 'Served', statusCooking: 'Preparing', historyTotal: 'Total',
     emptyMenu: 'No menu available right now 🙏',
+    otherCat: 'Other',
     noResults: 'No dishes found 🔍<br>Try a different word.',
     soldOut: 'Sold out today', popular: 'Popular 🔥', mustTry: '✨ Must try', mustTryAria: 'Must-try dish',
     perItem: 'each', orderFail: 'Could not send the order. Please try again.',
+    shopClosed: 'The shop is closed right now', shopOpensAt: 'Opens again', shopClosedNote: 'A table that has already ordered can still add items', shopClosedFail: 'The shop is closed, so new orders cannot be placed right now.',
     cartCta: 'View cart →',
     welcome: n => `👋 Welcome! Ordering from table ${n}. Tap a dish to add it.`,
     noTable: '⚠️ Table number not found. Please scan the QR code on your table again.',
@@ -212,6 +217,7 @@ function applyLang() {
   document.getElementById('welcomeLine').textContent = TABLE ? t('welcome', TABLE) : t('noTable');
   if (MENU.length) { renderCatNav(); renderMenu(); }
   updateCartBar();
+  renderShopBanner();
   if (document.getElementById('reviewOverlay').classList.contains('open')) renderReview();
   if (menuDetailOverlay.classList.contains('open') && menuDetailId != null) fillMenuDetail(menuDetailId);
   if (document.getElementById('historyOverlay').classList.contains('open')) openHistory();
@@ -226,13 +232,39 @@ let menuDetailId = null;
 const menuDetailOverlay = document.getElementById('menuDetailOverlay');
 const menuDetailClose = menuDetailOverlay.querySelector('.history-close');
 
+// Shop hours come from the server (weekly schedule + manual open/close). Customers can always
+// browse. The server refuses a new customer order while closed, but lets a table that already has
+// a pass keep ordering, so the page only informs and never blocks the button by itself.
+let shopState = null; // { open, opensAt } or null when unknown
+
+function shopTimeText(iso) {
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return '';
+  const locale = LANG === 'en' ? 'en-GB' : 'th-TH';
+  const zone = { timeZone: 'Asia/Bangkok' };
+  const time = date.toLocaleTimeString(locale, { ...zone, hour: '2-digit', minute: '2-digit', hour12: false });
+  const sameDay = date.toLocaleDateString('en-CA', zone) === new Date().toLocaleDateString('en-CA', zone);
+  return sameDay ? time : date.toLocaleDateString(locale, { ...zone, weekday: 'short' }) + ' ' + time;
+}
+
+function renderShopBanner() {
+  const el = document.getElementById('shopClosedBanner');
+  if (!el) return;
+  if (!shopState || shopState.open !== false) { el.style.display = 'none'; return; }
+  const opens = shopState.opensAt ? ' · ' + t('shopOpensAt') + ' ' + shopTimeText(shopState.opensAt) : '';
+  el.textContent = t('shopClosed') + opens + ' — ' + t('shopClosedNote');
+  el.style.display = 'block';
+}
+
 async function loadMenu() {
-  const [menuRes, settingsRes] = await Promise.all([
+  const [menuRes, settingsRes, shopRes] = await Promise.all([
     fetch('/api/menu'),
-    fetch('/api/settings')
+    fetch('/api/settings'),
+    fetch('/api/shop-status').catch(() => null)
   ]);
   MENU = await menuRes.json();
   const settings = await settingsRes.json();
+  try { shopState = shopRes && shopRes.ok ? await shopRes.json() : null; } catch (e) { shopState = null; }
   if (settings.shopName) shopName = settings.shopName;
   shopNameEn = settings.shopNameEn || '';
   applyLang();
@@ -304,11 +336,16 @@ function renderMenu() {
   // flow 2-per-row instead of each category getting its own separate
   // (and often half-empty-looking) grid.
   const cats = [...new Set(MENU.map(i => (i.category || '').trim()).filter(Boolean))];
-  const groups = cats.length ? cats : [''];
+  // Items without a category (e.g. after the owner deletes a category) must still be visible:
+  // they go last, under an "Other" heading when the menu has real categories.
+  const hasUncategorised = MENU.some(i => !(i.category || '').trim());
+  const groups = cats.length ? (hasUncategorised ? [...cats, ''] : cats) : [''];
   const pieces = groups.map(cat => {
     const items = filtered.filter(i => (i.category || '').trim() === cat);
     if (!items.length) return '';
-    const heading = cat ? `<h2 id="cat-${escAttr(cat)}" class="cat-heading">${escAttr(catLabel(cat))}</h2>` : '';
+    const heading = cat
+      ? `<h2 id="cat-${escAttr(cat)}" class="cat-heading">${escAttr(catLabel(cat))}</h2>`
+      : (cats.length ? `<h2 class="cat-heading">${escAttr(t('otherCat'))}</h2>` : '');
     return heading + items.map(renderCard).join('');
   }).join('');
   root.innerHTML = `<div class="menu-grid">${pieces}</div>`;
@@ -493,7 +530,17 @@ async function submitOrder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ table: TABLE, items, note, idempotencyKey: idempotencyKey() })
     });
-    if (!res.ok) throw new Error('failed');
+    if (!res.ok) {
+      let data = null;
+      try { data = await res.json(); } catch (e) { data = null; }
+      if (data && data.error === 'shop_closed') {
+        shopState = { open: false, opensAt: data.opensAt || null };
+        renderShopBanner();
+        showToast(t('shopClosedFail'));
+        return;
+      }
+      throw new Error('failed');
+    }
     cart = {};
     pendingIdempotencyKey = null;
     document.getElementById('orderNote').value = '';

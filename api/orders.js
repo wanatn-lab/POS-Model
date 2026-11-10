@@ -1,11 +1,17 @@
 import { redis } from "./_redis.js";
 import { ringBell } from "./_bell.js";
+import { shopState } from "./_shop-hours.js";
 
 const MAX_ORDERS = 1000;
 const MAX_ITEMS_PER_ORDER = 20;
 const MAX_QTY_PER_ITEM = 20;
 const MAX_TOTAL_QTY = 50;
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+
+const BANGKOK_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" });
+function bangkokDay(date) {
+  return Number.isNaN(date.getTime()) ? "" : BANGKOK_DAY.format(date);
+}
 
 function tableKey(value) {
   const text = String(value == null ? "" : value).trim();
@@ -122,17 +128,23 @@ async function ringSafely(bell, reason) {
   }
 }
 
-export function createOrdersHandler({ redis: redisClient = redis, bell = ringBell } = {}) {
+export function createOrdersHandler({ redis: redisClient = redis, bell = ringBell, now: clock = () => Date.now() } = {}) {
   return async function handler(req, res) {
     if (req.method === "GET") {
       const orders = (await redisClient.get("orders")) || [];
-      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+      const cutoff = clock() - 24 * 60 * 60 * 1000;
       let recent = orders.filter((order) => new Date(order.createdAt).getTime() >= cutoff);
       if (req.auth && req.auth.role === "customer") {
         const mine = tableKey(req.auth.table);
         const clears = (await redisClient.get("tableClears")) || {};
         const clearedAt = new Date(clears[mine] || 0).getTime() || 0;
-        recent = recent.filter((order) => tableKey(order.table) === mine && new Date(order.createdAt).getTime() > clearedAt);
+        // A customer only ever sees today's orders (Bangkok calendar day), so an order left open
+        // overnight never shows up for the first customer of the next morning.
+        const today = bangkokDay(new Date(clock()));
+        recent = recent.filter((order) =>
+          tableKey(order.table) === mine &&
+          new Date(order.createdAt).getTime() > clearedAt &&
+          bangkokDay(new Date(order.createdAt)) === today);
       }
       return res.status(200).json(recent);
     }
@@ -178,23 +190,42 @@ export function createOrdersHandler({ redis: redisClient = redis, bell = ringBel
     }
 
     if (!body.table) return res.status(400).json({ ok: false, error: "missing table" });
-    const [menu, savedSettings, idempotencyValue, jobsValue] = await Promise.all([
+    const [menu, savedSettings, idempotencyValue, jobsValue, shopSchedule, shopOverride] = await Promise.all([
       redisClient.get("menu"),
       redisClient.get("settings"),
       redisClient.get("orderIdempotency"),
       redisClient.get("printJobs"),
+      redisClient.get("shopSchedule"),
+      redisClient.get("shopOverride"),
     ]);
     const items = orderItems(body.items, menu);
     if (!items) return res.status(400).json({ ok: false, error: "invalid, unavailable, or excessive items" });
 
     const table = tableKey(body.table);
     const key = compactIdempotency(body.idempotencyKey);
-    const now = Date.now();
+    const now = clock();
     const idempotency = recentKeys(idempotencyValue, now);
     const idempotencyId = key ? `${table}:${key}` : null;
     if (idempotencyId && idempotency[idempotencyId]) {
       const existing = orders.find((order) => order.id === idempotency[idempotencyId].orderId);
       if (existing) return res.status(200).json({ ok: true, order: existing, idempotent: true });
+    }
+
+    // A new customer cannot start an order while the shop is closed. Staff always can, and so can a
+    // customer who already holds a table pass (mid-meal, not a new walk-in). A shop that has never
+    // saved opening hours or a manual switch is not restricted. The check runs after the
+    // idempotency replay above, so a retry of an order that was accepted still gets its answer.
+    const callerRole = req.auth && req.auth.role;
+    if (callerRole !== "staff" && callerRole !== "owner" && callerRole !== "customer" && (shopSchedule || shopOverride)) {
+      const state = shopState(now, shopSchedule, shopOverride);
+      if (!state.open) {
+        return res.status(409).json({
+          ok: false,
+          error: "shop_closed",
+          opensAt: state.opensAt,
+          message: "ร้านปิดอยู่ ยังรับออเดอร์ไม่ได้",
+        });
+      }
     }
 
     const source = req.auth && (req.auth.role === "staff" || req.auth.role === "owner") ? "staff" : "customer";
