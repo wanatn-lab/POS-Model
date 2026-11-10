@@ -525,8 +525,8 @@
   #panel-receipt .rc-paper{background:#fff;width:260px;padding:16px 15px 12px;box-shadow:0 6px 18px rgba(0,0,0,.14);font:11px/1.55 'Noto Sans Thai';color:#1a1a1a;}
   #panel-receipt .rc-paper.narrow{width:200px;}
   #panel-receipt .rc-center{text-align:center;}
-  #panel-receipt .rc-logo{width:38px;height:38px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;background:#f1f1f1;overflow:hidden;font-size:9px;color:#999;}
-  #panel-receipt .rc-logo img{width:100%;height:100%;object-fit:cover;}
+  #panel-receipt .rc-logo{width:auto;max-width:190px;min-height:38px;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;background:transparent;overflow:hidden;font-size:9px;color:#999;}
+  #panel-receipt .rc-logo img{display:block;width:100%;height:auto;max-height:64px;object-fit:contain;}
   #panel-receipt .rc-shop{font-weight:700;font-size:13px;}
   #panel-receipt .rc-sub{font-size:10px;color:#444;}
   #panel-receipt .rc-rule{border-top:1px dashed #999;margin:8px 0;}
@@ -550,7 +550,11 @@
   .en-chip.ok{background:#e3f2e8;color:#2f7d4f;}
   .en-chip.todo{background:#fdeccf;color:#9a5b00;}
   .en-summary{font-size:13px;color:#6b5a4d;margin:0 0 10px;}
-  .cat-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px;}
+  .cat-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-top:8px;align-items:center;}
+  .cat-actions{display:flex;gap:4px;align-items:center;}
+  .cat-actions small{color:#6b5a4d;white-space:nowrap;}
+  .cat-add{display:flex;gap:8px;margin-top:12px;}
+  .cat-add input{flex:1;}
   .cat-head{font-size:13px;color:#6b5a4d;margin-top:10px;}
 </style>
 <link rel="stylesheet" href="/admin-theme.css?v=1">
@@ -559,9 +563,10 @@
 <div class="topbar">
   <h1><span class="brand-mark" aria-hidden="true">ท</span><span>ทองย้อย <small>· แอดมิน</small></span></h1>
   <div style="display:flex;align-items:center;gap:14px">
-    <span id="specialOpenBox" style="display:none;align-items:center;gap:8px;font-size:13px;color:#fff">
-      <span id="specialOpenText"></span>
-      <button id="specialOpenBtn" type="button" style="border:0;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;background:#fff;color:#3b2a20"></button>
+    <span id="shopStatusBox" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#fff;flex-wrap:wrap">
+      <span id="shopStatusText">กำลังโหลดสถานะร้าน…</span>
+      <button id="shopToggleBtn" type="button" style="display:none;border:0;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;background:#fff;color:#3b2a20"></button>
+      <button id="shopClearBtn" type="button" style="display:none;border:0;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;background:transparent;color:#fff;outline:1px solid rgba(255,255,255,.6)">กลับไปใช้ตามเวลา</button>
     </span>
     <a href="/order" style="color:#fff;font-size:13px" target="_blank">ดูหน้าลูกค้า →</a>
   </div>
@@ -574,6 +579,7 @@
   <button class="tab-btn" data-tab="printers">เครื่องพิมพ์ครัว</button>
   <button class="tab-btn" data-tab="receipt">ใบเสร็จ / ใบสั่งพิมพ์</button>
   <button class="tab-btn" data-tab="billhistory">รายการบันทึกบิล</button>
+  <button class="tab-btn" data-tab="hours">เวลาเปิด-ปิดร้าน</button>
 </div>
 
 <div class="wrap">
@@ -586,7 +592,7 @@
     </div>
     <div class="item-form no-print" id="categoryManager">
       <h3>จัดการหมวด (ไทย / English)</h3>
-      <p class="en-summary">แก้ชื่อไทยแล้วกดออกจากช่อง เมนูทั้งหมวดจะเปลี่ยนตาม · ช่อง English ว่าง = ลูกค้าเห็นชื่อไทย · แก้เสร็จกด "บันทึกเมนู" ด้านล่าง</p>
+      <p class="en-summary">เพิ่มหมวดด้วยช่องด้านล่าง · ปุ่ม ↑↓ เรียงลำดับที่ลูกค้าเห็น · ลบหมวดแล้วเมนูในหมวดจะเป็น "ไม่มีหมวด" · แก้ชื่อไทยแล้วกดออกจากช่อง เมนูทั้งหมวดจะเปลี่ยนตาม · ช่อง English ว่าง = ลูกค้าเห็นชื่อไทย · แก้เสร็จกด "บันทึกเมนู" ด้านล่าง</p>
       <div id="categoryManagerRows"></div>
     </div>
     <div class="item-form cloudinary-settings no-print">
@@ -640,6 +646,13 @@
 
   <!-- ===== เครื่องพิมพ์ครัว ===== -->
   <section id="panel-printers" class="panel">
+
+    <div class="item-form no-print">
+      <h3 style="margin-top:0">คิวงานพิมพ์</h3>
+      <p class="rc-hint">ล้างใบที่ยังไม่พิมพ์ทั้งหมด (รอคิว/ล้มเหลว) เพื่อไม่ให้ใบเก่าออกเครื่องพิมพ์ภายหลัง — ใบที่พิมพ์แล้วไม่กระทบ (เฉพาะเจ้าของ)</p>
+      <button type="button" class="btn" id="clearPrintQueueBtn" onclick="clearPrintQueue()">🧹 ล้างคิวงานพิมพ์ที่ค้าง</button>
+      <span id="clearPrintQueueResult" class="rc-hint" style="margin-left:8px"></span>
+    </div>
 
     <div class="item-form no-print">
       <h3 style="margin-top:0">ตั้งค่าทั่วไป</h3>
@@ -892,6 +905,20 @@
   </section>
 
   <!-- ===== ใบเสร็จ / ใบสั่งพิมพ์ ===== -->
+  <!-- ===== เวลาเปิด-ปิดร้าน ===== -->
+  <section id="panel-hours" class="panel">
+    <p style="font-size:13px;color:#6b6058;margin:0 0 12px">นอกเวลาเปิดร้าน ลูกค้าที่สแกน QR จะสั่งอาหารไม่ได้ (พนักงานและเจ้าของสั่งได้เสมอ ลูกค้าที่สั่งไว้แล้วในโต๊ะนั้นสั่งเพิ่มได้) ถ้าลูกค้ามาก่อนเวลา กดปุ่ม "เปิดร้านตอนนี้" มุมขวาบน ปุ่มจะหมดอายุเองและกลับไปใช้ตามเวลา หน้าแอดมินจะหยุดรีเฟรชอัตโนมัติเมื่อร้านปิด เพื่อประหยัดโควต้า</p>
+    <div class="item-form" style="max-width:560px">
+      <h3>เวลาเปิด-ปิดร้านรายวัน</h3>
+      <div id="hoursRows"></div>
+      <div class="item-actions" style="align-items:center">
+        <span id="hoursMsg" style="font-size:13px;color:#6b6058"></span>
+        <button type="button" class="btn" id="hoursSaveBtn">💾 บันทึกเวลา</button>
+      </div>
+      <p style="font-size:12px;color:#6b6058;margin:8px 0 0">ตั้งได้เฉพาะเจ้าของ · เวลาตามเขต Asia/Bangkok · ปิดหลังเที่ยงคืนยังไม่รองรับ (ตั้งได้ถึง 23:59)</p>
+    </div>
+  </section>
+
   <section id="panel-receipt" class="panel">
     <p style="font-size:13px;color:#6b6058;margin:0 0 16px">ปรับข้อมูลและหน้าตาใบเสร็จลูกค้า หรือใบสั่งครัว แล้วดูตัวอย่างได้ทันที</p>
     <div class="rc-subtabs">
@@ -968,6 +995,7 @@
 <script>
 const API = '';
 let MENU = [];
+let MENU_CATEGORIES = []; // owner-ordered category names; may include categories with no items yet
 let PRINTERS = [];
 let SETTINGS = {};
 let adminMenuCategoryFilter = null; // null = every category
@@ -1181,13 +1209,83 @@ async function clearMenuImage(i) {
 
 // ---------- เมนู ----------
 async function loadMenu() {
-  const res = await fetch(API + '/api/menu');
-  MENU = await res.json();
+  const res = await fetch(API + '/api/menu?include=categories');
+  const data = await res.json();
+  MENU = Array.isArray(data) ? data : (Array.isArray(data.menu) ? data.menu : []);
+  MENU_CATEGORIES = Array.isArray(data.categories) ? data.categories.slice() : [];
   renderList();
 }
 
+// Owner order first (including empty categories), then any category an item uses that is not listed yet.
 function menuCategories() {
-  return [...new Set(MENU.map(i => (i.category || '').trim()).filter(Boolean))];
+  const used = MENU.map(i => (i.category || '').trim()).filter(Boolean);
+  return [...new Set([...MENU_CATEGORIES, ...used])];
+}
+
+function sortMenuByCategoryOrder() {
+  const order = menuCategories();
+  const rank = c => { const r = order.indexOf((c || '').trim()); return r < 0 ? order.length : r; };
+  MENU = MENU.map((item, i) => ({ item, i }))
+    .sort((a, b) => rank(a.item.category) - rank(b.item.category) || a.i - b.i)
+    .map(x => x.item);
+}
+
+function countInCategory(cat) {
+  return MENU.filter(i => (i.category || '').trim() === cat).length;
+}
+
+// Returns { ok, reason }. Names must be non-empty and unique.
+function addCategory(name) {
+  const next = String(name == null ? '' : name).trim();
+  if (!next) return { ok: false, reason: 'empty' };
+  if (menuCategories().includes(next)) return { ok: false, reason: 'exists' };
+  MENU_CATEGORIES = [...menuCategories(), next];
+  return { ok: true };
+}
+
+// Deleting a category that still has items keeps the items: they become "no category"
+// (customers see them last, under "Other").
+function deleteCategory(name) {
+  MENU.forEach(it => {
+    if ((it.category || '').trim() === name) { it.category = ''; delete it.categoryEn; }
+  });
+  MENU_CATEGORIES = menuCategories().filter(c => c !== name);
+  if (adminMenuCategoryFilter === name) adminMenuCategoryFilter = null;
+  return { ok: true };
+}
+
+function moveCategory(name, delta) {
+  const list = menuCategories();
+  const from = list.indexOf(name);
+  const to = from + delta;
+  if (from < 0 || to < 0 || to >= list.length) return { ok: false };
+  [list[from], list[to]] = [list[to], list[from]];
+  MENU_CATEGORIES = list;
+  sortMenuByCategoryOrder();
+  return { ok: true };
+}
+
+function onCategoryAdd() {
+  const input = document.getElementById('newCategoryName');
+  const res = addCategory(input.value);
+  if (!res.ok) {
+    if (typeof showToast === 'function') showToast(res.reason === 'exists' ? 'มีหมวดชื่อนี้อยู่แล้ว' : 'กรุณาใส่ชื่อหมวด');
+    return;
+  }
+  input.value = '';
+  renderList();
+}
+
+function onCategoryDelete(btn) {
+  const name = btn.dataset.cat;
+  const count = countInCategory(name);
+  if (count > 0 && !confirm('ลบหมวด "' + name + '" ?\nเมนู ' + count + ' รายการในหมวดนี้จะกลายเป็น "ไม่มีหมวด" (ลูกค้าเห็นในกลุ่ม "อื่น ๆ" ท้ายเมนู) ต้องกด "บันทึกเมนู" ถึงจะมีผลจริง')) return;
+  deleteCategory(name);
+  renderList();
+}
+
+function onCategoryMove(btn, delta) {
+  if (moveCategory(btn.dataset.cat, delta).ok) renderList();
 }
 
 function renderCategoryDatalist() {
@@ -1308,6 +1406,7 @@ function renameCategory(oldName, newName) {
   if (next === oldName) return { ok: true, changed: false };
   if (menuCategories().includes(next)) return { ok: false, changed: false, reason: 'exists' };
   MENU.forEach(it => { if ((it.category || '').trim() === oldName) it.category = next; });
+  MENU_CATEGORIES = menuCategories().map(c => c === oldName ? next : c);
   if (adminMenuCategoryFilter === oldName) adminMenuCategoryFilter = next;
   return { ok: true, changed: true };
 }
@@ -1335,20 +1434,34 @@ function renderCategoryManager() {
   const box = document.getElementById('categoryManagerRows');
   if (!box) return;
   const cats = menuCategories();
+  const addRow = `
+    <div class="cat-add">
+      <input type="text" id="newCategoryName" placeholder="ชื่อหมวดใหม่" aria-label="ชื่อหมวดใหม่"
+        onkeydown="if (event.key === 'Enter') { event.preventDefault(); onCategoryAdd(); }">
+      <button type="button" onclick="onCategoryAdd()">+ เพิ่มหมวด</button>
+    </div>`;
   if (!cats.length) {
-    box.innerHTML = '<div class="en-summary">ยังไม่มีหมวด ใส่ชื่อหมวดในรายการเมนูด้านล่างก่อน</div>';
+    box.innerHTML = '<div class="en-summary">ยังไม่มีหมวด พิมพ์ชื่อหมวดแล้วกด "เพิ่มหมวด"</div>' + addRow;
     return;
   }
   box.innerHTML =
-    '<div class="cat-row cat-head"><span>ชื่อหมวด (ไทย)</span><span>Category (English)</span></div>' +
-    cats.map(c => `
+    '<div class="cat-row cat-head"><span>ชื่อหมวด (ไทย)</span><span>Category (English)</span><span>เรียง / ลบ</span></div>' +
+    cats.map((c, idx) => `
       <div class="cat-row">
         <input type="text" data-cat="${escAttr(c)}" value="${escAttr(c)}" aria-label="ชื่อหมวดภาษาไทย"
           onchange="onCategoryRename(this)">
         <input type="text" class="en-input" data-cat="${escAttr(c)}" value="${escAttr(categoryEnOf(c))}"
           placeholder="ว่าง = ลูกค้าเห็นชื่อไทย" aria-label="Category name in English"
           oninput="setCategoryEnByName(this.dataset.cat, this.value)">
-      </div>`).join('') +
+        <span class="cat-actions">
+          <button type="button" data-cat="${escAttr(c)}" aria-label="เลื่อนหมวดขึ้น" ${idx === 0 ? 'disabled' : ''}
+            onclick="onCategoryMove(this, -1)">↑</button>
+          <button type="button" data-cat="${escAttr(c)}" aria-label="เลื่อนหมวดลง" ${idx === cats.length - 1 ? 'disabled' : ''}
+            onclick="onCategoryMove(this, 1)">↓</button>
+          <button type="button" data-cat="${escAttr(c)}" aria-label="ลบหมวด" onclick="onCategoryDelete(this)">ลบ</button>
+          <small>${countInCategory(c)} เมนู</small>
+        </span>
+      </div>`).join('') + addRow +
     '<div class="en-summary" id="catEnSummary"></div>';
   refreshCategoryEnSummary();
 }
@@ -1463,6 +1576,7 @@ function removeItem(i) {
 }
 
 async function saveMenu({ silent = false } = {}) {
+  sortMenuByCategoryOrder();
   const menuForSave = MENU.map(item => {
     const { must_try, ...normalised } = item;
     return { ...normalised, mustTry: isMustTry(item) };
@@ -1470,7 +1584,7 @@ async function saveMenu({ silent = false } = {}) {
   const response = await fetch(API + '/api/menu', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(menuForSave)
+    body: JSON.stringify({ menu: menuForSave, categories: menuCategories() })
   });
   if (!response.ok) throw new Error('save menu failed');
   MENU = menuForSave;
@@ -1765,6 +1879,25 @@ async function persistPrinters() {
 }
 
 // ---------- สถานะเชื่อมต่อเครื่องพิมพ์ (ใหม่) ----------
+async function clearPrintQueue() {
+  const out = document.getElementById('clearPrintQueueResult');
+  if (!confirm('ล้างคิวงานพิมพ์ทั้งหมดที่ยังไม่พิมพ์ (รอคิว/ล้มเหลว)?\nใบที่ล้างจะไม่ถูกพิมพ์อีก และย้อนกลับไม่ได้\nใบที่พิมพ์ไปแล้วไม่กระทบ')) return;
+  out.textContent = 'กำลังล้าง...';
+  try {
+    const res = await fetch(API + '/api/print-jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'clear' })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401 || res.status === 403) { out.textContent = 'ต้องเข้าสู่ระบบเป็นเจ้าของก่อน แล้วลองใหม่'; return; }
+    if (!res.ok || !data.ok) { out.textContent = 'ล้างไม่สำเร็จ: ' + (data.error || res.status); return; }
+    out.textContent = 'ล้างแล้ว ' + data.cleared + ' งาน' + (data.skippedActive ? ' (ข้าม ' + data.skippedActive + ' งานที่กำลังพิมพ์)' : '');
+  } catch (e) {
+    out.textContent = 'ล้างไม่สำเร็จ: เชื่อมต่อไม่ได้';
+  }
+}
+
 async function pollPrinterStatus() {
   try {
     const res = await fetch(API + '/api/printer-status');
@@ -2041,33 +2174,131 @@ async function rcSaveSettings() {
 }
 
 // ---------- init ----------
-// ---- "เปิดพิเศษวันนี้" (วันจันทร์ปิดตามปกติ) ----
-// Shown only on Mondays. The switch is saved on the server for today's date only, so other
-// devices start refreshing automatically (within ~5 minutes) and it ends by itself at midnight.
+// ---- เวลาเปิด-ปิดร้าน: ปุ่มเปิด/ปิดด้วยมือ (พนักงานและเจ้าของ) + ตารางเวลารายวัน (เจ้าของ) ----
+// The server decides whether the shop is open (api/shop-status.js). A manual switch expires by
+// itself, so it can never leave the shop open or closed for good.
 (function () {
-  const box = document.getElementById('specialOpenBox');
-  const text = document.getElementById('specialOpenText');
-  const btn = document.getElementById('specialOpenBtn');
-  function render() {
-    const info = window.shopDayInfo();
-    box.style.display = info.closedDay ? 'inline-flex' : 'none';
-    text.textContent = info.special ? 'วันนี้เปิดพิเศษ' : 'วันจันทร์ปิดตามปกติ';
-    btn.textContent = info.special ? 'ยกเลิกเปิดพิเศษ' : 'เปิดพิเศษวันนี้';
+  const statusText = document.getElementById('shopStatusText');
+  const toggle = document.getElementById('shopToggleBtn');
+  const clear = document.getElementById('shopClearBtn');
+  const rows = document.getElementById('hoursRows');
+  const saveBtn = document.getElementById('hoursSaveBtn');
+  const msg = document.getElementById('hoursMsg');
+  const DAYS = [['mon', 'จันทร์'], ['tue', 'อังคาร'], ['wed', 'พุธ'], ['thu', 'พฤหัสบดี'], ['fri', 'ศุกร์'], ['sat', 'เสาร์'], ['sun', 'อาทิตย์']];
+  let dirty = false;
+
+  function renderStatus() {
+    const s = window.shopStatus();
+    if (!s) {
+      statusText.textContent = 'กำลังโหลดสถานะร้าน…';
+      toggle.style.display = 'none';
+      clear.style.display = 'none';
+      return;
+    }
+    statusText.textContent = window.shopStatusText();
+    toggle.style.display = '';
+    toggle.textContent = s.open ? 'ปิดร้านตอนนี้' : 'เปิดร้านตอนนี้';
+    clear.style.display = s.override ? '' : 'none';
   }
-  btn.addEventListener('click', async () => {
-    btn.disabled = true;
+
+  toggle.addEventListener('click', async () => {
+    const s = window.shopStatus();
+    if (!s) return;
+    toggle.disabled = true;
     try {
-      await window.setShopSpecialToday(!window.shopDayInfo().special);
+      if (s.open) {
+        if (!confirm('ปิดร้านตอนนี้? ลูกค้าจะสั่งผ่าน QR ไม่ได้จนถึงเวลาเปิดครั้งถัดไป (พนักงานยังสั่งได้ตามปกติ)')) return;
+        await window.shopCloseNow();
+      } else {
+        try {
+          await window.shopOpenNow();
+        } catch (e) {
+          if (e.code !== 'hours_required') throw e;
+          const answer = prompt('ตอนนี้เลยเวลาปิดแล้วหรือเป็นวันหยุด จะเปิดร้านกี่ชั่วโมง? (1-12)', '3');
+          const hours = Number(answer);
+          if (!answer || !(hours >= 1 && hours <= 12)) return;
+          await window.shopOpenNow(hours);
+        }
+      }
     } catch (e) {
-      alert('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+      alert('บันทึกไม่สำเร็จ: ' + e.message);
     } finally {
-      btn.disabled = false;
-      render();
+      toggle.disabled = false;
+      renderStatus();
     }
   });
-  document.addEventListener('shop-special-change', render);
-  render();
-  if (window.shopDayInfo().closedDay) window.syncShopSpecial();
+
+  clear.addEventListener('click', async () => {
+    clear.disabled = true;
+    try {
+      await window.shopClearOverride();
+    } catch (e) {
+      alert('บันทึกไม่สำเร็จ: ' + e.message);
+    } finally {
+      clear.disabled = false;
+      renderStatus();
+    }
+  });
+
+  // <input type="time"> cannot hold 24:00, so show the last minute of the day instead.
+  const toInput = (value) => (value === '24:00' ? '23:59' : value);
+
+  function renderEditor() {
+    const s = window.shopStatus();
+    if (!s || !s.schedule) return;
+    rows.innerHTML = DAYS.map(([key, label]) => {
+      const d = s.schedule[key];
+      return `<div class="hours-row" data-day="${key}" style="display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap">
+        <strong style="width:96px">${label}</strong>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" class="h-closed" ${d.closed ? 'checked' : ''}> หยุด</label>
+        <input type="time" class="h-open" value="${toInput(d.open)}" ${d.closed ? 'disabled' : ''}>
+        <span>ถึง</span>
+        <input type="time" class="h-close" value="${toInput(d.close)}" ${d.closed ? 'disabled' : ''}>
+      </div>`;
+    }).join('');
+    rows.querySelectorAll('input').forEach((el) => {
+      const touched = () => {
+        dirty = true;
+        if (el.classList.contains('h-closed')) {
+          const row = el.closest('.hours-row');
+          row.querySelector('.h-open').disabled = el.checked;
+          row.querySelector('.h-close').disabled = el.checked;
+        }
+      };
+      el.addEventListener('input', touched);
+      el.addEventListener('change', touched);
+    });
+    dirty = false;
+    msg.textContent = '';
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    const schedule = {};
+    rows.querySelectorAll('.hours-row').forEach((row) => {
+      schedule[row.dataset.day] = {
+        closed: row.querySelector('.h-closed').checked,
+        open: row.querySelector('.h-open').value || '06:00',
+        close: row.querySelector('.h-close').value || '18:00',
+      };
+    });
+    saveBtn.disabled = true;
+    try {
+      await window.shopSaveSchedule(schedule);
+      renderEditor();
+      msg.textContent = 'บันทึกแล้ว ✓';
+    } catch (e) {
+      msg.textContent = 'บันทึกไม่สำเร็จ: ' + e.message + ' (ตั้งเวลาได้เฉพาะเจ้าของ)';
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  document.addEventListener('shop-state-change', () => {
+    renderStatus();
+    if (!dirty) renderEditor();
+  });
+  renderStatus();
+  renderEditor();
 })();
 
 loadMenu();
@@ -2346,7 +2577,14 @@ document.getElementById("ts-confirmClear").onclick = async ()=>{
 
 /* ---------------- Remove single item ---------------- */
 function openItemRemoveConfirm(item){
-  pendingRemove = item;
+  pendingRemove = {
+    ...item,
+    // Reuse this id if the browser retries after a lost response, so one
+    // cancelled line can never create two void tickets.
+    removalId: typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `remove-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  };
   document.getElementById("ts-itemConfirmTitle").textContent = `ยกเลิก "${item.name}"?`;
   document.getElementById("ts-itemConfirmWrap").style.display = "flex";
   document.getElementById("ts-overlay").classList.add("show");
@@ -2365,7 +2603,7 @@ document.getElementById("ts-confirmItemRemove").onclick = async ()=>{
     await fetch('/api/table-status', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:"remove-item", orderId:item.orderId, itemIndex:item.itemIndex }),
+      body: JSON.stringify({ action:"remove-item", orderId:item.orderId, itemIndex:item.itemIndex, removalId:item.removalId }),
     });
     closeItemConfirmFn();
     await refreshAll();
@@ -2418,7 +2656,7 @@ async function finishCheckout(t, printReceipt){
   const response = await fetch('/api/table-status', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    // The server takes an immutable snapshot for iMin before it clears the
+    // The server takes an immutable snapshot for the printer before it clears the
     // table.  This prevents the receipt from disappearing when the browser
     // closes or the Bridge is running in the background.
     body: JSON.stringify({ action:"checkout", table:t.id, printReceipt }),
@@ -2428,7 +2666,7 @@ async function finishCheckout(t, printReceipt){
   closePanelFn();
   await refreshAll();
   showToast(printReceipt
-    ? `คิดเงิน ${tableLabel(t.id)} แล้ว · ส่งใบเสร็จไป iMin`
+    ? `คิดเงิน ${tableLabel(t.id)} แล้ว · ส่งใบเสร็จไปเครื่องพิมพ์แล้ว`
     : `คิดเงิน ${tableLabel(t.id)} เรียบร้อย`);
 }
 

@@ -7,7 +7,7 @@ const read = (path) => readFileSync(new URL(path, root), "utf8");
 const admin = read("admin.html");
 
 const requiredIds = [
-  "specialOpenBox", "specialOpenText", "specialOpenBtn", "menuCategoryFilter",
+  "shopStatusBox", "shopStatusText", "shopToggleBtn", "shopClearBtn", "hoursRows", "hoursSaveBtn", "menuCategoryFilter",
   "cloudinaryCloudName", "cloudinaryUploadPreset", "itemList", "tableCount", "qrGrid",
   "paperWidthMm", "shopName", "agentBanner", "printerList", "printerForm",
   "ts-grid", "ts-overlay", "ts-panel", "ts-orderList", "ts-clearTableBtn", "ts-checkoutBtn",
@@ -32,9 +32,15 @@ test("admin redesign preserves the static UI contract", () => {
   }
 });
 
+test("checkout confirmation uses printer-neutral receipt wording", () => {
+  const checkout = admin.slice(admin.indexOf("async function finishCheckout"), admin.indexOf('document.getElementById("ts-printReceiptBtn").onclick'));
+  assert.match(checkout, /ส่งใบเสร็จไปเครื่องพิมพ์แล้ว/);
+  assert.doesNotMatch(checkout, /iMin/);
+});
+
 test("admin keeps all tabs, deep links and the protected script order", () => {
   const tabs = [...admin.matchAll(/class="tab-btn(?: active)?" data-tab="([^"]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(tabs, ["tablestatus", "menu", "qr", "printers", "receipt", "billhistory"]);
+  assert.deepEqual(tabs, ["tablestatus", "menu", "qr", "printers", "receipt", "billhistory", "hours"]);
   for (const tab of tabs) assert.match(admin, new RegExp(`id="panel-${tab}" class="panel`), `missing panel for ${tab}`);
   assert.match(admin, /return ADMIN_TABS\.has\(tab\) \? tab : 'tablestatus';/);
   assert.match(admin, /const selected = ADMIN_TABS\.has\(tab\) \? tab : 'tablestatus';/);
@@ -115,7 +121,7 @@ test("menu tab keeps every control, handler and API call", () => {
     "onclick=\"removeItem(${i})\"", 'onclick="addBlankItem()"', 'onclick="saveMenu()"', 'onclick="saveCloudinarySettings()"',
   ]) assert.ok(admin.includes(handler), `missing handler ${handler}`);
   assert.match(admin, /fetch\(API \+ '\/api\/menu', \{\s*method: 'POST',/);
-  assert.match(admin, /body: JSON\.stringify\(menuForSave\)/);
+  assert.match(admin, /body: JSON\.stringify\(\{ menu: menuForSave, categories: menuCategories\(\) \}\)/);
   assert.match(admin, /alt="\$\{escAttr\(item\.name\) \|\| 'รูปเมนู'\}"/);
 });
 
