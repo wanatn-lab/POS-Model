@@ -17,7 +17,9 @@ function option(args, name) {
 function backupEndpoint(baseUrl, action) {
   const url = new URL(baseUrl);
   if (url.protocol !== "https:") throw new Error("--url must use https");
-  url.pathname = `${url.pathname.replace(/\/$/, "")}/api/_admin/${action}`;
+  // The server route for "restore" is named "import" (src/api-router.js adminRoute).
+  const route = action === "restore" ? "import" : action;
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/api/_admin/${route}`;
   return url;
 }
 

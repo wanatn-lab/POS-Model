@@ -73,3 +73,16 @@
 - **พิมพ์ซ้ำ:** งานพิมพ์ที่กลับเข้าคิวหลังเริ่มพิมพ์แล้ว (lease หมดอายุ, release หลัง printing, กด retry) จะมี `reprint: true` และ `reprintLabel`. **แอป Bridge ต้องพิมพ์ `reprintLabel` บนกระดาษ** (ยังไม่ได้ตรวจเพราะไม่มี source ของ Bridge)
 - **ชื่อพนักงาน:** ทุกคนล็อกอินด้วยรหัสเดียว ชื่อบนบิลจึงเป็น `STAFF_ID` ค่าเดียว (ไม่ใช่ secret ใส่เป็น var ได้) ถ้าต้องแยกรายคนต้องเพิ่ม PIN ต่อคน
 - **ยังไม่ได้ตรวจ:** แอป Android Bridge, `jinor-bill-summary`, staging จริง, โควตาที่วัดได้จริง, `wrangler whoami`, backup/rollback
+
+## สำรองและกู้คืนข้อมูล (`scripts/do-backup.mjs`)
+
+ต้องมี secret `ADMIN_TOKEN` บน Worker นั้น (ถ้าไม่ตั้ง endpoint จะตอบ 404). ไฟล์สำรองมีข้อมูลร้านและแฮช token อุปกรณ์ ต้องเก็บนอก repo และห้ามแชร์
+
+```sh
+# ส่งออก
+ADMIN_TOKEN=... node scripts/do-backup.mjs export  --url https://<worker> --file /absolute/path/backup.json
+# กู้คืน (เรียก /api/_admin/import; เขียนทับ/เพิ่มคีย์ที่มีในไฟล์ ไม่ลบคีย์ที่ไม่มีในไฟล์)
+ADMIN_TOKEN=... node scripts/do-backup.mjs restore --url https://<worker> --file /absolute/path/backup.json
+```
+
+ซ้อมแล้วบน staging (2026-11-10): export → restore → export อีกรอบ ได้ 13 keys และไม่มีคีย์ไหนต่างกัน
