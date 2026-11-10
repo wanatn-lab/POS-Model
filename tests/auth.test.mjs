@@ -106,7 +106,10 @@ const MATRIX = [
   ["GET settings", "GET", "/api/settings", undefined, EVERYONE],
   ["POST settings", "POST", "/api/settings", { shopName: "x" }, ["owner"]],
   ["GET shop-status", "GET", "/api/shop-status", undefined, EVERYONE],
-  ["POST shop-status", "POST", "/api/shop-status", { action: "open" }, ["owner"]],
+  ["POST shop-status (schedule)", "POST", "/api/shop-status", { action: "set-schedule", schedule: {} }, ["owner"]],
+  ["POST shop-status (open now)", "POST", "/api/shop-status", { action: "open-now", hours: 1 }, STAFF_UP],
+  ["POST shop-status (close now)", "POST", "/api/shop-status", { action: "close-now" }, STAFF_UP],
+  ["POST shop-status (clear)", "POST", "/api/shop-status", { action: "clear-override" }, STAFF_UP],
   ["GET orders", "GET", "/api/orders", undefined, ["customer", "staff", "owner"]],
   ["POST orders (place)", "POST", "/api/orders", { table: 3, items: [ITEM] }, ["public", "customer", "staff", "owner"]], // Bridge/reader credentials cannot impersonate a customer
   ["POST orders (done)", "POST", "/api/orders", { action: "done", id: "nope" }, STAFF_UP],

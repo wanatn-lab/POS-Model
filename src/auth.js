@@ -51,7 +51,11 @@ export const DEFAULT_TABLE_IDS = [
 export const RULES = {
   // Staff may mark an item sold out / available again; editing the menu itself is owner-only.
   menu: { GET: [PUBLIC], POST: { "set-availability": [STAFF], "*": [OWNER] } },
-  "shop-status": { GET: [PUBLIC], POST: [OWNER] },
+  // Staff may open or close the shop by hand; only the owner changes the weekly schedule.
+  "shop-status": {
+    GET: [PUBLIC],
+    POST: { "open-now": [STAFF], "close-now": [STAFF], "clear-override": [STAFF], open: [STAFF], cancel: [STAFF], "*": [OWNER] },
+  },
   // GET is open, but the handler only returns shopName/tableCount unless the caller is
   // a device, staff or owner (receipt design and printer setup are not public).
   settings: { GET: [PUBLIC], POST: [OWNER] },
@@ -61,7 +65,7 @@ export const RULES = {
   },
   "table-status": { GET: [STAFF], POST: [STAFF] },
   "bill-history": { GET: [STAFF, READER], POST: { cancel: [OWNER], "*": [STAFF] } },
-  "print-jobs": { GET: [DEVICE], POST: { retry: [STAFF], "*": [DEVICE] } },
+  "print-jobs": { GET: [DEVICE], POST: { retry: [STAFF], clear: [OWNER], "*": [DEVICE] } },
   "printer-status": { GET: [STAFF], POST: [DEVICE] },
   "qr-print-jobs": { GET: [DEVICE], POST: { create: [STAFF], "*": [DEVICE] } },
   kitchen: { GET: [STAFF], POST: [STAFF] },
