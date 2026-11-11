@@ -7,12 +7,47 @@ const TABLE_IDS = [
   "TA1",
   "TA2",
 ];
+// ESC/POS pulse durations are expressed in 2 ms units.  These defaults send
+// a 50 ms pulse followed by 250 ms off time, which is a conservative setting
+// for the common counter cash drawers used with thermal printers.
+export const CASH_DRAWER_DEFAULTS = Object.freeze({
+  enabled: false,
+  openWhen: "after",
+  pulsePin: 0,
+  onTime: 25,
+  offTime: 125,
+});
+
+function invalidCashDrawer(message) {
+  return { ok: false, error: `cashDrawer ${message}` };
+}
+
+// Keep the accepted shape deliberately small: these values become a snapshot
+// on a receipt job and are later sent to a physical ESC/POS printer.
+export function validateCashDrawer(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return invalidCashDrawer("must be an object");
+  }
+  const enabled = value.enabled === undefined ? CASH_DRAWER_DEFAULTS.enabled : value.enabled;
+  const openWhen = value.openWhen === undefined ? CASH_DRAWER_DEFAULTS.openWhen : value.openWhen;
+  const pulsePin = value.pulsePin === undefined ? CASH_DRAWER_DEFAULTS.pulsePin : value.pulsePin;
+  const onTime = value.onTime === undefined ? CASH_DRAWER_DEFAULTS.onTime : value.onTime;
+  const offTime = value.offTime === undefined ? CASH_DRAWER_DEFAULTS.offTime : value.offTime;
+  if (typeof enabled !== "boolean") return invalidCashDrawer("enabled must be boolean");
+  if (openWhen !== "before" && openWhen !== "after") return invalidCashDrawer("openWhen must be before or after");
+  if (!Number.isInteger(pulsePin) || ![0, 1].includes(pulsePin)) return invalidCashDrawer("pulsePin must be 0 or 1");
+  if (!Number.isInteger(onTime) || onTime < 0 || onTime > 255) return invalidCashDrawer("onTime must be an integer from 0 to 255");
+  if (!Number.isInteger(offTime) || offTime < 0 || offTime > 255) return invalidCashDrawer("offTime must be an integer from 0 to 255");
+  return { ok: true, value: { enabled, openWhen, pulsePin, onTime, offTime } };
+}
+
 const SEED_SETTINGS = {
   tableCount: TABLE_IDS.length,
   tableIds: TABLE_IDS,
   shopName: "ร้านข้าวหมูแดง",
   customerOrderMode: "auto",
   paperWidthMm: 80,
+  cashDrawer: { ...CASH_DRAWER_DEFAULTS },
   printers: [
     { station: "counter", purpose: "receipt", enabled: true, ip: "", port: 9100, protocol: "tcp" },
     { station: "kitchen", purpose: "order", enabled: true, ip: "", port: 9100, protocol: "tcp" },
@@ -23,12 +58,13 @@ const SEED_SETTINGS = {
 const PUBLIC_FIELDS = ["shopName", "tableCount", "tableIds"];
 const FULL_ACCESS_ROLES = ["device", "staff", "owner"];
 
-export default async function handler(req, res) {
+export function createSettingsHandler(redisClient = redis) {
+  return async function handler(req, res) {
   if (req.method === "GET") {
-    let settings = await redis.get("settings");
+    let settings = await redisClient.get("settings");
     if (!settings) {
       settings = SEED_SETTINGS;
-      await redis.set("settings", settings);
+      await redisClient.set("settings", settings);
     }
     // Existing shops keep their persisted shape. Defaults are written only on
     // first read, avoiding an accidental migration that adds fields mid-service.
@@ -42,15 +78,23 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     const body = req.body || {};
-    const current = (await redis.get("settings")) || SEED_SETTINGS;
+    const current = (await redisClient.get("settings")) || SEED_SETTINGS;
     const merged = { ...current, ...body };
     if (body.customerOrderMode !== undefined && body.customerOrderMode !== "auto" && body.customerOrderMode !== "confirm") {
       return res.status(400).json({ ok: false, error: "customerOrderMode must be auto or confirm" });
     }
-    await redis.set("settings", merged);
+    if (body.cashDrawer !== undefined) {
+      const cashDrawer = validateCashDrawer(body.cashDrawer);
+      if (!cashDrawer.ok) return res.status(400).json({ ok: false, error: cashDrawer.error });
+      merged.cashDrawer = cashDrawer.value;
+    }
+    await redisClient.set("settings", merged);
     return res.status(200).json({ ok: true, settings: merged });
   }
 
   res.setHeader("Allow", "GET, POST");
   return res.status(405).end("Method not allowed");
+  };
 }
+
+export default createSettingsHandler();

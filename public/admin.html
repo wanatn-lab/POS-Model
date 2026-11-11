@@ -488,7 +488,7 @@
   #panel-receipt .rc-field{margin-bottom:12px;}
   #panel-receipt .rc-field label{display:block;font-size:13px;font-weight:700;color:#3a3f4b;margin-bottom:6px;}
   #panel-receipt .rc-field .sub{font-weight:400;color:var(--rc-soft);font-size:12px;}
-  #panel-receipt .rc-field input[type=text],#panel-receipt .rc-field input[type=tel],#panel-receipt .rc-field textarea{width:100%;border:1px solid var(--rc-border);border-radius:10px;padding:9px 11px;font:14px 'Noto Sans Thai';color:#22262f;background:#fff;}
+  #panel-receipt .rc-field input[type=text],#panel-receipt .rc-field input[type=tel],#panel-receipt .rc-field input[type=number],#panel-receipt .rc-field select,#panel-receipt .rc-field textarea{width:100%;border:1px solid var(--rc-border);border-radius:10px;padding:9px 11px;font:14px 'Noto Sans Thai';color:#22262f;background:#fff;}
   #panel-receipt .rc-logo-upload{display:flex;align-items:flex-start;gap:10px;}
   #panel-receipt .rc-logo-upload .img-preview-box{width:72px;height:72px;}
   #panel-receipt .rc-logo-upload-controls{flex:1;min-width:0;}
@@ -967,6 +967,18 @@
           <div class="rc-card">
             <h3>ขนาดกระดาษ</h3><p class="rc-hint">ค่าเดียวกับแท็บเครื่องพิมพ์ครัว</p>
             <div class="rc-pills"><label><input type="radio" name="rcPaper" value="80" oninput="rcRender()"><span>80 มม.</span></label><label><input type="radio" name="rcPaper" value="58" oninput="rcRender()"><span>58 มม.</span></label></div>
+          </div>
+          <div class="rc-card">
+            <h3>ลิ้นชักเก็บเงิน</h3><p class="rc-hint">เปิดผ่านเครื่องพิมพ์เคาน์เตอร์เฉพาะเมื่อกดคิดเงินและสร้างใบเสร็จใหม่เท่านั้น</p>
+            <div class="rc-toggle"><div><div class="label">เปิดลิ้นชักอัตโนมัติ</div><div class="desc">ต้องต่อลิ้นชักเข้ากับเครื่องพิมพ์ที่รองรับ ESC/POS</div></div><label class="rc-switch"><input type="checkbox" id="rcCashDrawerEnabled"><span class="rc-slider"></span></label></div>
+            <div class="rc-row2" style="margin-top:12px">
+              <div class="rc-field"><label>จังหวะเปิด</label><select id="rcCashDrawerOpenWhen"><option value="before">ก่อนพิมพ์ใบเสร็จ</option><option value="after">หลังพิมพ์ใบเสร็จ</option></select></div>
+              <div class="rc-field"><label>ขาเปิดลิ้นชัก</label><select id="rcCashDrawerPulsePin"><option value="0">Pin 0</option><option value="1">Pin 1</option></select></div>
+            </div>
+            <div class="rc-row2">
+              <div class="rc-field"><label>เวลาเปิด <span class="sub">0–255 หน่วยละ 2 ms</span></label><input type="number" min="0" max="255" step="1" id="rcCashDrawerOnTime"></div>
+              <div class="rc-field"><label>เวลาพัก <span class="sub">0–255 หน่วยละ 2 ms</span></label><input type="number" min="0" max="255" step="1" id="rcCashDrawerOffTime"></div>
+            </div>
           </div>
         </div>
 
@@ -2057,6 +2069,7 @@ async function clearReceiptLogo() {
 function rcLoadSettings() {
   const receipt = SETTINGS.receipt || {};
   const kitchen = SETTINGS.kitchen || {};
+  const cashDrawer = SETTINGS.cashDrawer || {};
   document.getElementById('rcLogoUrl').value = receipt.logoUrl || '';
   document.getElementById('rcShopName').value = SETTINGS.shopName || '';
   document.getElementById('rcShopPhone').value = receipt.shopPhone || '';
@@ -2070,6 +2083,11 @@ function rcLoadSettings() {
   document.getElementById('rcShowTable').checked = receipt.showTable !== false;
   document.getElementById('rcShowQr').checked = Boolean(receipt.showQr);
   document.getElementById('rcQrUrl').value = receipt.qrUrl || '';
+  document.getElementById('rcCashDrawerEnabled').checked = cashDrawer.enabled === true;
+  document.getElementById('rcCashDrawerOpenWhen').value = cashDrawer.openWhen === 'before' ? 'before' : 'after';
+  document.getElementById('rcCashDrawerPulsePin').value = String(cashDrawer.pulsePin === 1 ? 1 : 0);
+  document.getElementById('rcCashDrawerOnTime').value = Number.isInteger(cashDrawer.onTime) ? cashDrawer.onTime : 25;
+  document.getElementById('rcCashDrawerOffTime').value = Number.isInteger(cashDrawer.offTime) ? cashDrawer.offTime : 125;
   const paperWidth = String(SETTINGS.paperWidthMm || 80);
   document.querySelectorAll('input[name="rcPaper"]').forEach(input => { input.checked = input.value === paperWidth; });
   rcKitchenSize = kitchen.fontSize || 'md';
@@ -2151,16 +2169,23 @@ async function rcSaveSettings() {
     showTime: document.getElementById('rcKShowTime').checked,
     groupByCategory: document.getElementById('rcKGroupCat').checked,
   };
+  const cashDrawer = {
+    enabled: document.getElementById('rcCashDrawerEnabled').checked,
+    openWhen: document.getElementById('rcCashDrawerOpenWhen').value,
+    pulsePin: Number(document.getElementById('rcCashDrawerPulsePin').value),
+    onTime: Number(document.getElementById('rcCashDrawerOnTime').value),
+    offTime: Number(document.getElementById('rcCashDrawerOffTime').value),
+  };
   const note = document.getElementById('rcSaveNote');
   note.textContent = 'กำลังบันทึก…';
   let saved = false;
   try {
     const response = await fetch(API + '/api/settings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shopName, paperWidthMm, receipt, kitchen }),
+      body: JSON.stringify({ shopName, paperWidthMm, receipt, kitchen, cashDrawer }),
     });
     if (!response.ok) throw new Error('save settings failed');
-    SETTINGS = { ...SETTINGS, shopName, paperWidthMm, receipt, kitchen };
+    SETTINGS = { ...SETTINGS, shopName, paperWidthMm, receipt, kitchen, cashDrawer };
     document.getElementById('shopName').value = shopName;
     document.getElementById('paperWidthMm').value = String(paperWidthMm);
     note.textContent = 'บันทึกแล้ว ✓';

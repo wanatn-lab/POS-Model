@@ -1,6 +1,7 @@
 import { redis } from "./_redis.js";
 import { shopState } from "./_shop-hours.js";
 import { ringBell } from "./_bell.js";
+import { validateCashDrawer } from "./settings.js";
 
 // Aggregates recent orders per table for the "สถานะโต๊ะ" dashboard, and lets
 // staff advance a menu item's kitchen status (cooking -> ready -> served) or
@@ -146,6 +147,33 @@ function receiptConfigForJob(settings) {
     showTable: enabledByDefault("showTable"),
     showQr: config.showQr === true,
     qrUrl: text(config.qrUrl),
+  };
+}
+
+// The bridge must not read live settings while printing: a later Admin change
+// must not change how an already-paid receipt opens the cash drawer.  Invalid
+// legacy data remains safely disabled instead of being sent to a printer.
+function cashDrawerForReceiptJob(settings) {
+  const configured = settings && settings.cashDrawer;
+  const checked = validateCashDrawer(configured);
+  return checked.ok && checked.value.enabled ? checked.value : null;
+}
+
+function drawerJobForBill(bill, cashDrawer, now) {
+  return {
+    // billNo is assigned once for a paid bill, so this remains stable if the
+    // checkout request is retried after the Worker saved it.
+    id: `drawer-${bill.billNo}`,
+    printId: `drawer-${bill.billNo}`,
+    type: "drawer",
+    station: "counter",
+    status: "queued",
+    billId: bill.id,
+    billNo: bill.billNo,
+    createdAt: now.toISOString(),
+    queuedAt: now.toISOString(),
+    openDrawer: true,
+    cashDrawer,
   };
 }
 
@@ -314,17 +342,32 @@ export function createTableStatusHandler({ redis: redisClient = redis, now = () 
       if (!existingBill) history.push(bill);
 
       let receiptJobId = null;
+      let drawerJobId = null;
       let jobsToSave = null;
+      const cashDrawer = cashDrawerForReceiptJob(settingsValue || {});
       if (printReceipt === true) {
         const jobs = Array.isArray(jobsValue) ? jobsValue : [];
         const existing = jobs.find((job) => job && job.id === receipt.id);
         if (!existing) {
-          jobs.push({ ...receipt, billNo: bill.billNo });
+          jobs.push({
+            ...receipt,
+            billNo: bill.billNo,
+            ...(cashDrawer ? { openDrawer: true, cashDrawer } : {}),
+          });
           // Keep recent completed jobs for audit/retry recovery, without letting the
           // small restaurant queue grow forever.
           jobsToSave = jobs.slice(-300);
         }
         receiptJobId = receipt.id;
+      } else if (cashDrawer) {
+        const jobs = Array.isArray(jobsValue) ? jobsValue : [];
+        const drawerJob = drawerJobForBill(bill, cashDrawer, now);
+        const existing = jobs.find((job) => job && job.id === drawerJob.id);
+        if (!existing) {
+          jobs.push(drawerJob);
+          jobsToSave = jobs.slice(-300);
+        }
+        drawerJobId = drawerJob.id;
       }
 
       clears[table] = now.toISOString();
@@ -338,7 +381,7 @@ export function createTableStatusHandler({ redis: redisClient = redis, now = () 
       await batchSet(redisClient, writes);
       // Ring only when a new receipt was actually queued.
       if (jobsToSave) await bell("print");
-      return res.status(200).json({ ok: true, receiptJobId, bill });
+      return res.status(200).json({ ok: true, receiptJobId, drawerJobId, bill });
     }
 
     // Advance one menu item's kitchen status inside a specific order.

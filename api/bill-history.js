@@ -114,8 +114,10 @@ export function createBillHistoryHandler({ redis: redisClient = redis, bell = ri
     const storedJobs = await redisClient.get("printJobs");
     const jobs = Array.isArray(storedJobs) ? storedJobs : [];
     jobs.forEach((job) => {
-      const belongsToBill = job && job.type === "receipt" &&
-        (job.id === bill.id || job.reprintOf === bill.id);
+      const belongsToBill = job && (
+        (job.type === "receipt" && (job.id === bill.id || job.reprintOf === bill.id)) ||
+        (job.type === "drawer" && job.billId === bill.id)
+      );
       if (belongsToBill && job.status !== "printed") {
         job.status = "cancelled";
         job.cancelledAt = cancelledAt;
