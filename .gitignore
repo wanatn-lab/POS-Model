@@ -6,6 +6,9 @@ node_modules/
 .env*
 !.env.example
 .dev.vars
+*.token
+.token
+*-token
 *.pem
 *.key
 *.p12
