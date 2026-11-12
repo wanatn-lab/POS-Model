@@ -305,3 +305,14 @@ body.admin-redesign #panel-menu #itemList .item-form:has(.avail-toggle input:not
   body.admin-redesign #panel-menu #itemList { grid-template-columns:1fr; }
   body.admin-redesign #panel-menu #itemList .item-form.is-editing { grid-column:auto; }
 }
+
+/* option-group editor inside menu cards: hidden in compact view, full width when editing */
+body.admin-redesign #panel-menu #itemList .item-form > .option-editor { grid-column:2 / 4; grid-row:11; margin-top:12px; }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .option-editor { display:none; }
+body.admin-redesign #panel-menu #itemList .item-form > .option-editor .row { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; }
+body.admin-redesign #panel-menu #itemList .item-form > .option-editor .row > div { flex:1 1 120px; margin:0; }
+body.admin-redesign #panel-menu #itemList .item-form > .option-editor .btn { min-height:40px; border-radius:12px; }
+body.admin-redesign #panel-menu #itemList .item-form > .menu-flags { grid-row:12; }
+body.admin-redesign #panel-menu #itemList .item-form > .item-actions { grid-row:13; }
+body.admin-redesign #panel-menu #itemList .item-form > .menu-edit-toggle { grid-row:14; }
+body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .menu-edit-toggle { grid-row:4; }
