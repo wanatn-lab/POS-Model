@@ -1554,6 +1554,7 @@ function renderList() {
       <input class="en-input en-input-desc" value="${escAttr(item.descEn)}" placeholder="ว่าง = ลูกค้าเห็นรายละเอียดภาษาไทย"
         oninput="MENU[${i}].descEn = this.value; refreshEnStatus(${i})">
       <span id="enChip${i}" class="en-chip ${isEnComplete(item) ? 'ok' : 'todo'}">${isEnComplete(item) ? 'มี EN' : 'ยังไม่ครบ'}</span>
+      <div id="optEd${i}" class="option-editor">${optionEditorHtml(i)}</div>
       <div class="menu-flags">
         <label class="must-try-toggle ${isMustTry(item) ? 'is-selected' : ''}">
           <input type="checkbox" ${isMustTry(item) ? 'checked' : ''}
@@ -1571,6 +1572,40 @@ function renderList() {
       <button type="button" class="menu-edit-toggle" aria-expanded="${adminMenuEditing.has(item) ? 'true' : 'false'}" onclick="toggleMenuEdit(${i}, this)">${adminMenuEditing.has(item) ? 'เสร็จสิ้น' : 'แก้ไข'}</button>
     </div>
   `).join('');
+}
+
+// The customer submits only option IDs. Names and price additions are always
+// re-read from this saved menu by the server.
+const newOptionId = (prefix) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+function optionEditorHtml(i) {
+  const item = MENU[i];
+  const groups = Array.isArray(item.optionGroups) ? item.optionGroups : [];
+  const body = groups.map((group, gi) => `<fieldset style="margin:10px 0;padding:10px;border:1px solid #ddd;border-radius:8px">
+    <legend>กลุ่มตัวเลือก</legend>
+    <div class="row"><div><label>ชื่อกลุ่ม</label><input value="${escAttr(group.name)}" oninput="setOptionGroup(${i},${gi},'name',this.value)"></div>
+    <div><label>รูปแบบ</label><select onchange="setOptionGroup(${i},${gi},'type',this.value)"><option value="single" ${group.type !== 'multi' ? 'selected' : ''}>เลือกได้ 1 อย่าง</option><option value="multi" ${group.type === 'multi' ? 'selected' : ''}>เลือกได้หลายอย่าง</option></select></div></div>
+    <label class="avail-toggle"><input type="checkbox" ${group.required ? 'checked' : ''} onchange="setOptionGroup(${i},${gi},'required',this.checked)"><span>ลูกค้าต้องเลือก</span></label>
+    ${(group.options || []).map((option, oi) => `<div class="row"><div><label>ตัวเลือก</label><input value="${escAttr(option.name)}" oninput="setOption(${i},${gi},${oi},'name',this.value)"></div><div><label>เพิ่ม (บาท)</label><input type="number" min="0" step="1" value="${escAttr(option.priceDelta)}" oninput="setOption(${i},${gi},${oi},'priceDelta',this.value)"></div><button type="button" class="btn danger" onclick="deleteOption(${i},${gi},${oi})">ลบ</button></div>`).join('')}
+    <div class="item-actions"><button type="button" class="btn secondary" onclick="addOption(${i},${gi})">+ เพิ่มตัวเลือก</button><button type="button" class="btn danger" onclick="deleteOptionGroup(${i},${gi})">ลบกลุ่ม</button></div>
+  </fieldset>`).join('');
+  return `${body}<button type="button" class="btn secondary" onclick="addOptionGroup(${i})">+ เพิ่มกลุ่มตัวเลือก</button>`;
+}
+function refreshOptionEditor(i) { const el = document.getElementById('optEd' + i); if (el) el.innerHTML = optionEditorHtml(i); }
+function addOptionGroup(i) {
+  (MENU[i].optionGroups ||= []).push({ id: newOptionId('g'), name: '', type: 'single', required: false, options: [{ id: newOptionId('o'), name: '', priceDelta: 0 }] });
+  refreshOptionEditor(i);
+}
+function deleteOptionGroup(i, gi) { MENU[i].optionGroups.splice(gi, 1); if (!MENU[i].optionGroups.length) delete MENU[i].optionGroups; refreshOptionEditor(i); }
+function setOptionGroup(i, gi, field, value) { MENU[i].optionGroups[gi][field] = value; }
+function addOption(i, gi) { MENU[i].optionGroups[gi].options.push({ id: newOptionId('o'), name: '', priceDelta: 0 }); refreshOptionEditor(i); }
+function deleteOption(i, gi, oi) { MENU[i].optionGroups[gi].options.splice(oi, 1); refreshOptionEditor(i); }
+function setOption(i, gi, oi, field, value) { MENU[i].optionGroups[gi].options[oi][field] = field === 'priceDelta' ? Math.max(0, Math.round(Number(value) || 0)) : value; }
+function optionProblem() {
+  for (const item of MENU) for (const group of item.optionGroups || []) {
+    if (!String(group.name || '').trim()) return `เมนู "${item.name || '(ไม่มีชื่อ)'}": กลุ่มตัวเลือกยังไม่มีชื่อ`;
+    if (!Array.isArray(group.options) || !group.options.length || group.options.some((option) => !String(option.name || '').trim())) return `เมนู "${item.name}": ตัวเลือกยังไม่ครบ`;
+  }
+  return '';
 }
 
 function toggleMenuEdit(i, btn) {
@@ -1596,6 +1631,8 @@ function removeItem(i) {
 }
 
 async function saveMenu({ silent = false } = {}) {
+  const problem = optionProblem();
+  if (problem) { if (!silent) alert(problem); throw new Error('option group incomplete'); }
   sortMenuByCategoryOrder();
   const menuForSave = MENU.map(item => {
     const { must_try, ...normalised } = item;

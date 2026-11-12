@@ -72,6 +72,8 @@
     <h2 id="menuDetailName"></h2>
     <p id="menuDetailDescription" class="menu-detail-description"></p>
     <div id="menuDetailPrice" class="menu-detail-price"></div>
+    <div id="menuDetailOptions"></div>
+    <button id="menuDetailAdd" class="confirm-cta" type="button" onclick="addMenuDetail()">เพิ่มลงตะกร้า</button>
   </div>
 </div>
 
@@ -224,11 +226,12 @@ function applyLang() {
 }
 
 let MENU = [];
-let cart = {}; // id -> qty
+let cart = {}; // option-aware line key -> { id, optionIds, qty }
 let activeCat = null; // null = ทั้งหมด
 let searchQuery = '';
 let menuDetailOpener = null;
 let menuDetailId = null;
+let menuDetailOptionIds = [];
 const menuDetailOverlay = document.getElementById('menuDetailOverlay');
 const menuDetailClose = menuDetailOverlay.querySelector('.history-close');
 
@@ -354,15 +357,18 @@ function renderMenu() {
 function renderCard(item) {
   const soldOut = item.available === false;
   const mustTry = isMustTry(item);
-  const qty = cart[item.id] || 0;
-  const tapAdd = soldOut ? '' : `onclick="changeQty('${item.id}', 1)"`;
-  const control = soldOut ? '' : (qty > 0
+  const qty = Object.values(cart).filter(line => line.id === item.id).reduce((sum, line) => sum + line.qty, 0);
+  const hasOptions = Array.isArray(item.optionGroups) && item.optionGroups.length;
+  const tapAdd = soldOut ? '' : (hasOptions ? `onclick="openMenuDetail('${item.id}', this)"` : `onclick="changeQty('${item.id}', 1)"`);
+  const control = soldOut ? '' : (hasOptions
+    ? `<button class="add-fab" onclick="event.stopPropagation(); openMenuDetail('${item.id}', this)">+</button>`
+    : (qty > 0
     ? `<div class="stepper-fab" onclick="event.stopPropagation()">
          <button onclick="changeQty('${item.id}', -1)">−</button>
          <span class="qty-num">${qty}</span>
          <button onclick="changeQty('${item.id}', 1)">+</button>
        </div>`
-    : `<button class="add-fab" onclick="event.stopPropagation(); changeQty('${item.id}', 1)">+</button>`);
+    : `<button class="add-fab" onclick="event.stopPropagation(); changeQty('${item.id}', 1)">+</button>`));
   return `
     <div class="menu-card2 ${soldOut ? 'sold-out' : ''} ${mustTry ? 'must-try' : ''}">
       <div class="thumb-wrap ${soldOut ? '' : 'tap-add'}" ${tapAdd}>
@@ -381,25 +387,32 @@ function renderCard(item) {
     </div>`;
 }
 
-function changeQty(id, delta) {
-  const next = (cart[id] || 0) + delta;
-  if (next <= 0) delete cart[id];
-  else cart[id] = next;
+function optionKey(id, optionIds = []) { return `${id}:${optionIds.map(String).sort().join(',')}`; }
+function changeQty(id, delta, optionIds = []) {
+  const key = optionKey(id, optionIds);
+  const line = cart[key] || { id, optionIds: optionIds.map(String), qty: 0 };
+  line.qty += delta;
+  if (line.qty <= 0) delete cart[key];
+  else cart[key] = line;
   renderMenu();
   updateCartBar();
 }
 
 function cartItems() {
-  return Object.entries(cart).map(([id, qty]) => {
-    const item = MENU.find(i => i.id === id);
-    return item ? { id, name: item.name, price: item.price, category: item.category || '', qty } : null;
+  return Object.entries(cart).map(([key, line]) => {
+    const item = MENU.find(i => i.id === line.id);
+    const selected = (item && Array.isArray(item.optionGroups) ? item.optionGroups.flatMap(group => group.options || []) : [])
+      .filter(option => line.optionIds.includes(String(option.id)));
+    const name = item && selected.length ? `${item.name} (${selected.map(option => option.name).join(', ')})` : item && item.name;
+    const price = item ? Number(item.price) + selected.reduce((sum, option) => sum + Number(option.priceDelta || 0), 0) : 0;
+    return item ? { key, id: line.id, optionIds: line.optionIds, name, price, category: item.category || '', qty: line.qty } : null;
   }).filter(Boolean);
 }
 
 function requestItems() {
   // The server owns names, prices, categories and station routing. The phone
   // only identifies the chosen menu id and quantity.
-  return cartItems().map(({ id, qty }) => ({ id, qty }));
+  return cartItems().map(({ id, qty, optionIds }) => ({ id, qty, optionIds }));
 }
 
 function idempotencyKey() {
@@ -460,6 +473,7 @@ function openMenuDetail(id, opener) {
   menuDetailDescription.textContent = item.desc || '';
   menuDetailPrice.textContent = `฿${item.price == null ? '' : item.price}`;
   menuDetailId = item.id;
+  menuDetailOptionIds = [];
   fillMenuDetail(item.id); // swaps in English text when LANG is "en" and it exists
   menuDetailOverlay.classList.add('open');
   menuDetailClose.focus();
@@ -472,6 +486,32 @@ function fillMenuDetail(id) {
   nameEl.textContent = itemName(item);
   document.getElementById('menuDetailDescription').textContent = itemDesc(item);
   document.getElementById('menuDetailImage').alt = itemName(item);
+  const groups = Array.isArray(item.optionGroups) ? item.optionGroups : [];
+  document.getElementById('menuDetailOptions').innerHTML = groups.map(group => `
+    <fieldset class="menu-detail-options"><legend>${escAttr(group.name)}${group.required ? ' *' : ''}</legend>
+      ${(group.options || []).map(option => `<label><input type="${group.type === 'multi' ? 'checkbox' : 'radio'}" name="option-${escAttr(group.id)}" value="${escAttr(option.id)}" onchange="toggleMenuOption('${escAttr(group.id)}', '${escAttr(option.id)}', this.checked, '${group.type}')"> ${escAttr(option.name)}${Number(option.priceDelta) ? ` (+฿${escAttr(option.priceDelta)})` : ''}</label>`).join('')}
+    </fieldset>`).join('');
+  const add = document.getElementById('menuDetailAdd');
+  add.style.display = item.available === false ? 'none' : 'block';
+  add.textContent = groups.length ? 'เลือกแล้วเพิ่มลงตะกร้า' : 'เพิ่มลงตะกร้า';
+}
+
+function toggleMenuOption(groupId, optionId, checked, type) {
+  const item = MENU.find(i => String(i.id) === String(menuDetailId));
+  const group = item && (item.optionGroups || []).find(g => String(g.id) === String(groupId));
+  if (!group) return;
+  if (type === 'single') menuDetailOptionIds = menuDetailOptionIds.filter(id => !(group.options || []).some(option => String(option.id) === id));
+  if (checked) menuDetailOptionIds.push(String(optionId));
+  else menuDetailOptionIds = menuDetailOptionIds.filter(id => id !== String(optionId));
+}
+
+function addMenuDetail() {
+  const item = MENU.find(i => String(i.id) === String(menuDetailId));
+  if (!item || item.available === false) return;
+  const missing = (item.optionGroups || []).find(group => group.required && !(group.options || []).some(option => menuDetailOptionIds.includes(String(option.id))));
+  if (missing) { showToast(`กรุณาเลือก ${missing.name}`); return; }
+  changeQty(item.id, 1, menuDetailOptionIds);
+  closeMenuDetail();
 }
 
 function closeMenuDetail() {
@@ -504,9 +544,9 @@ function renderReview() {
         <div class="rprice">฿${it.price} / ${t('perItem')}</div>
       </div>
       <div class="rstepper">
-        <button onclick="changeQty('${it.id}', -1); renderReview();">−</button>
+        <button onclick="changeQty(${escAttr(JSON.stringify(it.id))}, -1, ${escAttr(JSON.stringify(it.optionIds))}); renderReview();">−</button>
         <span class="qty-num">${it.qty}</span>
-        <button onclick="changeQty('${it.id}', 1); renderReview();">+</button>
+        <button onclick="changeQty(${escAttr(JSON.stringify(it.id))}, 1, ${escAttr(JSON.stringify(it.optionIds))}); renderReview();">+</button>
       </div>
       <div class="rsubtotal">฿${it.price * it.qty}</div>
     </div>

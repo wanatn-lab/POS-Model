@@ -6,6 +6,37 @@ import { normalizeCategories, orderedCategories, sortMenuByCategories } from "./
 const SEED_MENU = [];
 const CATEGORIES_KEY = "menuCategories";
 
+// Option choices become part of an order's server-calculated price, so reject
+// incomplete or ambiguous menu data before it can be saved.
+export function optionGroupsError(menu) {
+  for (const item of menu) {
+    if (item.optionGroups === undefined) continue;
+    if (!Array.isArray(item.optionGroups)) return "optionGroups must be a list";
+    const groupIds = new Set();
+    const optionIds = new Set();
+    for (const group of item.optionGroups) {
+      if (!group || typeof group !== "object") return "invalid option group";
+      const groupId = String(group.id || "");
+      if (!groupId || groupIds.has(groupId)) return "option group id missing or duplicated";
+      groupIds.add(groupId);
+      if (!String(group.name || "").trim()) return "option group needs a name";
+      if (group.type !== "single" && group.type !== "multi") return "option group type must be single or multi";
+      if (typeof group.required !== "boolean") return "option group required must be boolean";
+      if (!Array.isArray(group.options) || !group.options.length) return "option group needs at least one option";
+      for (const option of group.options) {
+        if (!option || typeof option !== "object") return "invalid option";
+        const optionId = String(option.id || "");
+        if (!optionId || optionIds.has(optionId)) return "option id missing or duplicated";
+        optionIds.add(optionId);
+        if (!String(option.name || "").trim()) return "option needs a name";
+        const delta = Number(option.priceDelta);
+        if (!Number.isInteger(delta) || delta < 0 || delta > 100000) return "option priceDelta must be a whole number of baht, 0 or more";
+      }
+    }
+  }
+  return "";
+}
+
 export default async function handler(req, res) {
   if (req.method === "GET") {
     let menu = await redis.get("menu");
@@ -60,6 +91,8 @@ export default async function handler(req, res) {
     if (!Array.isArray(menu)) {
       return res.status(400).json({ ok: false, error: "expected an array of menu items" });
     }
+    const optionProblem = optionGroupsError(menu);
+    if (optionProblem) return res.status(400).json({ ok: false, error: optionProblem });
     if (categories !== null) {
       categories = orderedCategories(menu, categories);
       menu = sortMenuByCategories(menu, categories);

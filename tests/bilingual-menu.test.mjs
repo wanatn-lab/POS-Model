@@ -130,9 +130,8 @@ test("every UI text exists in both languages", () => {
   }
 });
 
-test("orders keep sending the Thai item name to the kitchen", () => {
-  assert.match(orderHtml, /return item \? \{ id, name: item\.name, price: item\.price, category: item\.category \|\| '', qty \} : null;/);
-  assert.doesNotMatch(orderHtml, /name: itemName\(/);
+test("orders send only menu IDs, quantities and selected option IDs", () => {
+  assert.match(orderHtml, /return cartItems\(\)\.map\(\(\{ id, qty, optionIds \}\) => \(\{ id, qty, optionIds \}\)\);/);
 });
 
 // ---------- admin page ----------

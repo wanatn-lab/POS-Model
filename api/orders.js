@@ -41,39 +41,50 @@ function compactIdempotency(value) {
   return /^[A-Za-z0-9_-]{16,128}$/.test(key) ? key : null;
 }
 
-function cleanOptions(value) {
-  if (!Array.isArray(value)) return [];
-  return value.slice(0, 5).map((option) => String(option).trim().slice(0, 80)).filter(Boolean);
-}
-
-function orderItems(requested, menu) {
-  if (!Array.isArray(requested) || !requested.length || requested.length > MAX_ITEMS_PER_ORDER) return null;
+export function priceItems(requested, menu) {
+  if (!Array.isArray(requested) || !requested.length || requested.length > MAX_ITEMS_PER_ORDER) return { error: "invalid items" };
   const byId = new Map((Array.isArray(menu) ? menu : []).map((item) => [String(item.id), item]));
   let totalQty = 0;
   const items = [];
   for (const requestedItem of requested) {
-    const id = String(requestedItem && requestedItem.id || "").trim();
+    const id = String(requestedItem && (requestedItem.menuId ?? requestedItem.id) || "").trim();
     const item = byId.get(id);
     const qty = Number(requestedItem && requestedItem.qty);
-    if (!item || item.available === false || !Number.isInteger(qty) || qty < 1 || qty > MAX_QTY_PER_ITEM) return null;
+    if (!item || item.available === false || !Number.isInteger(qty) || qty < 1 || qty > MAX_QTY_PER_ITEM) return { error: "invalid, unavailable, or excessive items" };
     totalQty += qty;
-    if (totalQty > MAX_TOTAL_QTY) return null;
-    const price = Number(item.price);
-    if (!Number.isFinite(price) || price < 0) return null;
+    if (totalQty > MAX_TOTAL_QTY) return { error: "invalid, unavailable, or excessive items" };
+    const basePrice = Number(item.price);
+    if (!Number.isFinite(basePrice) || basePrice < 0) return { error: "invalid menu price" };
+    const optionIds = Array.isArray(requestedItem.optionIds) ? requestedItem.optionIds.map((value) => String(value)) : [];
+    if (optionIds.length > 20 || new Set(optionIds).size !== optionIds.length) return { error: "invalid options" };
+    const selected = [];
+    for (const group of Array.isArray(item.optionGroups) ? item.optionGroups : []) {
+      const hits = (Array.isArray(group.options) ? group.options : []).filter((option) => optionIds.includes(String(option.id)));
+      if (group.required === true && !hits.length) return { error: "option group required" };
+      if (group.type === "single" && hits.length > 1) return { error: "too many options" };
+      selected.push(...hits);
+    }
+    if (selected.length !== optionIds.length) return { error: "unknown option" };
+    const priceDelta = selected.reduce((sum, option) => sum + Number(option.priceDelta), 0);
+    if (!Number.isSafeInteger(priceDelta) || priceDelta < 0) return { error: "invalid option price" };
     // Price, Thai kitchen label, category and route are all server-owned values.
-    items.push({
+    const priced = {
       id: String(item.id),
-      name: String(item.name || "รายการ").slice(0, 200),
-      price,
+      name: selected.length
+        ? `${String(item.name || "รายการ").slice(0, 160)} (${selected.map((option) => String(option.name).slice(0, 80)).join(", ")})`
+        : String(item.name || "รายการ").slice(0, 200),
+      ...(selected.length ? { baseName: String(item.name || "รายการ").slice(0, 200) } : {}),
+      price: basePrice + priceDelta,
       category: String(item.category || "").slice(0, 100),
       qty,
-      options: cleanOptions(requestedItem.options),
+      options: selected.map((option) => ({ id: String(option.id), name: String(option.name).slice(0, 80), priceDelta: Number(option.priceDelta) })),
       // Which LAN printer prints this line. Server-owned: copied from the menu, never from the client.
       printer: item.printer === "counter" ? "counter" : "kitchen",
       kitchenStatus: "cooking",
-    });
+    };
+    items.push(priced);
   }
-  return items;
+  return { items };
 }
 
 const PRINT_STATIONS = ["kitchen", "counter"];
@@ -198,8 +209,9 @@ export function createOrdersHandler({ redis: redisClient = redis, bell = ringBel
       redisClient.get("shopSchedule"),
       redisClient.get("shopOverride"),
     ]);
-    const items = orderItems(body.items, menu);
-    if (!items) return res.status(400).json({ ok: false, error: "invalid, unavailable, or excessive items" });
+    const priced = priceItems(body.items, menu);
+    if (priced.error) return res.status(400).json({ ok: false, error: priced.error });
+    const items = priced.items;
 
     const table = tableKey(body.table);
     const key = compactIdempotency(body.idempotencyKey);
