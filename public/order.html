@@ -2,62 +2,161 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>สั่งอาหาร</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="/assets/capybara-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
   <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="/style.css">
+<style>
+:root{--red:#a31f24;--red-d:#74151d;--paper:#F8F2E7;--card:#FFFDF8;--line:#E7D9C4;--ink:#2B1810;--soft:#7A6A5A;--caramel:#B4703A;--cream:#F0DAC2;--warn-bg:#FBEBD2;--warn:#9C5B12;--ok-bg:#EAF2E4;--ok:#3F6B33;--danger:#B84C3E;--bar-h:76px;--red-soft:#FBEBEB;--hd-h:56px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans Thai","Sarabun",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.5}
+body.lock{overflow:hidden}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+svg{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#app{max-width:480px;margin:0 auto;min-height:100dvh;position:relative}
+.hd{background:var(--red);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20}
+.hd .t{flex:1;min-width:0}.hd h1{margin:0;font-size:17px;font-weight:500}
+.hd .s{margin:2px 0 0;font-size:12px;color:var(--cream)}
+.n1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbl{background:var(--cream);color:var(--red-d);border-radius:12px;padding:5px 12px;text-align:center;flex:none;line-height:1.1}
+.tbl small{display:block;font-size:11px}.tbl b{font-size:20px;font-weight:500}
+.lang-toggle{display:flex;background:rgba(255,255,255,.18);border-radius:999px;padding:2px;font-size:12px;flex:none}
+.lang-toggle button{padding:4px 10px;border-radius:999px}.lang-toggle button[aria-pressed="true"]{background:var(--paper);color:var(--red-d);font-weight:500}
+.history-btn{font-size:20px;padding:6px;flex:none;color:#fff;display:flex}
+.banner{margin:10px 12px 0;background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:10px 12px;font-size:13px}
+.sticky{position:sticky;top:var(--hd-h);z-index:10;background:var(--paper)}
+.search-wrap{padding:10px 12px 2px}
+.search-wrap input{width:100%;font:inherit;font-size:14px;padding:10px 36px 10px 12px;background:var(--card);color:var(--ink);border:.5px solid var(--line);border-radius:12px;outline:none}
+.search-wrap input:focus{border-color:var(--red)}
+.search-box{position:relative}.search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);padding:6px;color:var(--soft)}
+.cat-nav{display:flex;gap:8px;overflow-x:auto;padding:6px 40px 10px 12px;scrollbar-width:none}
+.cat-nav::-webkit-scrollbar{display:none}
+.chip{padding:7px 14px;border-radius:999px;border:.5px solid var(--line);background:var(--card);font-size:13px;white-space:nowrap;color:var(--soft);flex:none}
+.chip.active{background:var(--red);border-color:var(--red);color:#fff}
+.list{padding:2px 0 calc(var(--bar-h) + 16px + env(safe-area-inset-bottom))}
+.cat-heading{font-size:14px;font-weight:500;color:var(--red-d);margin:10px 14px 6px}
+.card{display:flex;gap:10px;background:var(--card);border:.5px solid var(--line);border-radius:14px;padding:10px;margin:0 12px 10px;align-items:stretch}
+.card.out{opacity:.55}
+.thumb-wrap{position:relative;width:92px;min-height:92px;align-self:stretch;border-radius:10px;background:var(--cream);color:var(--caramel);display:flex;align-items:center;justify-content:center;font-size:28px;flex:none;overflow:hidden;cursor:pointer}
+.thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb-wrap.noimg img{display:none}
+.card .body{flex:1;min-width:0;cursor:pointer}
+.card h3{margin:0;font-size:15px;font-weight:500}
+.card .body p{margin:2px 0 0;font-size:12px;line-height:18px;color:var(--soft);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:36px}
+.price-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.price{font-size:15px;font-weight:500;color:var(--red)}
+.round{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.pl{background:var(--red);color:#fff}.mi{background:var(--cream);color:var(--red-d)}
+.qty{display:flex;align-items:center;gap:10px}.qty span{font-weight:500;min-width:14px;text-align:center}
+.badge-soldout,.badge-must-try,.badge-popular{position:absolute;left:4px;top:4px;font-size:10px;line-height:1.4;border-radius:999px;padding:1px 7px;background:var(--cream);color:var(--red-d)}
+.badge-soldout{background:var(--ink);color:#fff}
+.empty-state{text-align:center;color:var(--soft);font-size:14px;padding:32px 16px}
+.cart-bar2{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:480px;margin:0 auto;background:var(--paper);border-top:.5px solid var(--line);padding:10px 12px calc(12px + env(safe-area-inset-bottom));display:block;width:100%}
+.cart-bar2 .inner{width:100%;background:var(--red);color:#fff;border-radius:14px;padding:13px 16px;font-size:16px;font-weight:500;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cart-bar2.empty .inner{justify-content:center;background:var(--cream);color:var(--red-d)}
+.badge{background:var(--cream);color:var(--red-d);border-radius:999px;min-width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;padding:0 6px}
+.in{display:flex;align-items:center;gap:8px}
+.cta{width:100%;background:var(--red);color:#fff;border-radius:14px;padding:13px 16px;font-size:16px;font-weight:500;display:flex;justify-content:center;align-items:center;gap:8px}
+.cta:disabled{opacity:.6}
+.sheet-overlay{position:fixed;inset:0;z-index:40;background:rgba(43,24,16,.5);display:none;align-items:flex-end;justify-content:center}
+.sheet-overlay.open{display:flex}
+.sheet-panel,.menu-detail-panel{background:var(--paper);width:100%;max-width:480px;max-height:92dvh;overflow-y:auto;border-radius:20px 20px 0 0;padding:16px 16px calc(14px + env(safe-area-inset-bottom))}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.sheet-head h2{margin:0;font-size:17px;font-weight:500}
+.history-close{width:34px;height:34px;border-radius:50%;background:var(--cream);color:var(--red-d);font-size:16px}
+.menu-detail-image{width:100%;max-height:220px;object-fit:cover;border-radius:12px;background:var(--cream);display:block;margin-bottom:10px}
+.menu-detail-panel h2{margin:0 0 4px;font-size:18px;font-weight:500}
+.menu-detail-description{font-size:14px;line-height:1.7;margin:0 0 8px}
+.menu-detail-price{color:var(--red);font-size:16px;font-weight:500;margin-bottom:10px}
+.menu-detail-options{border:0;padding:0;margin:0 0 12px}
+.menu-detail-options legend{font-size:13px;font-weight:500;padding:0;margin-bottom:6px}
+.menu-detail-options label{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;margin:0 8px 8px 0;border-radius:12px;border:.5px solid var(--line);background:var(--card);font-size:14px}
+.qty-row{display:flex;align-items:center;justify-content:center;gap:18px;margin:6px 0 12px}.qty-row span{font-size:18px;min-width:20px;text-align:center}
+.review-row{display:flex;gap:10px;align-items:center;background:var(--card);border:.5px solid var(--line);border-radius:14px;padding:10px;margin-bottom:8px}
+.rname{font-size:15px;font-weight:500}.rprice{font-size:12px;color:var(--soft)}.rsubtotal{font-size:14px;min-width:0;color:var(--red);font-weight:500}
+.rstepper{display:flex;align-items:center;gap:10px}.rstepper span{min-width:14px;text-align:center;font-weight:500}.rstepper button{width:32px;height:32px;border-radius:50%;background:var(--cream);color:var(--red-d);font-size:18px}
+.review-total-row{display:flex;justify-content:space-between;font-weight:500;margin:8px 2px 10px}
+.note{width:100%;font:inherit;font-size:14px;padding:10px 12px;background:var(--card);color:var(--ink);border:.5px solid var(--line);border-radius:12px;outline:none;resize:none;margin-bottom:10px}
+.note:focus{border-color:var(--red)}
+.info{background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:10px}
+.success-overlay{position:fixed;inset:0;z-index:50;background:var(--paper);display:none;overflow-y:auto}
+.success-overlay.open{display:block}
+.success-card{max-width:480px;margin:0 auto;padding:28px 16px calc(var(--bar-h) + 40px)}
+.ok-dot{width:56px;height:56px;border-radius:50%;background:var(--ok-bg);color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 8px}
+.success-card h2{margin:0;text-align:center;font-size:17px;font-weight:500}
+.sub{margin:2px 0 0;font-size:12px;line-height:18px;color:var(--soft)}
+.success-card .sub.c{text-align:center}
+.step{display:flex;gap:12px;align-items:center;margin-bottom:12px;font-size:15px}
+.dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--cream);color:var(--caramel);flex:none}
+.dot.on{background:var(--red);color:#fff}.step.off{color:var(--soft)}.step.on{font-weight:500}
+.history-overlay{position:fixed;inset:0;z-index:45;background:var(--paper);display:none;overflow-y:auto}
+.history-overlay.open{display:block}
+.history-panel{max-width:480px;margin:0 auto;padding:14px 0 calc(var(--bar-h) + 24px)}
+.history-panel-head{display:flex;align-items:center;justify-content:space-between;padding:0 12px 4px}
+.history-panel-head h2{margin:0;font-size:17px;font-weight:500}
+.history-sub{padding:0 12px 10px;font-size:12px;color:var(--soft)}
+.history-card{margin:0 12px 10px;background:var(--card);border:.5px solid var(--line);border-radius:14px;padding:12px}
+.history-card-top{display:flex;justify-content:space-between;font-size:13px;color:var(--soft);margin-bottom:6px}
+.history-status.done{color:var(--ok)}.history-status.void{color:var(--danger)}
+.history-items{list-style:none;margin:0;padding:0}.history-items li{display:flex;justify-content:space-between;gap:8px;font-size:14px;padding:2px 0}
+.history-note{font-size:12px;color:var(--soft);margin-top:4px}
+.history-total{text-align:right;color:var(--red);font-weight:500;margin-top:6px}
+#toastRoot{position:fixed;left:0;right:0;bottom:calc(var(--bar-h) + 12px);z-index:60;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.toast{background:var(--ink);color:#fff;border-radius:12px;padding:9px 14px;font-size:13px;max-width:90%}
+</style>
 </head>
 <body>
-<div class="topbar">
-  <h1 id="shopTitle" data-i18n="menuTitle">เมนูอาหาร</h1>
-  <div style="display:flex;align-items:center;gap:8px">
-    <div class="lang-toggle" role="group" aria-label="Language">
-      <button type="button" id="langTH" onclick="setLang('th')" aria-pressed="true">TH</button>
-      <button type="button" id="langEN" onclick="setLang('en')" aria-pressed="false">EN</button>
+<div id="app">
+<header class="hd" id="hd">
+  <div class="t">
+    <h1 id="shopTitle" class="n1">ทองย้อย</h1>
+    <p class="s n1" data-i18n="tagline">สั่งได้เลย ไม่ต้องรอพนักงาน</p>
+  </div>
+  <div class="lang-toggle" role="group" aria-label="Language">
+    <button type="button" id="langTH" onclick="setLang('th')" aria-pressed="true">ไทย</button>
+    <button type="button" id="langEN" onclick="setLang('en')" aria-pressed="false">EN</button>
+  </div>
+  <button type="button" class="history-btn" data-i18n-aria="historyBtn" aria-label="ประวัติการสั่ง" onclick="openHistory()">🧾</button>
+  <div class="tbl"><small data-i18n="table">โต๊ะ</small><b id="tableTag">-</b></div>
+</header>
+<div id="noTableWarn" class="banner" style="display:none" data-i18n="noTable">⚠️ ไม่พบหมายเลขโต๊ะ กรุณาแสกน QR ที่โต๊ะใหม่อีกครั้ง</div>
+<div id="shopClosedBanner" class="banner" role="status" style="display:none"></div>
+
+<div class="sticky">
+  <div class="search-wrap">
+    <div class="search-box">
+      <input id="searchInput" type="search" data-i18n-ph="searchPh" placeholder="ค้นหาเมนู เช่น กะเพรา, ชาเย็น..." autocomplete="off" oninput="onSearchInput()">
+      <button id="searchClear" class="search-clear" style="display:none" type="button" onclick="clearSearch()">✕</button>
     </div>
-    <button class="history-btn" onclick="openHistory()" data-i18n="history">🧾 ประวัติการสั่ง</button>
-    <span class="table-tag"><span data-i18n="table">โต๊ะ</span> <span id="tableTag">-</span></span>
   </div>
-</div>
-<div id="shopClosedBanner" role="status" style="display:none;margin:8px 12px 0;padding:10px 12px;border-radius:10px;background:#fff4d6;color:#7a4b00;font-size:14px;line-height:1.5"></div>
-<div class="welcome-line" id="welcomeLine" style="background:#3B2A20"></div>
-
-<div class="search-wrap">
-  <div class="search-box">
-    <span class="search-icon">🔍</span>
-    <input id="searchInput" type="text" data-i18n-ph="searchPh" placeholder="ค้นหาเมนู เช่น กระเพรา, ชาเย็น..." oninput="onSearchInput()">
-    <button id="searchClear" class="search-clear" style="display:none" onclick="clearSearch()">✕</button>
-  </div>
-</div>
-<div id="catNav" class="cat-nav"></div>
-
-<div class="wrap" style="padding-top:6px">
-  <div id="menuRoot"><div class="empty-state" data-i18n="loading">🍜 กำลังโหลดเมนูอร่อยๆ ให้อยู่...</div></div>
+  <div id="catNav" class="cat-nav"></div>
 </div>
 
-<!-- collapsed hint / expanded cart bar -->
-<button id="cartBar" class="cart-bar2 empty" onclick="openReview()">
+<main class="list" id="menuRoot"><div class="empty-state" data-i18n="loading">🍜 กำลังโหลดเมนูอร่อยๆ ให้อยู่...</div></main>
+
+<!-- cart bar: empty hint or "view cart" -->
+<button id="cartBar" class="cart-bar2 empty" type="button" onclick="openReview()">
   <div class="inner" data-i18n="cartHint">แตะเมนูด้านบนเพื่อเริ่มสั่งอาหารได้เลย 👆</div>
 </button>
+</div>
 
 <!-- review-before-send sheet -->
 <div id="reviewOverlay" class="sheet-overlay" onclick="if(event.target===this) closeReview()">
   <div class="sheet-panel">
     <div class="sheet-head">
-      <h2 data-i18n="reviewTitle">ตรวจสอบออเดอร์ 🧾</h2>
-      <button class="history-close" onclick="closeReview()">✕</button>
+      <h2 data-i18n="reviewTitle">ตรวจสอบรายการ</h2>
+      <button type="button" class="history-close" aria-label="Close" onclick="closeReview()">✕</button>
     </div>
     <div id="reviewList"></div>
-    <div class="review-total-row">
+    <div class="review-total-row" id="reviewTotalRow" style="display:none">
       <span data-i18n="total">รวมทั้งหมด</span>
-      <span id="reviewTotal">฿0</span>
+      <span id="reviewTotal"></span>
     </div>
-    <div class="sheet-note" data-i18n="noteLabel">มีอะไรอยากบอกครัวไหม (ไม่ใส่ผัก, เผ็ดน้อย ฯลฯ) — ไม่บังคับ</div>
-    <input id="orderNote" type="text" data-i18n-ph="notePh" placeholder="พิมพ์ตรงนี้ได้เลย...">
-    <button id="submitBtn" class="confirm-cta" onclick="submitOrder()" data-i18n="submit">ส่งออเดอร์เข้าครัว 🍳</button>
+    <textarea id="orderNote" class="note" rows="2" maxlength="300" data-i18n-ph="notePh" placeholder="หมายเหตุถึงครัว เช่น ไม่ใส่ผักชี"></textarea>
+    <div class="info" data-i18n="payNote">ร้านจะคิดเงินที่โต๊ะ เมื่อทานเสร็จ</div>
+    <button id="submitBtn" type="button" class="cta" onclick="submitOrder()" data-i18n="submit">ส่งออเดอร์เข้าครัว 🍳</button>
   </div>
 </div>
 
@@ -66,24 +165,31 @@
   <div class="menu-detail-panel" role="dialog" aria-modal="true" aria-labelledby="menuDetailName">
     <div class="sheet-head">
       <h2 data-i18n="detailTitle">รายละเอียดเมนู</h2>
-      <button class="history-close" data-i18n-aria="detailClose" aria-label="ปิดรายละเอียดเมนู" onclick="closeMenuDetail()">✕</button>
+      <button type="button" class="history-close" data-i18n-aria="detailClose" aria-label="ปิดรายละเอียดเมนู" onclick="closeMenuDetail()">✕</button>
     </div>
     <img id="menuDetailImage" class="menu-detail-image" alt="">
     <h2 id="menuDetailName"></h2>
     <p id="menuDetailDescription" class="menu-detail-description"></p>
     <div id="menuDetailPrice" class="menu-detail-price"></div>
     <div id="menuDetailOptions"></div>
-    <button id="menuDetailAdd" class="confirm-cta" type="button" onclick="addMenuDetail()">เพิ่มลงตะกร้า</button>
+    <div class="qty-row" id="menuDetailQtyRow">
+      <button type="button" class="round mi" aria-label="-" onclick="menuDetailQtyChange(-1)">−</button>
+      <span id="menuDetailQty">1</span>
+      <button type="button" class="round pl" aria-label="+" onclick="menuDetailQtyChange(1)">+</button>
+    </div>
+    <button id="menuDetailAdd" class="cta" type="button" onclick="addMenuDetail()">เพิ่มลงตะกร้า</button>
   </div>
 </div>
 
-<!-- success state -->
+<!-- success + live status (steps come from the server's order status) -->
 <div id="successOverlay" class="success-overlay">
   <div class="success-card">
-    <div class="emoji">🎉</div>
-    <h2 data-i18n="successTitle">ส่งออเดอร์แล้ว!</h2>
-    <p data-i18n="successBody">ครัวกำลังทำอาหารให้ ✨<br>ดูสถานะออเดอร์ได้ที่ "ประวัติการสั่ง" มุมขวาบน</p>
-    <button class="btn" style="width:100%" onclick="closeSuccess()" data-i18n="successBtn">สั่งเมนูอื่นต่อ</button>
+    <div class="ok-dot">✓</div>
+    <h2 data-i18n="successTitle">ส่งออเดอร์แล้ว</h2>
+    <p id="successSub" class="sub c"></p>
+    <div id="successSteps" style="margin-top:18px"></div>
+    <p class="sub" style="margin-top:14px" data-i18n="staffHint">แก้ไขหรือยกเลิกรายการ แจ้งพนักงานได้ที่โต๊ะ</p>
+    <button type="button" class="cta" style="margin-top:16px" onclick="closeSuccess()" data-i18n="successBtn">สั่งเมนูอื่นต่อ</button>
   </div>
 </div>
 
@@ -91,9 +197,9 @@
   <div class="history-panel">
     <div class="history-panel-head">
       <h2 data-i18n="historyTitle">ประวัติการสั่งของโต๊ะนี้</h2>
-      <button class="history-close" onclick="closeHistory()">✕</button>
+      <button type="button" class="history-close" aria-label="Close" onclick="closeHistory()">✕</button>
     </div>
-    <div class="history-sub" data-i18n="historySub">ย้อนหลัง 24 ชั่วโมงล่าสุด</div>
+    <div class="history-sub" data-i18n="historySub">ออเดอร์ของวันนี้</div>
     <div id="historyList"></div>
   </div>
 </div>
@@ -112,57 +218,57 @@ document.getElementById('tableTag').textContent = TABLE || '-';
 // Orders sent to the kitchen always keep the Thai item name (see cartItems).
 const I18N = {
   th: {
-    menuTitle: 'เมนูอาหาร', history: '🧾 ประวัติการสั่ง', table: 'โต๊ะ',
-    searchPh: 'ค้นหาเมนู เช่น กระเพรา, ชาเย็น...', all: 'ทั้งหมด',
+    tagline: 'สั่งได้เลย ไม่ต้องรอพนักงาน', historyBtn: 'ประวัติการสั่ง', table: 'โต๊ะ',
+    searchPh: 'ค้นหาเมนู เช่น กะเพรา, ชาเย็น...', all: 'ทั้งหมด',
     loading: '🍜 กำลังโหลดเมนูอร่อยๆ ให้อยู่...',
     cartHint: 'แตะเมนูด้านบนเพื่อเริ่มสั่งอาหารได้เลย 👆',
-    reviewTitle: 'ตรวจสอบออเดอร์ 🧾', total: 'รวมทั้งหมด',
-    noteLabel: 'มีอะไรอยากบอกครัวไหม (ไม่ใส่ผัก, เผ็ดน้อย ฯลฯ) — ไม่บังคับ',
-    notePh: 'พิมพ์ตรงนี้ได้เลย...', submit: 'ส่งออเดอร์เข้าครัว 🍳', sending: 'กำลังส่ง...',
+    cartLabel: 'ตะกร้า', cartView: 'ดูรายการ',
+    reviewTitle: 'ตรวจสอบรายการ', total: 'รวมทั้งหมด',
+    notePh: 'หมายเหตุถึงครัว เช่น ไม่ใส่ผักชี', payNote: 'ร้านจะคิดเงินที่โต๊ะ เมื่อทานเสร็จ',
+    submit: 'ส่งออเดอร์เข้าครัว 🍳', sending: 'กำลังส่ง...',
     detailTitle: 'รายละเอียดเมนู', detailClose: 'ปิดรายละเอียดเมนู',
-    successTitle: 'ส่งออเดอร์แล้ว!',
-    successBody: 'ครัวกำลังทำอาหารให้ ✨<br>ดูสถานะออเดอร์ได้ที่ "ประวัติการสั่ง" มุมขวาบน',
-    successBtn: 'สั่งเมนูอื่นต่อ',
-    historyTitle: 'ประวัติการสั่งของโต๊ะนี้', historySub: 'ย้อนหลัง 24 ชั่วโมงล่าสุด',
+    addToCart: 'เพิ่มลงตะกร้า', addWithOptions: 'เลือกแล้วเพิ่มลงตะกร้า', pickOption: 'กรุณาเลือก',
+    successTitle: 'ส่งออเดอร์แล้ว', sentItems: n => `${n} รายการ`,
+    step1: 'ร้านรับออเดอร์แล้ว', step2: 'ครัวกำลังทำ', step3: 'เสิร์ฟที่โต๊ะ',
+    staffHint: 'แก้ไขหรือยกเลิกรายการ แจ้งพนักงานได้ที่โต๊ะ', successBtn: 'สั่งเมนูอื่นต่อ',
+    historyTitle: 'ประวัติการสั่งของโต๊ะนี้', historySub: 'ออเดอร์ของวันนี้',
     historyLoading: 'กำลังโหลด...', historyEmpty: 'ยังไม่มีประวัติการสั่งของโต๊ะนี้',
-    statusDone: 'เสิร์ฟแล้ว', statusCooking: 'กำลังทำ', historyTotal: 'รวม',
+    statusDone: 'เสิร์ฟแล้ว', statusCooking: 'กำลังทำ', statusPending: 'รอร้านยืนยัน', statusVoid: 'ยกเลิกแล้ว', historyTotal: 'รวม',
     emptyMenu: 'ยังไม่มีเมนูตอนนี้ 🙏',
     otherCat: 'อื่น ๆ',
     noResults: 'ไม่เจอเมนูที่ค้นหา 🔍<br>ลองพิมพ์คำอื่นดูนะครับ',
-    soldOut: 'ของหมดวันนี้', popular: 'ยอดนิยม 🔥', mustTry: '✨ ต้องลอง', mustTryAria: 'เมนูต้องลอง',
+    soldOut: 'หมด', popular: 'ยอดนิยม 🔥', mustTry: '✨ ต้องลอง', mustTryAria: 'เมนูต้องลอง',
     perItem: 'ชิ้น', orderFail: 'สั่งไม่สำเร็จ ลองใหม่อีกครั้งนะครับ',
     shopClosed: 'ร้านปิดอยู่ตอนนี้', shopOpensAt: 'เปิดอีกครั้ง', shopClosedNote: 'โต๊ะที่สั่งไว้แล้วยังสั่งเพิ่มได้', shopClosedFail: 'ร้านปิดอยู่ ยังรับออเดอร์ใหม่ไม่ได้ในตอนนี้',
-    cartCta: 'ดูตะกร้า →',
-    welcome: n => `👋 สวัสดีครับ กำลังสั่งจากโต๊ะ ${n} — แตะรูปเมนูที่ชอบเพื่อสั่งได้เลย`,
     noTable: '⚠️ ไม่พบหมายเลขโต๊ะ กรุณาแสกน QR ที่โต๊ะใหม่อีกครั้ง',
-    cartSummary: n => `${n} รายการ — แตะเพื่อตรวจสอบ`,
+    cartSummary: n => `${n} รายการ`,
     pageTitle: 'สั่งอาหาร'
   },
   en: {
-    menuTitle: 'Menu', history: '🧾 History', table: 'Table',
+    tagline: 'Order here, no need to wait for staff', historyBtn: 'Order history', table: 'Table',
     searchPh: 'Search the menu...', all: 'All',
     loading: '🍜 Loading the menu...',
     cartHint: 'Tap a dish above to start your order 👆',
-    reviewTitle: 'Review your order 🧾', total: 'Total',
-    noteLabel: 'Anything to tell the kitchen? (e.g. no vegetables, less spicy) — optional',
-    notePh: 'Type here...', submit: 'Send order to kitchen 🍳', sending: 'Sending...',
+    cartLabel: 'Cart', cartView: 'View',
+    reviewTitle: 'Review order', total: 'Total',
+    notePh: 'Note for the kitchen, e.g. no cilantro', payNote: 'Payment is taken at your table after your meal.',
+    submit: 'Send order to kitchen 🍳', sending: 'Sending...',
     detailTitle: 'Dish details', detailClose: 'Close dish details',
-    successTitle: 'Order sent!',
-    successBody: 'The kitchen is preparing your food ✨<br>Check the status under "Order history" at the top right.',
-    successBtn: 'Order more',
-    historyTitle: 'Order history for this table', historySub: 'Last 24 hours',
+    addToCart: 'Add to cart', addWithOptions: 'Add to cart with selection', pickOption: 'Please choose',
+    successTitle: 'Order sent', sentItems: n => `${n} item${n === 1 ? '' : 's'}`,
+    step1: 'Order received', step2: 'Kitchen is cooking', step3: 'Served at your table',
+    staffHint: 'To change or cancel an item, tell the staff at your table.', successBtn: 'Order more',
+    historyTitle: 'Order history for this table', historySub: "Today's orders",
     historyLoading: 'Loading...', historyEmpty: 'No orders from this table yet',
-    statusDone: 'Served', statusCooking: 'Preparing', historyTotal: 'Total',
+    statusDone: 'Served', statusCooking: 'Preparing', statusPending: 'Waiting for the shop', statusVoid: 'Cancelled', historyTotal: 'Total',
     emptyMenu: 'No menu available right now 🙏',
     otherCat: 'Other',
     noResults: 'No dishes found 🔍<br>Try a different word.',
-    soldOut: 'Sold out today', popular: 'Popular 🔥', mustTry: '✨ Must try', mustTryAria: 'Must-try dish',
+    soldOut: 'Sold out', popular: 'Popular 🔥', mustTry: '✨ Must try', mustTryAria: 'Must-try dish',
     perItem: 'each', orderFail: 'Could not send the order. Please try again.',
     shopClosed: 'The shop is closed right now', shopOpensAt: 'Opens again', shopClosedNote: 'A table that has already ordered can still add items', shopClosedFail: 'The shop is closed, so new orders cannot be placed right now.',
-    cartCta: 'View cart →',
-    welcome: n => `👋 Welcome! Ordering from table ${n}. Tap a dish to add it.`,
     noTable: '⚠️ Table number not found. Please scan the QR code on your table again.',
-    cartSummary: n => `${n} item${n === 1 ? '' : 's'} — tap to review`,
+    cartSummary: n => `${n} item${n === 1 ? '' : 's'}`,
     pageTitle: 'Order food'
   }
 };
@@ -209,21 +315,23 @@ function setLang(next) {
 }
 function applyLang() {
   document.documentElement.lang = LANG;
-  document.title = t('pageTitle');
+  const shownShopName = LANG === 'en' && hasText(shopNameEn) ? String(shopNameEn).trim() : shopName;
+  document.title = (shownShopName ? shownShopName + ' · ' : '') + t('pageTitle');
   document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
   document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
   document.getElementById('langTH').setAttribute('aria-pressed', String(LANG === 'th'));
   document.getElementById('langEN').setAttribute('aria-pressed', String(LANG === 'en'));
-  const shownShopName = LANG === 'en' && hasText(shopNameEn) ? String(shopNameEn).trim() : shopName;
   if (shownShopName) document.getElementById('shopTitle').textContent = shownShopName;
-  document.getElementById('welcomeLine').textContent = TABLE ? t('welcome', TABLE) : t('noTable');
+  document.getElementById('noTableWarn').style.display = TABLE ? 'none' : 'block';
   if (MENU.length) { renderCatNav(); renderMenu(); }
   updateCartBar();
   renderShopBanner();
   if (document.getElementById('reviewOverlay').classList.contains('open')) renderReview();
   if (menuDetailOverlay.classList.contains('open') && menuDetailId != null) fillMenuDetail(menuDetailId);
   if (document.getElementById('historyOverlay').classList.contains('open')) openHistory();
+  if (document.getElementById('successOverlay').classList.contains('open')) renderSteps(lastOrder);
+  document.documentElement.style.setProperty('--hd-h', document.getElementById('hd').offsetHeight + 'px');
 }
 
 let MENU = [];
@@ -233,8 +341,15 @@ let searchQuery = '';
 let menuDetailOpener = null;
 let menuDetailId = null;
 let menuDetailOptionIds = [];
+let menuDetailQty = 1;
 const menuDetailOverlay = document.getElementById('menuDetailOverlay');
 const menuDetailClose = menuDetailOverlay.querySelector('.history-close');
+
+// Menu images come from Cloudinary (https). Anything else (http, data:, javascript:) is never loaded.
+function safeImageUrl(url) {
+  const s = String(url == null ? '' : url).trim();
+  return /^https:\/\//i.test(s) || /^\/assets\//.test(s) ? s : '';
+}
 
 // Shop hours come from the server (weekly schedule + manual open/close). Customers can always
 // browse. The server refuses a new customer order while closed, but lets a table that already has
@@ -296,9 +411,9 @@ function renderCatNav() {
   const cats = [...new Set(MENU.map(i => (i.category || '').trim()).filter(Boolean))];
   const nav = document.getElementById('catNav');
   if (cats.length < 2) { nav.innerHTML = ''; return; }
-  const chip = (label, cat) => `<a class="${activeCat === cat ? 'active' : ''}" data-cat="${cat === null ? '' : escAttr(cat)}">${escAttr(label)}</a>`;
+  const chip = (label, cat) => `<button type="button" class="chip ${activeCat === cat ? 'active' : ''}" data-cat="${cat === null ? '' : escAttr(cat)}">${escAttr(label)}</button>`;
   nav.innerHTML = chip(t('all'), null) + cats.map(c => chip(catLabel(c), c)).join('');
-  nav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+  nav.querySelectorAll('button').forEach(a => a.addEventListener('click', () => {
     activeCat = a.dataset.cat || null;
     renderCatNav();
     renderMenu();
@@ -329,17 +444,12 @@ function renderMenu() {
     return;
   }
 
-  // While searching or filtering to one category, skip the grouped headings —
-  // just show a flat, compact grid so results are easy to scan.
+  // While searching or filtering to one category, skip the grouped headings.
   if (searchQuery || activeCat) {
-    root.innerHTML = `<div class="menu-grid">${filtered.map(renderCard).join('')}</div>`;
+    root.innerHTML = filtered.map(renderCard).join('');
     return;
   }
 
-  // Single continuous grid for the whole page — category headings are
-  // full-width grid items that break the row, but cards themselves always
-  // flow 2-per-row instead of each category getting its own separate
-  // (and often half-empty-looking) grid.
   const cats = [...new Set(MENU.map(i => (i.category || '').trim()).filter(Boolean))];
   // Items without a category (e.g. after the owner deletes a category) must still be visible:
   // they go last, under an "Other" heading when the menu has real categories.
@@ -353,7 +463,14 @@ function renderMenu() {
       : (cats.length ? `<h2 class="cat-heading">${escAttr(t('otherCat'))}</h2>` : '');
     return heading + items.map(renderCard).join('');
   }).join('');
-  root.innerHTML = `<div class="menu-grid">${pieces}</div>`;
+  root.innerHTML = pieces;
+}
+
+function thumbInner(item) {
+  const src = safeImageUrl(item.image);
+  return src
+    ? `<img src="${escAttr(src)}" alt="" loading="lazy" decoding="async" onerror="this.parentNode.classList.add('noimg')">🍽️`
+    : '🍽️';
 }
 
 function renderCard(item) {
@@ -361,29 +478,28 @@ function renderCard(item) {
   const mustTry = isMustTry(item);
   const qty = Object.values(cart).filter(line => line.id === item.id).reduce((sum, line) => sum + line.qty, 0);
   const hasOptions = Array.isArray(item.optionGroups) && item.optionGroups.length;
-  const tapAdd = soldOut ? '' : (hasOptions ? `onclick="openMenuDetail('${item.id}', this)"` : `onclick="changeQty('${item.id}', 1)"`);
-  const control = soldOut ? '' : (hasOptions
-    ? `<button class="add-fab" onclick="event.stopPropagation(); openMenuDetail('${item.id}', this)">+</button>`
+  const control = soldOut ? `<span class="badge">${escAttr(t('soldOut'))}</span>` : (hasOptions
+    ? `<button type="button" class="round pl" aria-label="+" onclick="event.stopPropagation(); openMenuDetail('${item.id}', this)">+</button>`
     : (qty > 0
-    ? `<div class="stepper-fab" onclick="event.stopPropagation()">
-         <button onclick="changeQty('${item.id}', -1)">−</button>
+    ? `<div class="qty" onclick="event.stopPropagation()">
+         <button type="button" class="round mi" aria-label="-" onclick="changeQty('${item.id}', -1)">−</button>
          <span class="qty-num">${qty}</span>
-         <button onclick="changeQty('${item.id}', 1)">+</button>
+         <button type="button" class="round pl" aria-label="+" onclick="changeQty('${item.id}', 1)">+</button>
        </div>`
-    : `<button class="add-fab" onclick="event.stopPropagation(); changeQty('${item.id}', 1)">+</button>`));
+    : `<button type="button" class="round pl" aria-label="+" onclick="event.stopPropagation(); changeQty('${item.id}', 1)">+</button>`));
   return `
-    <div class="menu-card2 ${soldOut ? 'sold-out' : ''} ${mustTry ? 'must-try' : ''}">
-      <div class="thumb-wrap ${soldOut ? '' : 'tap-add'}" ${tapAdd}>
-        <img src="${escAttr(item.image)}" alt="${escAttr(itemName(item))}" loading="lazy" decoding="async">
+    <div class="card menu-card2 ${soldOut ? 'out sold-out' : ''} ${mustTry ? 'must-try' : ''}">
+      <div class="thumb-wrap" onclick="openMenuDetail('${item.id}', this)">
+        ${thumbInner(item)}
         ${mustTry ? `<span class="badge-must-try" aria-label="${escAttr(t('mustTryAria'))}">${t('mustTry')}</span>` : ''}
-        ${soldOut ? `<span class="badge-soldout">${t('soldOut')}</span>` : (item.popular ? `<span class="badge-popular">${t('popular')}</span>` : '')}
-        ${control}
+        ${!soldOut && item.popular && !mustTry ? `<span class="badge-popular">${t('popular')}</span>` : ''}
       </div>
       <div class="body" role="button" tabindex="0" data-detail-id="${escAttr(item.id)}" onclick="openMenuDetail(this.dataset.detailId, this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openMenuDetail(this.dataset.detailId, this) }">
         <h3>${escAttr(itemName(item))}</h3>
-        ${itemDesc(item) ? `<p>${escAttr(itemDesc(item))}</p>` : ''}
+        ${itemDesc(item) ? `<p>${escAttr(itemDesc(item))}</p>` : '<p></p>'}
         <div class="price-row">
           <span class="price">฿${escAttr(item.price)}</span>
+          ${control}
         </div>
       </div>
     </div>`;
@@ -441,11 +557,8 @@ function updateCartBar() {
     bar.classList.remove('empty');
     bar.innerHTML = `
       <div class="inner">
-        <div>
-          <div class="cart-summary">${t('cartSummary', count)}</div>
-          <div class="cart-total">${showPrices ? `฿${total}` : ''}</div>
-        </div>
-        <div class="cart-cta">${t('cartCta')}</div>
+        <span class="in">🛒 ${t('cartLabel')} <span class="badge">${count}</span>${showPrices ? ` · ฿${total}` : ''}</span>
+        <span class="in" style="font-size:15px">${t('cartView')} ›</span>
       </div>`;
   }
 }
@@ -456,9 +569,11 @@ function openReview() {
   if (count === 0) return;
   renderReview();
   document.getElementById('reviewOverlay').classList.add('open');
+  document.body.classList.add('lock');
 }
 function closeReview() {
   document.getElementById('reviewOverlay').classList.remove('open');
+  document.body.classList.remove('lock');
 }
 
 function openMenuDetail(id, opener) {
@@ -469,15 +584,16 @@ function openMenuDetail(id, opener) {
   const menuDetailName = document.getElementById('menuDetailName');
   const menuDetailDescription = document.getElementById('menuDetailDescription');
   const menuDetailPrice = document.getElementById('menuDetailPrice');
-  menuDetailImage.src = item.image || '';
   menuDetailImage.alt = item.name || '';
   menuDetailName.textContent = item.name || '';
   menuDetailDescription.textContent = item.desc || '';
   menuDetailPrice.textContent = `฿${item.price == null ? '' : item.price}`;
   menuDetailId = item.id;
   menuDetailOptionIds = [];
+  menuDetailQty = 1;
   fillMenuDetail(item.id); // swaps in English text when LANG is "en" and it exists
   menuDetailOverlay.classList.add('open');
+  document.body.classList.add('lock');
   menuDetailClose.focus();
 }
 
@@ -487,15 +603,24 @@ function fillMenuDetail(id) {
   const nameEl = document.getElementById('menuDetailName');
   nameEl.textContent = itemName(item);
   document.getElementById('menuDetailDescription').textContent = itemDesc(item);
-  document.getElementById('menuDetailImage').alt = itemName(item);
+  const image = document.getElementById('menuDetailImage');
+  image.alt = itemName(item);
+  // Only https images are loaded; otherwise the picture block is hidden.
+  const safeSrc = safeImageUrl(item.image);
+  if (safeSrc) { image.src = safeSrc; image.style.display = 'block'; }
+  else { image.removeAttribute('src'); image.style.display = 'none'; }
+  image.onerror = () => { image.style.display = 'none'; };
   const groups = Array.isArray(item.optionGroups) ? item.optionGroups : [];
   document.getElementById('menuDetailOptions').innerHTML = groups.map(group => `
     <fieldset class="menu-detail-options"><legend>${escAttr(group.name)}${group.required ? ' *' : ''}</legend>
-      ${(group.options || []).map(option => `<label><input type="${group.type === 'multi' ? 'checkbox' : 'radio'}" name="option-${escAttr(group.id)}" value="${escAttr(option.id)}" onchange="toggleMenuOption('${escAttr(group.id)}', '${escAttr(option.id)}', this.checked, '${group.type}')"> ${escAttr(option.name)}${Number(option.priceDelta) ? ` (+฿${escAttr(option.priceDelta)})` : ''}</label>`).join('')}
+      ${(group.options || []).map(option => `<label><input type="${group.type === 'multi' ? 'checkbox' : 'radio'}" name="option-${escAttr(group.id)}" value="${escAttr(option.id)}"${menuDetailOptionIds.includes(String(option.id)) ? ' checked' : ''} onchange="toggleMenuOption('${escAttr(group.id)}', '${escAttr(option.id)}', this.checked, '${escAttr(group.type)}')"> ${escAttr(option.name)}${Number(option.priceDelta) ? ` (+฿${escAttr(option.priceDelta)})` : ''}</label>`).join('')}
     </fieldset>`).join('');
+  const soldOut = item.available === false;
   const add = document.getElementById('menuDetailAdd');
-  add.style.display = item.available === false ? 'none' : 'block';
-  add.textContent = groups.length ? 'เลือกแล้วเพิ่มลงตะกร้า' : 'เพิ่มลงตะกร้า';
+  add.style.display = soldOut ? 'none' : 'flex';
+  document.getElementById('menuDetailQtyRow').style.display = soldOut ? 'none' : 'flex';
+  document.getElementById('menuDetailQty').textContent = String(menuDetailQty);
+  add.textContent = groups.length ? t('addWithOptions') : t('addToCart');
 }
 
 function toggleMenuOption(groupId, optionId, checked, type) {
@@ -507,18 +632,24 @@ function toggleMenuOption(groupId, optionId, checked, type) {
   else menuDetailOptionIds = menuDetailOptionIds.filter(id => id !== String(optionId));
 }
 
+function menuDetailQtyChange(delta) {
+  menuDetailQty = Math.min(20, Math.max(1, menuDetailQty + delta));
+  document.getElementById('menuDetailQty').textContent = String(menuDetailQty);
+}
+
 function addMenuDetail() {
   const item = MENU.find(i => String(i.id) === String(menuDetailId));
   if (!item || item.available === false) return;
   const missing = (item.optionGroups || []).find(group => group.required && !(group.options || []).some(option => menuDetailOptionIds.includes(String(option.id))));
-  if (missing) { showToast(`กรุณาเลือก ${missing.name}`); return; }
-  changeQty(item.id, 1, menuDetailOptionIds);
+  if (missing) { showToast(`${t('pickOption')} ${missing.name}`); return; }
+  changeQty(item.id, menuDetailQty, menuDetailOptionIds);
   closeMenuDetail();
 }
 
 function closeMenuDetail() {
   menuDetailId = null;
   menuDetailOverlay.classList.remove('open');
+  document.body.classList.remove('lock');
   if (menuDetailOpener && typeof menuDetailOpener.focus === 'function') menuDetailOpener.focus();
   menuDetailOpener = null;
 }
@@ -541,19 +672,20 @@ function renderReview() {
   const list = document.getElementById('reviewList');
   list.innerHTML = items.map(it => `
     <div class="review-row">
-      <div style="flex:1">
+      <div style="flex:1;min-width:0">
         <div class="rname">${escAttr(displayName(it.id, it.name))}</div>
         <div class="rprice">${showPrices ? `฿${it.price} / ${t('perItem')}` : ''}</div>
       </div>
       <div class="rstepper">
-        <button onclick="changeQty(${escAttr(JSON.stringify(it.id))}, -1, ${escAttr(JSON.stringify(it.optionIds))}); renderReview();">−</button>
+        <button type="button" aria-label="-" onclick="changeQty(${escAttr(JSON.stringify(it.id))}, -1, ${escAttr(JSON.stringify(it.optionIds))}); renderReview();">−</button>
         <span class="qty-num">${it.qty}</span>
-        <button onclick="changeQty(${escAttr(JSON.stringify(it.id))}, 1, ${escAttr(JSON.stringify(it.optionIds))}); renderReview();">+</button>
+        <button type="button" aria-label="+" onclick="changeQty(${escAttr(JSON.stringify(it.id))}, 1, ${escAttr(JSON.stringify(it.optionIds))}); renderReview();">+</button>
       </div>
       <div class="rsubtotal">${showPrices ? `฿${it.price * it.qty}` : ''}</div>
     </div>
   `).join('');
   const { count, total } = cartCountTotal();
+  document.getElementById('reviewTotalRow').style.display = showPrices ? 'flex' : 'none';
   document.getElementById('reviewTotal').textContent = showPrices ? `฿${total}` : '';
   document.getElementById('submitBtn').disabled = count === 0;
   if (count === 0) closeReview();
@@ -564,6 +696,7 @@ async function submitOrder() {
   if (!items.length) return;
   const note = document.getElementById('orderNote').value.trim();
   const btn = document.getElementById('submitBtn');
+  const sentCount = cartCountTotal().count;
   btn.disabled = true;
   btn.textContent = t('sending');
   try {
@@ -572,9 +705,9 @@ async function submitOrder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ table: TABLE, items, note, idempotencyKey: idempotencyKey() })
     });
+    let data = null;
+    try { data = await res.json(); } catch (e) { data = null; }
     if (!res.ok) {
-      let data = null;
-      try { data = await res.json(); } catch (e) { data = null; }
       if (data && data.error === 'shop_closed') {
         shopState = { open: false, opensAt: data.opensAt || null };
         renderShopBanner();
@@ -589,7 +722,7 @@ async function submitOrder() {
     renderMenu();
     updateCartBar();
     closeReview();
-    document.getElementById('successOverlay').classList.add('open');
+    showSuccess(data && data.order, sentCount);
   } catch (e) {
     showToast(t('orderFail'));
   } finally {
@@ -598,8 +731,54 @@ async function submitOrder() {
   }
 }
 
+// ---------- success + live order status ----------
+let lastOrder = null;
+let lastSentCount = 0;
+let statusTimer = null;
+// pending_confirmation -> step 0, new (kitchen ticket queued) -> step 1, done -> step 2.
+function stepOf(order) {
+  if (!order) return 0;
+  if (order.status === 'done') return 2;
+  if (order.status === 'new') return 1;
+  return 0;
+}
+function renderSteps(order) {
+  const box = document.getElementById('successSteps');
+  document.getElementById('successSub').textContent = t('sentItems', lastSentCount);
+  if (order && order.status === 'void') {
+    box.innerHTML = `<div class="step on"><span class="dot on">✕</span>${escAttr(t('statusVoid'))}</div>`;
+    return;
+  }
+  const step = stepOf(order);
+  box.innerHTML = ['step1', 'step2', 'step3'].map((key, i) =>
+    `<div class="step ${i <= step ? 'on' : 'off'}"><span class="dot${i <= step ? ' on' : ''}">${i < step ? '✓' : i + 1}</span>${escAttr(t(key))}</div>`).join('');
+}
+async function refreshOrderStatus() {
+  if (!lastOrder || lastOrder.id == null) return;
+  try {
+    const res = await fetch('/api/orders');
+    if (!res.ok) return;
+    const orders = await res.json();
+    const found = Array.isArray(orders) ? orders.find(o => String(o.id) === String(lastOrder.id)) : null;
+    if (found) { lastOrder = found; renderSteps(found); }
+  } catch (e) { /* keep the last known status */ }
+}
+function stopStatusPolling() { if (statusTimer) { clearInterval(statusTimer); statusTimer = null; } }
+function showSuccess(order, count) {
+  lastOrder = order || null;
+  lastSentCount = count || 0;
+  renderSteps(lastOrder);
+  document.getElementById('successOverlay').classList.add('open');
+  document.body.classList.add('lock');
+  stopStatusPolling();
+  // Poll only while this screen is open, every 12 seconds.
+  statusTimer = setInterval(refreshOrderStatus, 12000);
+}
+
 function closeSuccess() {
+  stopStatusPolling();
   document.getElementById('successOverlay').classList.remove('open');
+  document.body.classList.remove('lock');
 }
 
 function showToast(msg) {
@@ -612,38 +791,50 @@ function showToast(msg) {
 }
 
 // ---------- history ----------
+function statusInfo(order) {
+  if (order.status === 'done') return { cls: 'done', label: t('statusDone') };
+  if (order.status === 'void') return { cls: 'void', label: t('statusVoid') };
+  if (order.status === 'pending_confirmation') return { cls: '', label: t('statusPending') };
+  return { cls: '', label: t('statusCooking') };
+}
 async function openHistory() {
   document.getElementById('historyOverlay').classList.add('open');
+  document.body.classList.add('lock');
   const list = document.getElementById('historyList');
   list.innerHTML = `<div class="empty-state">${t('historyLoading')}</div>`;
-  const res = await fetch('/api/orders');
-  if (!res.ok) {
+  let res;
+  try { res = await fetch('/api/orders'); } catch (e) { res = null; }
+  if (!res || !res.ok) {
     list.innerHTML = `<div class="empty-state">${t('historyEmpty')}</div>`;
     return;
   }
+  // The server already limits this to today's orders for this table (after the last checkout).
   const orders = (await res.json()).filter(o => String(o.table) === String(TABLE))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   if (!orders.length) {
     list.innerHTML = `<div class="empty-state">${t('historyEmpty')}</div>`;
     return;
   }
-  list.innerHTML = orders.map(o => `
+  list.innerHTML = orders.map(o => {
+    const st = statusInfo(o);
+    return `
     <div class="history-card">
       <div class="history-card-top">
         <span class="history-time">${new Date(o.createdAt).toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'th-TH', {hour:'2-digit', minute:'2-digit'})}</span>
-        <span class="history-status ${o.status === 'done' ? 'done' : ''}">${o.status === 'done' ? t('statusDone') : t('statusCooking')}</span>
+        <span class="history-status ${st.cls}">${escAttr(st.label)}</span>
       </div>
       <ul class="history-items">
-        ${o.items.map(it => `<li><span>${escAttr(displayName(it.id, it.name))} x${it.qty}</span><span>฿${it.price * it.qty}</span></li>`).join('')}
+        ${o.items.map(it => `<li><span>${escAttr(displayName(it.id, it.baseName || it.name))}${it.options && it.options.length ? ` (${escAttr(it.options.map(op => op.name).join(', '))})` : ''} x${escAttr(it.qty)}</span>${showPrices ? `<span>฿${escAttr(it.price * it.qty)}</span>` : ''}</li>`).join('')}
       </ul>
       ${o.note ? `<div class="history-note">📝 ${escAttr(o.note)}</div>` : ''}
-      <div class="history-total">${t('historyTotal')} ฿${o.items.reduce((s, it) => s + it.price * it.qty, 0)}</div>
-    </div>
-  `).join('');
+      ${showPrices ? `<div class="history-total">${t('historyTotal')} ฿${escAttr(o.items.reduce((s, it) => s + it.price * it.qty, 0))}</div>` : ''}
+    </div>`;
+  }).join('');
 }
 
 function closeHistory() {
   document.getElementById('historyOverlay').classList.remove('open');
+  document.body.classList.remove('lock');
 }
 
 document.addEventListener('keydown', event => {

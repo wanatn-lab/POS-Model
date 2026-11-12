@@ -18,7 +18,7 @@ test("menu cards expose an accessible detail sheet without putting item text in 
   assert.match(orderHtml, /function openMenuDetail\(id, opener\)/);
   assert.match(orderHtml, /menuDetailName\.textContent = item\.name/);
   assert.match(orderHtml, /menuDetailDescription\.textContent = item\.desc \|\| ''/);
-  assert.match(orderHtml, /menuDetailImage\.src = item\.image/);
+  assert.match(orderHtml, /image\.src = safeSrc/);
   assert.match(orderHtml, /function closeMenuDetail\(\)/);
   assert.match(orderHtml, /event\.key === 'Escape'/);
   assert.match(orderHtml, /event\.preventDefault\(\);\s*openMenuDetail\(this\.dataset\.detailId, this\)/);

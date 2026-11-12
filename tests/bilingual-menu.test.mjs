@@ -274,7 +274,10 @@ test("order page shows the English shop name only in EN mode, Thai otherwise", (
   assert.match(adminHtml, /shopNameEn: document\.getElementById\('shopNameEn'\)\.value/);
 });
 
-test("customer menu renders a Cloudinary image URL without stripping it", () => {
-  assert.match(orderHtml, /<img src="\$\{escAttr\(item\.image\)\}"/);
-  assert.match(orderHtml, /menuDetailImage\.src = item\.image \|\| '';/);
+test("customer menu renders a Cloudinary https image URL but never loads other schemes", () => {
+  assert.match(orderHtml, /function safeImageUrl\(url\)/);
+  assert.match(orderHtml, /\^https:\\\/\\\//);
+  assert.match(orderHtml, /<img src="\$\{escAttr\(src\)\}"/);
+  assert.match(orderHtml, /const safeSrc = safeImageUrl\(item\.image\);/);
+  assert.doesNotMatch(orderHtml, /\.src = item\.image/);
 });
