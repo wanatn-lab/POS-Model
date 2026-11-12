@@ -1014,8 +1014,6 @@ let adminMenuCategoryFilter = null; // null = every category
 const adminMenuEditing = new Set(); // menu items whose card is expanded for editing (view-only state)
 let PRINTER_STATUS = { updatedAt: null, printers: [] };
 const PRINTER_STATUS_STALE_MS = 3 * 60 * 1000; // heartbeat is 60s; allow missed reports
-// Keep a previously configured folder so an existing restaurant never has
-// its uploaded images split into a new folder after this default changes.
 const CLOUDINARY_MENU_FOLDER = 'thongyoi_menu';
 
 // ---------- tabs ----------
@@ -1052,12 +1050,17 @@ function escAttr(s) {
 // Cloudinary's Cloud Name and unsigned upload preset are public identifiers.
 // They are saved with the restaurant settings so the admin only enters them
 // once; an API secret must never be placed in this client-side application.
+function cloudinaryFolder(savedFolder) {
+  const folder = String(savedFolder || '').trim();
+  // `menujk_up` belongs to the previous restaurant and must not be reused.
+  return !folder || folder === 'menujk_up' ? CLOUDINARY_MENU_FOLDER : folder;
+}
 function cloudinaryConfig() {
   const config = SETTINGS.cloudinary || {};
   return {
     cloudName: String(config.cloudName || '').trim(),
     uploadPreset: String(config.uploadPreset || '').trim(),
-    folder: String(config.folder || CLOUDINARY_MENU_FOLDER).trim() || CLOUDINARY_MENU_FOLDER,
+    folder: cloudinaryFolder(config.folder),
   };
 }
 function cloudinaryReady() {
@@ -1532,7 +1535,7 @@ function renderList() {
               <img id="imgPreview${i}" class="img-preview" alt="${escAttr(item.name) || 'รูปเมนู'}" src="${escAttr(item.image)}"
                    style="display:${item.image ? 'block' : 'none'}"
                    onload="this.style.display='block'; document.getElementById('imgEmpty${i}').style.display='none'"
-                   onerror="this.style.display='none'; document.getElementById('imgEmpty${i}').style.display='flex'; document.getElementById('imgEmpty${i}').textContent='⚠️ โหลดไม่ได้'">
+                   onerror="this.style.display='none'; document.getElementById('imgEmpty${i}').style.display='flex'; document.getElementById('imgEmpty${i}').textContent='🖼️ ยังไม่มีรูป'">
               <div id="imgEmpty${i}" class="img-preview-empty" style="display:${item.image ? 'none' : 'flex'}">🖼️ ยังไม่มีรูป</div>
             </div>
             <div class="menu-image-upload-controls">

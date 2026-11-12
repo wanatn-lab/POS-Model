@@ -248,6 +248,26 @@ test("receipt settings and menu saves leave the saved Cloudinary config intact",
   assert.deepEqual((await globalThis.__shopStore.get("settings")).cloudinary, cloudinary);
 });
 
+test("saving Cloudinary keeps its connection values and unrelated settings", async () => {
+  const data = useFakeStore();
+  data.set("settings", {
+    tableCount: 16, shopName: "ทองย้อย", paperWidthMm: 80,
+    cloudinary: { cloudName: "old-cloud", uploadPreset: "old-preset", folder: "menujk_up" },
+    receipt: { footer: "ขอบคุณครับ" }, kitchen: { groupByCategory: true },
+  });
+  const res = fakeRes();
+  await settingsHandler({ method: "POST", body: {
+    cloudinary: { cloudName: "thongyoi", uploadPreset: "thongyoi_unsigned", folder: "thongyoi_menu" },
+  } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.settings.cloudinary, {
+    cloudName: "thongyoi", uploadPreset: "thongyoi_unsigned", folder: "thongyoi_menu",
+  });
+  assert.equal(res.body.settings.tableCount, 16);
+  assert.deepEqual(res.body.settings.receipt, { footer: "ขอบคุณครับ" });
+  assert.deepEqual(res.body.settings.kitchen, { groupByCategory: true });
+});
+
 test("order page shows the English shop name only in EN mode, Thai otherwise", () => {
   assert.match(orderHtml, /shopNameEn = settings\.shopNameEn \|\| '';/);
   assert.match(orderHtml, /LANG === 'en' && hasText\(shopNameEn\) \? String\(shopNameEn\)\.trim\(\) : shopName/);
