@@ -316,3 +316,4 @@ body.admin-redesign #panel-menu #itemList .item-form > .menu-flags { grid-row:12
 body.admin-redesign #panel-menu #itemList .item-form > .item-actions { grid-row:13; }
 body.admin-redesign #panel-menu #itemList .item-form > .menu-edit-toggle { grid-row:14; }
 body.admin-redesign #panel-menu #itemList .item-form:not(.is-editing) > .menu-edit-toggle { grid-row:4; }
+body.admin-redesign #panel-menu #itemList { align-items:start; }
