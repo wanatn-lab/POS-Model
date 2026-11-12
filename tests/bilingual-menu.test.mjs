@@ -32,7 +32,7 @@ function useFakeStore() {
 }
 
 const MENU = [
-  { id: "a1", name: "ข้าวซอย", price: 80, category: "จานเส้น", desc: "น้ำแกงเข้มข้น", image: "x.webp", available: true, mustTry: true,
+  { id: "a1", name: "ข้าวซอย", price: 80, category: "จานเส้น", desc: "น้ำแกงเข้มข้น", image: "https://res.cloudinary.com/thongyoi/image/upload/v1/menu/khao-soi.webp", available: true, mustTry: true,
     nameEn: "Khao Soi", descEn: "Rich curry noodle soup", categoryEn: "Noodles" },
   { id: "a2", name: "ไก่ทอด", price: 90, category: "ของทอด", desc: "กรอบนอกนุ่มใน", image: "", available: true },
 ];
@@ -47,6 +47,7 @@ test("menu API stores and returns English fields without touching the old ones",
   assert.deepEqual(res.body, MENU);
   assert.equal(res.body.length, 2);
   assert.equal(res.body[1].nameEn, undefined); // item with no English still round-trips
+  assert.equal(res.body[0].image, "https://res.cloudinary.com/thongyoi/image/upload/v1/menu/khao-soi.webp");
 });
 
 test("sold-out toggle keeps the English fields", async () => {
@@ -214,7 +215,7 @@ test("saving the English shop name keeps every other setting", async () => {
     tableCount: 12, shopName: "จิ๊นโค", paperWidthMm: 58,
     printers: [{ id: "p1", name: "ครัว" }],
     receipt: { footer: "ขอบคุณครับ" }, kitchen: { groupByCategory: true },
-    cloudinary: { cloudName: "demo" },
+    cloudinary: { cloudName: "demo", uploadPreset: "thongyoi_unsigned", folder: "thongyoi_menu" },
   };
   data.set("settings", structuredClone(existing));
   let res = fakeRes();
@@ -225,9 +226,36 @@ test("saving the English shop name keeps every other setting", async () => {
   assert.deepEqual(res.body, { ...existing, shopNameEn: "Jinko" });
 });
 
+test("receipt settings and menu saves leave the saved Cloudinary config intact", async () => {
+  const data = useFakeStore();
+  const cloudinary = { cloudName: "demo", uploadPreset: "thongyoi_unsigned", folder: "existing_menu_folder" };
+  data.set("settings", {
+    tableCount: 12, shopName: "ทองย้อย", paperWidthMm: 80,
+    cloudinary, receipt: { logoUrl: "" }, kitchen: {}, cashDrawer: { enabled: false },
+  });
+
+  let res = fakeRes();
+  await settingsHandler({ method: "POST", body: {
+    shopName: "ทองย้อย", paperWidthMm: 58, receipt: { logoUrl: "https://res.cloudinary.com/thongyoi/image/upload/v1/logo.webp" },
+    kitchen: { fontSize: "normal" }, cashDrawer: { enabled: false, openWhen: "after", pulsePin: 0, onTime: 25, offTime: 125 },
+  } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.settings.cloudinary, cloudinary);
+
+  res = fakeRes();
+  await menuHandler({ method: "POST", body: { menu: MENU, categories: ["จานเส้น", "ของทอด"] } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual((await globalThis.__shopStore.get("settings")).cloudinary, cloudinary);
+});
+
 test("order page shows the English shop name only in EN mode, Thai otherwise", () => {
   assert.match(orderHtml, /shopNameEn = settings\.shopNameEn \|\| '';/);
   assert.match(orderHtml, /LANG === 'en' && hasText\(shopNameEn\) \? String\(shopNameEn\)\.trim\(\) : shopName/);
   assert.match(adminHtml, /id="shopNameEn"/);
   assert.match(adminHtml, /shopNameEn: document\.getElementById\('shopNameEn'\)\.value/);
+});
+
+test("customer menu renders a Cloudinary image URL without stripping it", () => {
+  assert.match(orderHtml, /<img src="\$\{escAttr\(item\.image\)\}"/);
+  assert.match(orderHtml, /menuDetailImage\.src = item\.image \|\| '';/);
 });

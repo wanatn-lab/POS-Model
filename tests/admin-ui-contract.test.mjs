@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import vm from "node:vm";
 
 const root = new URL("../public/", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -57,11 +58,28 @@ test("Thongyoi branding is present without changing technical identifiers", () =
   assert.match(admin, /<title>ทองย้อย · แอดมิน<\/title>/);
   assert.match(admin, /ทองย้อย <small>· แอดมิน<\/small>/);
   assert.match(admin, /placeholder="เช่น thongyoi_menu_unsigned"/);
-  assert.match(admin, /const CLOUDINARY_MENU_FOLDER = 'menujk_up';/);
+  assert.match(admin, /const CLOUDINARY_MENU_FOLDER = 'thongyoi_menu';/);
+  assert.match(admin, /id="cloudinaryFolderLabel"/);
+  assert.match(admin, /folder: String\(config\.folder \|\| CLOUDINARY_MENU_FOLDER\)\.trim\(\) \|\| CLOUDINARY_MENU_FOLDER/);
+  assert.match(admin, /cloudinary: \{ cloudName, uploadPreset, folder \}/);
+  assert.match(admin, /form\.append\('folder', config\.folder\)/);
+  assert.doesNotMatch(admin, /menujk_up/);
   assert.match(admin, /X-Jinko-Client/);
   for (const page of ["table-status.html", "counter-print.html", "kitchen.html", "kitchen-manifest.webmanifest"]) {
     assert.match(read(page), /ทองย้อย/, `${page} should show the Thai brand`);
   }
+});
+
+test("Cloudinary keeps an existing folder and defaults new settings to Thongyoi", () => {
+  const start = admin.indexOf("function cloudinaryConfig()");
+  const end = admin.indexOf("function cloudinaryReady()");
+  assert.ok(start > 0 && end > start, "Cloudinary config helper not found");
+  const sandbox = { SETTINGS: {} };
+  vm.createContext(sandbox);
+  vm.runInContext("const CLOUDINARY_MENU_FOLDER = 'thongyoi_menu';\n" + admin.slice(start, end) + "\nthis.cloudinaryConfig = cloudinaryConfig;", sandbox);
+  assert.equal(sandbox.cloudinaryConfig().folder, "thongyoi_menu");
+  sandbox.SETTINGS = { cloudinary: { folder: "existing_menu_folder" } };
+  assert.equal(sandbox.cloudinaryConfig().folder, "existing_menu_folder");
 });
 
 test("table-status dashboard keeps hooks and renders SVG cards with real data", () => {

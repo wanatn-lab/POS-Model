@@ -599,7 +599,7 @@
       <div class="cloudinary-head">
         <div>
           <h3>อัปโหลดรูปเมนู</h3>
-          <p>รูปจะถูกบีบอัดในเบราว์เซอร์ก่อน แล้วอัปโหลดตรงไปยัง Cloudinary โฟลเดอร์ <code>menujk_up</code></p>
+          <p>รูปจะถูกบีบอัดในเบราว์เซอร์ก่อน แล้วอัปโหลดตรงไปยัง Cloudinary โฟลเดอร์ <code id="cloudinaryFolderLabel">thongyoi_menu</code></p>
         </div>
         <span class="cloudinary-badge" id="cloudinaryConfigBadge">ยังไม่ได้ตั้งค่า</span>
       </div>
@@ -1014,7 +1014,9 @@ let adminMenuCategoryFilter = null; // null = every category
 const adminMenuEditing = new Set(); // menu items whose card is expanded for editing (view-only state)
 let PRINTER_STATUS = { updatedAt: null, printers: [] };
 const PRINTER_STATUS_STALE_MS = 3 * 60 * 1000; // heartbeat is 60s; allow missed reports
-const CLOUDINARY_MENU_FOLDER = 'menujk_up';
+// Keep a previously configured folder so an existing restaurant never has
+// its uploaded images split into a new folder after this default changes.
+const CLOUDINARY_MENU_FOLDER = 'thongyoi_menu';
 
 // ---------- tabs ----------
 // Keep the current Admin tab in the URL without turning this into separate
@@ -1055,7 +1057,7 @@ function cloudinaryConfig() {
   return {
     cloudName: String(config.cloudName || '').trim(),
     uploadPreset: String(config.uploadPreset || '').trim(),
-    folder: CLOUDINARY_MENU_FOLDER,
+    folder: String(config.folder || CLOUDINARY_MENU_FOLDER).trim() || CLOUDINARY_MENU_FOLDER,
   };
 }
 function cloudinaryReady() {
@@ -1068,18 +1070,21 @@ function refreshCloudinaryUi() {
   const preset = document.getElementById('cloudinaryUploadPreset');
   const badge = document.getElementById('cloudinaryConfigBadge');
   const note = document.getElementById('cloudinaryConfigNote');
+  const folderLabel = document.getElementById('cloudinaryFolderLabel');
   if (cloudName) cloudName.value = config.cloudName;
   if (preset) preset.value = config.uploadPreset;
+  if (folderLabel) folderLabel.textContent = config.folder;
   if (!badge || !note) return;
   badge.classList.toggle('ready', cloudinaryReady());
   badge.textContent = cloudinaryReady() ? 'พร้อมอัปโหลด' : 'ยังไม่ได้ตั้งค่า';
   note.textContent = cloudinaryReady()
-    ? `เชื่อมต่อ ${config.cloudName} · โฟลเดอร์ ${CLOUDINARY_MENU_FOLDER}`
+    ? `เชื่อมต่อ ${config.cloudName} · โฟลเดอร์ ${config.folder}`
     : 'ตั้งค่า Cloud Name และ Unsigned Upload Preset ก่อนเลือกอัปโหลดรูป';
 }
 async function saveCloudinarySettings() {
   const cloudName = document.getElementById('cloudinaryCloudName').value.trim();
   const uploadPreset = document.getElementById('cloudinaryUploadPreset').value.trim();
+  const folder = cloudinaryConfig().folder;
   if (!cloudName || !uploadPreset) {
     alert('กรอก Cloud Name และ Unsigned Upload Preset ให้ครบก่อนนะครับ');
     return;
@@ -1092,11 +1097,11 @@ async function saveCloudinarySettings() {
     const response = await fetch(API + '/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cloudinary: { cloudName, uploadPreset, folder: CLOUDINARY_MENU_FOLDER } }),
+      body: JSON.stringify({ cloudinary: { cloudName, uploadPreset, folder } }),
     });
     if (!response.ok) throw new Error('save Cloudinary settings failed');
     const data = await response.json();
-    SETTINGS = data.settings || { ...SETTINGS, cloudinary: { cloudName, uploadPreset, folder: CLOUDINARY_MENU_FOLDER } };
+    SETTINGS = data.settings || { ...SETTINGS, cloudinary: { cloudName, uploadPreset, folder } };
     refreshCloudinaryUi();
     renderList();
     alert('บันทึกการเชื่อมต่อ Cloudinary แล้ว');
