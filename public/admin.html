@@ -665,6 +665,7 @@
       <input id="shopName" type="text">
       <label>ชื่อร้าน (English) ขึ้นที่หน้าลูกค้าเมื่อเลือก EN</label>
       <input id="shopNameEn" class="en-input" type="text" placeholder="ว่าง = ลูกค้าเห็นชื่อไทย">
+      <label class="avail-toggle"><input id="showPrices" type="checkbox"><span>แสดงราคาในตะกร้า ตรวจรายการ และประวัติของลูกค้า</span></label>
       <div class="item-actions">
         <button class="btn" onclick="saveGeneralPrintSettings()">💾 บันทึกตั้งค่าทั่วไป</button>
       </div>
@@ -1806,6 +1807,7 @@ async function loadSettings() {
   document.getElementById('paperWidthMm').value = String(SETTINGS.paperWidthMm || 80);
   document.getElementById('shopName').value = SETTINGS.shopName || '';
   document.getElementById('shopNameEn').value = SETTINGS.shopNameEn || '';
+  document.getElementById('showPrices').checked = SETTINGS.showPrices === true;
   refreshCloudinaryUi();
   PRINTERS = Array.isArray(SETTINGS.printers) ? SETTINGS.printers : [];
   renderPrinterList();
@@ -1819,7 +1821,8 @@ async function saveGeneralPrintSettings() {
   const body = {
     paperWidthMm: Number(document.getElementById('paperWidthMm').value),
     shopName: document.getElementById('shopName').value,
-    shopNameEn: document.getElementById('shopNameEn').value
+    shopNameEn: document.getElementById('shopNameEn').value,
+    showPrices: document.getElementById('showPrices').checked
   };
   await fetch(API + '/api/settings', {
     method: 'POST',

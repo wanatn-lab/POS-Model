@@ -46,6 +46,7 @@ const SEED_SETTINGS = {
   tableIds: TABLE_IDS,
   shopName: "ร้านข้าวหมูแดง",
   customerOrderMode: "auto",
+  showPrices: false,
   paperWidthMm: 80,
   cashDrawer: { ...CASH_DRAWER_DEFAULTS },
   printers: [
@@ -55,7 +56,7 @@ const SEED_SETTINGS = {
 };
 
 // What a customer's phone may read. The receipt design, tax id and printer setup stay private.
-const PUBLIC_FIELDS = ["shopName", "tableCount", "tableIds"];
+const PUBLIC_FIELDS = ["shopName", "tableCount", "tableIds", "showPrices"];
 const FULL_ACCESS_ROLES = ["device", "staff", "owner"];
 
 export function createSettingsHandler(redisClient = redis) {
@@ -71,7 +72,7 @@ export function createSettingsHandler(redisClient = redis) {
     const full = settings;
     // req.auth is set by src/api-router.js when access control is enforced.
     if (req.auth && !FULL_ACCESS_ROLES.includes(req.auth.role)) {
-      return res.status(200).json(Object.fromEntries(PUBLIC_FIELDS.map((field) => [field, full[field]])));
+      return res.status(200).json(Object.fromEntries(PUBLIC_FIELDS.map((field) => [field, field === "showPrices" ? full[field] === true : full[field]])));
     }
     return res.status(200).json(full);
   }

@@ -183,6 +183,7 @@ function detectLang() {
 let LANG = detectLang();
 let shopName = '';
 let shopNameEn = '';
+let showPrices = false;
 function t(key, arg) {
   const v = (I18N[LANG] && I18N[LANG][key] !== undefined) ? I18N[LANG][key] : I18N.th[key];
   return typeof v === 'function' ? v(arg) : v;
@@ -270,6 +271,7 @@ async function loadMenu() {
   try { shopState = shopRes && shopRes.ok ? await shopRes.json() : null; } catch (e) { shopState = null; }
   if (settings.shopName) shopName = settings.shopName;
   shopNameEn = settings.shopNameEn || '';
+  showPrices = settings.showPrices === true;
   applyLang();
 }
 
@@ -441,7 +443,7 @@ function updateCartBar() {
       <div class="inner">
         <div>
           <div class="cart-summary">${t('cartSummary', count)}</div>
-          <div class="cart-total">฿${total}</div>
+          <div class="cart-total">${showPrices ? `฿${total}` : ''}</div>
         </div>
         <div class="cart-cta">${t('cartCta')}</div>
       </div>`;
@@ -541,18 +543,18 @@ function renderReview() {
     <div class="review-row">
       <div style="flex:1">
         <div class="rname">${escAttr(displayName(it.id, it.name))}</div>
-        <div class="rprice">฿${it.price} / ${t('perItem')}</div>
+        <div class="rprice">${showPrices ? `฿${it.price} / ${t('perItem')}` : ''}</div>
       </div>
       <div class="rstepper">
         <button onclick="changeQty(${escAttr(JSON.stringify(it.id))}, -1, ${escAttr(JSON.stringify(it.optionIds))}); renderReview();">−</button>
         <span class="qty-num">${it.qty}</span>
         <button onclick="changeQty(${escAttr(JSON.stringify(it.id))}, 1, ${escAttr(JSON.stringify(it.optionIds))}); renderReview();">+</button>
       </div>
-      <div class="rsubtotal">฿${it.price * it.qty}</div>
+      <div class="rsubtotal">${showPrices ? `฿${it.price * it.qty}` : ''}</div>
     </div>
   `).join('');
   const { count, total } = cartCountTotal();
-  document.getElementById('reviewTotal').textContent = `฿${total}`;
+  document.getElementById('reviewTotal').textContent = showPrices ? `฿${total}` : '';
   document.getElementById('submitBtn').disabled = count === 0;
   if (count === 0) closeReview();
 }

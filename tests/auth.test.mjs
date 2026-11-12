@@ -362,12 +362,13 @@ test("orders: a cookie-authenticated order must come from our own pages", async 
 // ---------------------------------------------------------------------------------------------
 // 3. Settings visibility
 
-test("settings: the public only sees shopName and tableCount; devices and staff see everything", async () => {
+test("settings: public settings include only menu display fields", async () => {
   const w = await world();
   await w.call("POST", "/api/settings", { receipt: { taxId: "0123456789012", address: "secret street" }, printers: [{ ip: "10.0.0.5" }] }, w.creds.owner);
   for (const role of ["public", "customer", "reader"]) {
     const body = await (await w.call("GET", "/api/settings", undefined, w.creds[role])).json();
-    assert.deepEqual(Object.keys(body).sort(), ["shopName", "tableCount", "tableIds"], role);
+    assert.deepEqual(Object.keys(body).sort(), ["shopName", "showPrices", "tableCount", "tableIds"], role);
+    assert.equal(body.showPrices, false, role);
   }
   for (const role of ["device", "staff", "owner"]) {
     const body = await (await w.call("GET", "/api/settings", undefined, w.creds[role])).json();
