@@ -42,6 +42,6 @@ test('counter print defaults to and enforces a 20-second minimum', () => {
   assert.match(html, /pollSec: 20,/);
   assert.match(html, /id="fPollSec" min="20" max="60" value="20"/);
   assert.deepEqual(JSON.parse(JSON.stringify(loadCounterSettings(JSON.stringify({ pollSec: 15 })))), {
-    category: 'เครื่องดื่ม', shopName: 'ทองย้อย', pollSec: 20, autoPrint: true,
+    category: 'เครื่องดื่ม', shopName: 'ร้านของฉัน', pollSec: 20, autoPrint: true,
   });
 });

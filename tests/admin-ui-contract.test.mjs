@@ -54,9 +54,11 @@ test("admin keeps all tabs, deep links and the protected script order", () => {
   }
 });
 
-test("Thongyoi branding is present without changing technical identifiers", () => {
-  assert.match(admin, /<title>ทองย้อย · แอดมิน<\/title>/);
-  assert.match(admin, /ทองย้อย <small>· แอดมิน<\/small>/);
+test("shop name comes from settings; technical identifiers are unchanged", () => {
+  assert.match(admin, /<title>แอดมิน<\/title>/);
+  assert.match(admin, /<span id="brandName">ร้านของฉัน<\/span> <small>· แอดมิน<\/small>/);
+  assert.match(admin, /function applyShopBranding\(name\)/);
+  assert.match(admin, /applyShopBranding\(SETTINGS\.shopName\);/);
   assert.match(admin, /placeholder="เช่น thongyoi_menu_unsigned"/);
   assert.match(admin, /const CLOUDINARY_MENU_FOLDER = 'thongyoi_menu';/);
   assert.match(admin, /id="cloudinaryFolderLabel"/);
@@ -66,8 +68,15 @@ test("Thongyoi branding is present without changing technical identifiers", () =
   assert.match(admin, /cloudinary: \{ cloudName, uploadPreset, folder \}/);
   assert.match(admin, /form\.append\('folder', config\.folder\)/);
   assert.match(admin, /X-Jinko-Client/);
-  for (const page of ["table-status.html", "counter-print.html", "kitchen.html", "kitchen-manifest.webmanifest"]) {
-    assert.match(read(page), /ทองย้อย/, `${page} should show the Thai brand`);
+  // No page may hardcode the old shop's name; names come from settings.shopName.
+  for (const page of ["admin.html", "order.html", "table-status.html", "counter-print.html", "kitchen.html", "kitchen-manifest.webmanifest", "kitchen-assets/main.js"]) {
+    assert.doesNotMatch(read(page), /ทองย้อย/, `${page} must not hardcode the shop name`);
+  }
+  assert.match(read("order.html"), /<h1 id="shopTitle" class="n1">ร้านของฉัน<\/h1>/);
+  assert.match(read("table-status.html"), /id="brandName"/);
+  assert.match(read("kitchen-assets/main.js"), /s\.shopName|\.shopName/);
+  for (const file of ["../api/table-status.js", "../api/settings.js"]) {
+    assert.doesNotMatch(readFileSync(new URL(file, new URL("../public/", import.meta.url)), "utf8"), /ทองย้อย|ข้าวหมูแดง/, `${file} must not hardcode a shop name`);
   }
 });
 

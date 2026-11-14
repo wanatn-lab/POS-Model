@@ -16,6 +16,15 @@ async function request(path, options) {
   }
 }
 
+// ชื่อร้านบนแท็บมาจากการตั้งค่า ไม่ได้ฝังในโค้ด (ล้มเหลวได้ ไม่กระทบจอครัว)
+fetch("/api/settings", { cache: "no-store" })
+  .then((res) => (res.ok ? res.json() : null))
+  .then((s) => {
+    const shop = s && typeof s.shopName === "string" ? s.shopName.trim() : "";
+    if (shop) document.title = `จอครัว · ${shop}`;
+  })
+  .catch(() => {});
+
 const api = {
   get: () => request("/api/kitchen"),
   post: async (body) => {

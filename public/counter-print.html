@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>เคาน์เตอร์เครื่องดื่ม — ทองย้อย</title>
+<title>เคาน์เตอร์เครื่องดื่ม</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -167,7 +167,7 @@
   <div class="brand">
     <div class="brand-mark">ท</div>
     <div class="brand-text">
-      <h1 id="shopTitle">ทองย้อย</h1>
+      <h1 id="shopTitle">ร้านของฉัน</h1>
       <p>เคาน์เตอร์เครื่องดื่ม</p>
     </div>
   </div>
@@ -203,7 +203,7 @@
     </div>
     <div class="field">
       <label>ชื่อร้าน (ขึ้นหัวใบสั่ง)</label>
-      <input type="text" id="fShopName" placeholder="ทองย้อย">
+      <input type="text" id="fShopName" placeholder="ร้านของฉัน">
     </div>
     <div class="field">
       <label>ความถี่เช็คออเดอร์ใหม่ (วินาที)</label>
@@ -255,7 +255,7 @@ const PRINTED_KEY = "counterPrintPrintedIds";
 
 const DEFAULT_SETTINGS = {
   category: "เครื่องดื่ม",
-  shopName: "ทองย้อย",
+  shopName: "ร้านของฉัน",
   pollSec: 20,
   autoPrint: true,
 };
@@ -692,7 +692,7 @@ function restartPolling() {
 }
 
 async function init() {
-  document.getElementById("shopTitle").textContent = settings.shopName || "ทองย้อย";
+  document.getElementById("shopTitle").textContent = settings.shopName || "ร้านของฉัน";
   updateSdkPill(); // async — จะอัปเดต pill เองตอนเชื่อมต่อเสร็จ (สำเร็จหรือไม่ก็ตาม)
   await loadPaperWidth();
   await pollOrders();

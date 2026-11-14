@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>สถานะโต๊ะ — ทองย้อย</title>
+<title>สถานะโต๊ะ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -386,9 +386,9 @@
 
 <header class="top">
   <div class="brand">
-    <div class="brand-mark">ท</div>
+    <div class="brand-mark" id="brandMark">ร</div>
     <div class="brand-text">
-      <h1>ทองย้อย</h1>
+      <h1 id="brandName">ร้านของฉัน</h1>
       <p>สถานะโต๊ะ</p>
     </div>
   </div>
@@ -489,7 +489,7 @@
 <!-- ใบเสร็จสำหรับปริ้นเท่านั้น (ซ่อนอยู่นอกจอ แสดงเฉพาะตอนสั่งพิมพ์) -->
 <div class="receipt-print" id="receiptPrint">
   <div class="r-head">
-    <h2>ทองย้อย</h2>
+    <h2 id="receiptShopName">ร้านของฉัน</h2>
     <p>085-529-8799</p>
   </div>
   <div class="r-dash"></div>
@@ -996,7 +996,22 @@ async function refreshAll(){
     console.error(e);
   }
 }
+// ชื่อร้านมาจากการตั้งค่า (ถ้าโหลดไม่ได้ จะใช้ชื่อกลางที่ฝังในหน้า)
+async function applyShopBranding(){
+  try{
+    const res = await fetch('/api/settings');
+    if(!res.ok) return;
+    const shop = String((await res.json()).shopName || '').trim();
+    if(!shop) return;
+    document.title = 'สถานะโต๊ะ — ' + shop;
+    document.getElementById('brandName').textContent = shop;
+    document.getElementById('brandMark').textContent = Array.from(shop)[0];
+    document.getElementById('receiptShopName').textContent = shop;
+  }catch(e){ console.warn('shop name unavailable', e); }
+}
+
 async function init(){
+  applyShopBranding();
   try{
     await Promise.all([loadMenu(), loadTables()]);
     loaded = true;

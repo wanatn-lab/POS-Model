@@ -207,7 +207,7 @@ function receiptForTable(orders, clearMap, table, settings, now) {
     type: "receipt",
     station: "counter",
     status: "queued",
-    shopName: (settings && settings.shopName) || "ทองย้อย",
+    shopName: (settings && settings.shopName) || "ร้านของฉัน",
     // Kept at the top level for old bridge versions, while the complete nested
     // object lets newer versions reproduce every option from the Admin screen.
     phone: receiptConfig.shopPhone,

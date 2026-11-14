@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ทองย้อย · แอดมิน</title>
+<title>แอดมิน</title>
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="/assets/capybara-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
@@ -562,7 +562,7 @@
 </head>
 <body class="admin-redesign">
 <div class="topbar">
-  <h1><span class="brand-mark" aria-hidden="true">ท</span><span>ทองย้อย <small>· แอดมิน</small></span></h1>
+  <h1><span class="brand-mark" id="brandMark" aria-hidden="true">ร</span><span><span id="brandName">ร้านของฉัน</span> <small>· แอดมิน</small></span></h1>
   <div style="display:flex;align-items:center;gap:14px">
     <span id="shopStatusBox" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#fff;flex-wrap:wrap">
       <span id="shopStatusText">กำลังโหลดสถานะร้าน…</span>
@@ -823,7 +823,7 @@
 <!-- ใบเสร็จสำหรับปริ้นเท่านั้น (ซ่อนอยู่นอกจอ แสดงเฉพาะตอนสั่งพิมพ์) -->
 <div class="receipt-print" id="ts-receiptPrint">
   <div class="r-head">
-    <h2>ทองย้อย</h2>
+    <h2 id="ts-receiptShopName">ร้านของฉัน</h2>
     <p>085-529-8799</p>
   </div>
   <div class="r-dash"></div>
@@ -998,7 +998,7 @@
       </div>
 
       <aside class="rc-preview-col"><div class="rc-preview"><h3 id="rcPreviewTitle">พรีวิวใบเสร็จ</h3><p class="rc-hint">อัปเดตทันทีตามค่าที่แก้</p><div class="rc-paper-wrap">
-        <div class="rc-paper" id="rcReceiptPaper"><div class="rc-center"><div class="rc-logo" id="rcPreviewLogo">โลโก้</div><div class="rc-shop" id="rc-pv-shop">ทองย้อย</div><div class="rc-sub" id="rc-pv-address" style="display:none"></div><div class="rc-sub" id="rc-pv-phone"></div><div class="rc-sub" id="rc-pv-tax" style="display:none"></div></div><div class="rc-rule"></div><div class="rc-title" id="rc-pv-title">ใบเสร็จรับเงิน</div><div class="rc-meta" id="rc-pv-billno"><span>เลขที่บิล</span><span>#0042</span></div><div class="rc-meta" id="rc-pv-time"><span>เวลา</span><span>16 ส.ค. 69 · 19:24</span></div><div class="rc-meta" id="rc-pv-tableno"><span>โต๊ะ</span><span>5</span></div><div class="rc-rule"></div><table class="rc-items"><thead><tr><th>รายการ</th><th class="qty">จำนวน</th><th class="amt">ราคา</th></tr></thead><tbody><tr><td>ไส้อั่ว</td><td class="qty">1</td><td class="amt">45</td></tr><tr><td>ข้าวนึ่ง</td><td class="qty">2</td><td class="amt">40</td></tr><tr><td>น้ำเปล่า</td><td class="qty">2</td><td class="amt">20</td></tr></tbody></table><div class="rc-total"><span>ยอดสุทธิ</span><span>฿105</span></div><div class="rc-foot" id="rc-pv-thanks"></div><div class="rc-foot" style="color:#666;margin-top:3px" id="rc-pv-apology"></div><div id="rc-pv-qr-block" style="display:none"><div id="rc-pv-qr-canvas"></div><div class="rc-foot">สแกนรีวิว / ติดตามร้าน</div></div></div>
+        <div class="rc-paper" id="rcReceiptPaper"><div class="rc-center"><div class="rc-logo" id="rcPreviewLogo">โลโก้</div><div class="rc-shop" id="rc-pv-shop">ร้านของฉัน</div><div class="rc-sub" id="rc-pv-address" style="display:none"></div><div class="rc-sub" id="rc-pv-phone"></div><div class="rc-sub" id="rc-pv-tax" style="display:none"></div></div><div class="rc-rule"></div><div class="rc-title" id="rc-pv-title">ใบเสร็จรับเงิน</div><div class="rc-meta" id="rc-pv-billno"><span>เลขที่บิล</span><span>#0042</span></div><div class="rc-meta" id="rc-pv-time"><span>เวลา</span><span>16 ส.ค. 69 · 19:24</span></div><div class="rc-meta" id="rc-pv-tableno"><span>โต๊ะ</span><span>5</span></div><div class="rc-rule"></div><table class="rc-items"><thead><tr><th>รายการ</th><th class="qty">จำนวน</th><th class="amt">ราคา</th></tr></thead><tbody><tr><td>ไส้อั่ว</td><td class="qty">1</td><td class="amt">45</td></tr><tr><td>ข้าวนึ่ง</td><td class="qty">2</td><td class="amt">40</td></tr><tr><td>น้ำเปล่า</td><td class="qty">2</td><td class="amt">20</td></tr></tbody></table><div class="rc-total"><span>ยอดสุทธิ</span><span>฿105</span></div><div class="rc-foot" id="rc-pv-thanks"></div><div class="rc-foot" style="color:#666;margin-top:3px" id="rc-pv-apology"></div><div id="rc-pv-qr-block" style="display:none"><div id="rc-pv-qr-canvas"></div><div class="rc-foot">สแกนรีวิว / ติดตามร้าน</div></div></div>
         <div class="rc-paper rc-fs-md" id="rcKitchenPaper" style="display:none"><div class="rc-center"><div class="rc-shop">🔔 ใบสั่งครัว</div><div class="rc-sub">โต๊ะ 5</div><div class="rc-sub" id="rc-kv-time">19:24</div></div><div class="rc-rule"></div><div id="rc-kv-items"><div class="rc-cat" data-cat>เครื่องเคียง</div><div class="rc-kitchen-item">ไส้อั่ว × 1<div class="note" id="rc-kv-note1">ไม่ใส่ผัก</div></div><div class="rc-cat" data-cat>อาหารเหนือ</div><div class="rc-kitchen-item">ข้าวนึ่ง × 2</div><div id="rc-kv-price-line" style="font-size:10px;color:#666;display:none">รวมราคา (อ้างอิง) ฿85</div></div></div>
       </div></div></aside>
     </div>
@@ -1801,6 +1801,15 @@ function genQr() {
 }
 
 // ---------- ตั้งค่าทั่วไป + เครื่องพิมพ์ ----------
+// ชื่อร้านบนหัวหน้าจอ/แท็บ/ใบเสร็จมาจากการตั้งค่า ไม่ได้ฝังในโค้ด
+function applyShopBranding(name){
+  const shop = String(name || '').trim();
+  if(!shop) return;
+  document.title = shop + ' · แอดมิน';
+  const brand = document.getElementById('brandName'); if(brand) brand.textContent = shop;
+  const mark = document.getElementById('brandMark'); if(mark) mark.textContent = Array.from(shop)[0];
+  const rc = document.getElementById('ts-receiptShopName'); if(rc) rc.textContent = shop;
+}
 async function loadSettings() {
   const res = await fetch(API + '/api/settings');
   SETTINGS = await res.json();
@@ -1808,6 +1817,7 @@ async function loadSettings() {
   document.getElementById('paperWidthMm').value = String(SETTINGS.paperWidthMm || 80);
   document.getElementById('shopName').value = SETTINGS.shopName || '';
   document.getElementById('shopNameEn').value = SETTINGS.shopNameEn || '';
+  applyShopBranding(SETTINGS.shopName);
   document.getElementById('showPrices').checked = SETTINGS.showPrices === true;
   refreshCloudinaryUi();
   PRINTERS = Array.isArray(SETTINGS.printers) ? SETTINGS.printers : [];

@@ -44,7 +44,7 @@ export function validateCashDrawer(value) {
 const SEED_SETTINGS = {
   tableCount: TABLE_IDS.length,
   tableIds: TABLE_IDS,
-  shopName: "ร้านข้าวหมูแดง",
+  shopName: "ร้านของฉัน",
   customerOrderMode: "auto",
   showPrices: false,
   paperWidthMm: 80,

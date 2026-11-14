@@ -1,0 +1,52 @@
+// แม่แบบตั้งค่า Worker สำหรับ "ร้านใหม่" — ไม่มีค่าจริงของร้านใดอยู่ในไฟล์นี้
+// วิธีใช้: คัดลอกเป็น wrangler.jsonc ในโฟลเดอร์ของร้านใหม่ แล้วแทนค่า <...> ทุกจุด
+// ห้าม commit ไฟล์ที่ใส่ค่าจริงแล้ว และห้ามใส่รหัสผ่าน/token/secret ในไฟล์นี้
+// (secret ตั้งผ่าน `wrangler secret put` เท่านั้น ดูขั้นตอนใน NEW-SHOP-SETUP.md)
+{
+  "name": "<WORKER_NAME>",
+  "account_id": "<ACCOUNT_ID>",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/", "/kitchen", "/kitchen.html"]
+  },
+  // custom domain ของร้านใหม่ (ลบบล็อกนี้ถ้ายังใช้ *.workers.dev)
+  "routes": [{ "pattern": "<CUSTOM_DOMAIN>", "custom_domain": true }],
+  "durable_objects": {
+    "bindings": [{ "name": "SHOP", "class_name": "ShopDO" }]
+  },
+  // ฐานข้อมูล (Durable Object SQLite) ถูกสร้างใหม่ว่างๆ ในบัญชีของร้านใหม่ ไม่ใช้ร่วมกับร้านเดิม
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShopDO"] }],
+  "vars": {
+    "AUTH_MODE": "enforce",
+    // "true" = เปิดกระดิ่งเตือน (ต้องมี Firebase ของร้านใหม่เอง) / "false" = ปิด ไม่ต้องใช้ Firebase
+    "BELL_ENABLED": "false"
+    // เปิดกระดิ่งเมื่อพร้อม: ตั้ง BELL_ENABLED เป็น "true" และเพิ่มบรรทัดต่อไปนี้
+    // "FIREBASE_DATABASE_URL": "<FIREBASE_URL>"
+  },
+
+  // Staging ของร้านใหม่ (ไม่บังคับ): deploy ด้วย `wrangler deploy --env staging`
+  // Wrangler ไม่สืบทอด assets/durable_objects/migrations/vars เข้า env ต้องเขียนซ้ำ
+  "env": {
+    "staging": {
+      "name": "<WORKER_NAME>-staging",
+      "assets": {
+        "directory": "./public",
+        "binding": "ASSETS",
+        "run_worker_first": ["/api/*", "/", "/kitchen", "/kitchen.html"]
+      },
+      "durable_objects": {
+        "bindings": [{ "name": "SHOP", "class_name": "ShopDO" }]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShopDO"] }],
+      "vars": {
+        "AUTH_MODE": "enforce",
+        "APP_ENV": "preview",
+        "PREVIEW_BELL_ENABLED": "false"
+        // "PREVIEW_FIREBASE_DATABASE_URL": "<FIREBASE_URL>"
+      }
+    }
+  }
+}
