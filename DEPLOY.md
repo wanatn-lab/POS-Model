@@ -1,13 +1,14 @@
-# ร้านข้าวหมูแดง: staging, migration และ rollback
+# Deploy, staging, migration และ rollback (แม่แบบร้านใหม่)
 
-สถานะ: เอกสารนี้ใช้สำหรับ staging เท่านั้น ห้าม deploy หรือ push จนกว่าเจ้าของร้านอนุมัติเป็นลายลักษณ์อักษร
+สถานะ: เอกสารกลางสำหรับร้านใหม่ ห้าม deploy หรือ push จนกว่าเจ้าของร้านสั่งชัดเจน
+ขั้นตอนตั้งร้านใหม่ทีละข้อดูที่ `NEW-SHOP-SETUP.md`
 
 ## ขอบเขตระบบ
 
-- Worker: `moo-daeng-pos`; staging: `moo-daeng-pos-staging`
-- Cloudflare account: ร้านใหม่เท่านั้น (`e9992412fcfd4b91eb138afac9be9abf` ใน `wrangler.jsonc`)
-- Durable Object: SQLite ของ Worker แต่ละ environment แยกกัน ไม่มีการคัดลอกข้อมูลหรือ binding จากร้านเดิม
-- โต๊ะ: `T1`–`T14`; รับกลับบ้าน: `TA1`–`TA2`
+- Worker: `<WORKER_NAME>`; staging: `<WORKER_NAME>-staging` (ตั้งใน `wrangler.jsonc` ที่คัดลอกจาก `wrangler.template.jsonc`)
+- Cloudflare account: ของร้านใหม่เท่านั้น ค่า `<ACCOUNT_ID>` ห้ามใส่ในเอกสารหรือ Git
+- Durable Object: SQLite ของ Worker แต่ละ environment แยกกัน ไม่มีการคัดลอกข้อมูลหรือ binding จากร้านอื่น
+- โต๊ะ: ค่าเริ่มต้นของโค้ดคือ `T1`–`T14` และรับกลับบ้าน `TA1`–`TA2` (ปรับได้ในหน้าแอดมิน)
 - งานพิมพ์: `kitchen` = ใบสั่ง/ใบยกเลิก, `counter` = ใบเสร็จ; `bar` และ `qr` ไม่เปิดใช้
 
 ## สิทธิ์ API
@@ -85,4 +86,4 @@ ADMIN_TOKEN=... node scripts/do-backup.mjs export  --url https://<worker> --file
 ADMIN_TOKEN=... node scripts/do-backup.mjs restore --url https://<worker> --file /absolute/path/backup.json
 ```
 
-ซ้อมแล้วบน staging (2026-11-10): export → restore → export อีกรอบ ได้ 13 keys และไม่มีคีย์ไหนต่างกัน
+ก่อนเปิดร้านจริง ให้ซ้อม export → restore → export อีกรอบบน staging ของร้านนั้นเอง แล้วเทียบว่าไม่มีคีย์ไหนต่างกัน

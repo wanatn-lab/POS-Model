@@ -57,13 +57,13 @@ test("admin keeps all tabs, deep links and the protected script order", () => {
 test("shop name comes from settings; technical identifiers are unchanged", () => {
   assert.match(admin, /<title>แอดมิน<\/title>/);
   assert.match(admin, /<span id="brandName">ร้านของฉัน<\/span> <small>· แอดมิน<\/small>/);
-  assert.match(admin, /function applyShopBranding\(name\)/);
-  assert.match(admin, /applyShopBranding\(SETTINGS\.shopName\);/);
-  assert.match(admin, /placeholder="เช่น thongyoi_menu_unsigned"/);
-  assert.match(admin, /const CLOUDINARY_MENU_FOLDER = 'thongyoi_menu';/);
+  assert.match(admin, /function applyShopBranding\(settings\)/);
+  assert.match(admin, /applyShopBranding\(SETTINGS\);/);
+  assert.match(admin, /placeholder="เช่น myshop_menu_unsigned"/);
+  assert.match(admin, /const CLOUDINARY_MENU_FOLDER = 'shop_menu';/);
   assert.match(admin, /id="cloudinaryFolderLabel"/);
   assert.match(admin, /function cloudinaryFolder\(savedFolder\)/);
-  assert.match(admin, /folder === 'menujk_up' \? CLOUDINARY_MENU_FOLDER : folder/);
+  assert.match(admin, /return folder \|\| CLOUDINARY_MENU_FOLDER;/);
   assert.match(admin, /folder: cloudinaryFolder\(config\.folder\)/);
   assert.match(admin, /cloudinary: \{ cloudName, uploadPreset, folder \}/);
   assert.match(admin, /form\.append\('folder', config\.folder\)/);
@@ -80,18 +80,30 @@ test("shop name comes from settings; technical identifiers are unchanged", () =>
   }
 });
 
-test("Cloudinary replaces the old restaurant folder but retains a custom folder", () => {
+test("Cloudinary uses the neutral default folder when none is saved, and keeps a custom folder", () => {
   const start = admin.indexOf("function cloudinaryFolder(savedFolder)");
   const end = admin.indexOf("function cloudinaryReady()");
   assert.ok(start > 0 && end > start, "Cloudinary config helper not found");
   const sandbox = { SETTINGS: {} };
   vm.createContext(sandbox);
-  vm.runInContext("const CLOUDINARY_MENU_FOLDER = 'thongyoi_menu';\n" + admin.slice(start, end) + "\nthis.cloudinaryConfig = cloudinaryConfig;", sandbox);
-  assert.equal(sandbox.cloudinaryConfig().folder, "thongyoi_menu");
-  sandbox.SETTINGS = { cloudinary: { folder: "menujk_up" } };
-  assert.equal(sandbox.cloudinaryConfig().folder, "thongyoi_menu");
+  vm.runInContext("const CLOUDINARY_MENU_FOLDER = 'shop_menu';\n" + admin.slice(start, end) + "\nthis.cloudinaryConfig = cloudinaryConfig;", sandbox);
+  assert.equal(sandbox.cloudinaryConfig().folder, "shop_menu");
+  sandbox.SETTINGS = { cloudinary: { folder: "   " } };
+  assert.equal(sandbox.cloudinaryConfig().folder, "shop_menu");
   sandbox.SETTINGS = { cloudinary: { folder: "existing_menu_folder" } };
   assert.equal(sandbox.cloudinaryConfig().folder, "existing_menu_folder");
+});
+
+test("phone numbers and theme colours are not hardcoded to the old shop", () => {
+  assert.doesNotMatch(admin, /\d{3}-\d{3}-\d{4}/);
+  assert.doesNotMatch(read("table-status.html"), /\d{3}-\d{3}-\d{4}/);
+  assert.match(admin, /id="ts-receiptPhone"/);
+  assert.match(read("table-status.html"), /id="receiptPhone"/);
+  const billHistory = readFileSync(new URL("../api/bill-history.js", root), "utf8");
+  assert.doesNotMatch(billHistory, /\d{3}-\d{3}-\d{4}|ทองย้อย/);
+  const css = read("admin-theme.css");
+  assert.doesNotMatch(css, /thongyoi/i);
+  assert.match(css, /--brand-primary:/);
 });
 
 test("menu image errors use the no-image state", () => {

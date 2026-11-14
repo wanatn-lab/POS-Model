@@ -1,42 +1,43 @@
-/* Thongyoi admin visual layer. Scoped so customer-facing pages keep style.css unchanged. */
+/* Admin visual layer. Scoped so customer-facing pages keep style.css unchanged.
+   เปลี่ยนสีแบรนด์ของร้านได้ที่ตัวแปร --brand-* ชุดแรกใน body.admin-redesign ด้านล่าง */
 :root { color-scheme: light; }
 
 body.admin-redesign {
-  --thongyoi-red: #a31f24;
-  --thongyoi-red-dark: #74151d;
-  --thongyoi-gold: #d4a23a;
-  --thongyoi-ink: #2b1b1a;
-  --thongyoi-muted: #756967;
-  --thongyoi-paper: #f8f3ef;
-  --thongyoi-line: #e8ddd6;
+  --brand-primary: #a31f24;
+  --brand-primary-dark: #74151d;
+  --brand-accent: #d4a23a;
+  --brand-ink: #2b1b1a;
+  --brand-muted: #756967;
+  --brand-paper: #f8f3ef;
+  --brand-line: #e8ddd6;
   background:
     radial-gradient(circle at 100% 0, rgba(212,162,58,.12), transparent 27rem),
-    var(--thongyoi-paper);
-  color: var(--thongyoi-ink);
+    var(--brand-paper);
+  color: var(--brand-ink);
 }
 
 body.admin-redesign .topbar {
   max-width: none;
   min-height: 76px;
   padding: 14px max(18px, calc((100vw - 1180px) / 2));
-  background: linear-gradient(118deg, var(--thongyoi-red-dark), var(--thongyoi-red) 58%, #bd3e31);
-  border-bottom: 4px solid var(--thongyoi-gold);
+  background: linear-gradient(118deg, var(--brand-primary-dark), var(--brand-primary) 58%, #bd3e31);
+  border-bottom: 4px solid var(--brand-accent);
   box-shadow: 0 4px 20px rgba(92, 19, 23, .24);
 }
 body.admin-redesign .topbar h1 { display:flex; align-items:center; gap:10px; font:700 22px/1 'Kanit','Noto Sans Thai',sans-serif; letter-spacing:.1px; }
 body.admin-redesign .topbar h1 small { font-size:14px; font-weight:500; opacity:.82; }
-body.admin-redesign .brand-mark { display:grid; place-items:center; width:36px; height:36px; border:1px solid rgba(255,255,255,.62); border-radius:50%; background:var(--thongyoi-gold); color:var(--thongyoi-red-dark); font:700 22px/1 'Kanit'; box-shadow:0 2px 9px rgba(0,0,0,.16); }
+body.admin-redesign .brand-mark { display:grid; place-items:center; width:36px; height:36px; border:1px solid rgba(255,255,255,.62); border-radius:50%; background:var(--brand-accent); color:var(--brand-primary-dark); font:700 22px/1 'Kanit'; box-shadow:0 2px 9px rgba(0,0,0,.16); }
 body.admin-redesign .topbar a { padding:8px 12px; border:1px solid rgba(255,255,255,.35); border-radius:9px; text-decoration:none; }
 body.admin-redesign .topbar a:hover { background:rgba(255,255,255,.12); }
 
 body.admin-redesign .tabs {
   position:relative; z-index:2; max-width:1180px; margin:18px auto 0; padding:7px; gap:4px;
-  flex-wrap:nowrap; overflow-x:auto; border:1px solid var(--thongyoi-line); border-radius:16px;
+  flex-wrap:nowrap; overflow-x:auto; border:1px solid var(--brand-line); border-radius:16px;
   background:#fff; box-shadow:0 7px 24px rgba(64,35,32,.08); scrollbar-width:thin;
 }
 body.admin-redesign .tabs button { flex:0 0 auto; min-height:42px; padding:9px 15px; border:0; border-radius:10px; background:transparent; color:#625958; font:600 14px 'Noto Sans Thai',sans-serif; }
-body.admin-redesign .tabs button:hover { background:#fbf2ee; color:var(--thongyoi-red); }
-body.admin-redesign .tabs button.active { background:var(--thongyoi-red); border-color:var(--thongyoi-red); color:#fff; box-shadow:0 4px 10px rgba(163,31,36,.22); }
+body.admin-redesign .tabs button:hover { background:#fbf2ee; color:var(--brand-primary); }
+body.admin-redesign .tabs button.active { background:var(--brand-primary); border-color:var(--brand-primary); color:#fff; box-shadow:0 4px 10px rgba(163,31,36,.22); }
 
 body.admin-redesign .wrap { max-width:1180px; padding:22px 20px 96px; }
 body.admin-redesign .panel > .item-form,
@@ -46,38 +47,38 @@ body.admin-redesign .panel > h3,
 body.admin-redesign .panel > p { max-width:100%; }
 body.admin-redesign .item-form,
 body.admin-redesign .printer-box {
-  border:1px solid var(--thongyoi-line); border-radius:16px; padding:20px; margin-bottom:16px;
+  border:1px solid var(--brand-line); border-radius:16px; padding:20px; margin-bottom:16px;
   box-shadow:0 6px 20px rgba(69,40,34,.06); background:#fff;
 }
 body.admin-redesign .item-form h3,
-body.admin-redesign .printer-box h3 { color:var(--thongyoi-red-dark); }
+body.admin-redesign .printer-box h3 { color:var(--brand-primary-dark); }
 body.admin-redesign label { margin:12px 0 5px; color:#554b49; font-weight:600; font-size:13px; }
 body.admin-redesign input,
 body.admin-redesign select,
-body.admin-redesign textarea { min-height:44px; border-color:#ded2cb; border-radius:10px; background:#fffdfb; color:var(--thongyoi-ink); }
+body.admin-redesign textarea { min-height:44px; border-color:#ded2cb; border-radius:10px; background:#fffdfb; color:var(--brand-ink); }
 body.admin-redesign input:focus,
 body.admin-redesign select:focus,
-body.admin-redesign textarea:focus { outline:3px solid rgba(212,162,58,.25); border-color:var(--thongyoi-gold); }
-body.admin-redesign .btn { min-height:42px; border-radius:10px; background:var(--thongyoi-red); box-shadow:0 3px 8px rgba(163,31,36,.17); }
-body.admin-redesign .btn:hover { background:var(--thongyoi-red-dark); }
+body.admin-redesign textarea:focus { outline:3px solid rgba(212,162,58,.25); border-color:var(--brand-accent); }
+body.admin-redesign .btn { min-height:42px; border-radius:10px; background:var(--brand-primary); box-shadow:0 3px 8px rgba(163,31,36,.17); }
+body.admin-redesign .btn:hover { background:var(--brand-primary-dark); }
 body.admin-redesign .btn.secondary { background:#fff8e9; color:#76531b; border:1px solid #ecd59f; box-shadow:none; }
 body.admin-redesign .btn.secondary:hover { background:#faedcc; }
 body.admin-redesign .btn.danger { background:#b3261e; }
 body.admin-redesign .item-actions { gap:10px; margin-top:16px; }
 
-body.admin-redesign .menu-editor-filter { align-items:center; padding:12px 14px; margin:0 0 16px; border:1px solid var(--thongyoi-line); border-radius:14px; background:#fff; }
+body.admin-redesign .menu-editor-filter { align-items:center; padding:12px 14px; margin:0 0 16px; border:1px solid var(--brand-line); border-radius:14px; background:#fff; }
 body.admin-redesign .menu-editor-category-chips button { min-height:34px; border-color:#eadbd3; color:#644e4b; }
-body.admin-redesign .menu-editor-category-chips button.active { background:var(--thongyoi-red); border-color:var(--thongyoi-red); }
+body.admin-redesign .menu-editor-category-chips button.active { background:var(--brand-primary); border-color:var(--brand-primary); }
 body.admin-redesign .cloudinary-settings { border-color:#eddaad; background:linear-gradient(135deg,#fffaf0,#fff); }
-body.admin-redesign .cloudinary-head h3 { color:var(--thongyoi-red-dark); }
+body.admin-redesign .cloudinary-head h3 { color:var(--brand-primary-dark); }
 body.admin-redesign #itemList { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
 body.admin-redesign #itemList .item-form { margin:0; height:100%; }
 body.admin-redesign .must-try-toggle { border-color:#e9c56e; background:#fff9e8; }
 
 body.admin-redesign .qr-grid { grid-template-columns:repeat(auto-fill,minmax(164px,1fr)); gap:16px; }
-body.admin-redesign .qr-grid > div { border:1px solid var(--thongyoi-line); border-radius:16px; padding:16px; box-shadow:0 5px 16px rgba(69,40,34,.06); }
+body.admin-redesign .qr-grid > div { border:1px solid var(--brand-line); border-radius:16px; padding:16px; box-shadow:0 5px 16px rgba(69,40,34,.06); }
 body.admin-redesign .printer-box { position:relative; overflow:hidden; }
-body.admin-redesign .printer-box::before { content:""; position:absolute; inset:0 auto 0 0; width:4px; background:var(--thongyoi-gold); }
+body.admin-redesign .printer-box::before { content:""; position:absolute; inset:0 auto 0 0; width:4px; background:var(--brand-accent); }
 body.admin-redesign .agent-banner { border:1px solid #ead9d0; border-radius:10px; padding:11px 13px; }
 
 body.admin-redesign #panel-tablestatus {
@@ -88,9 +89,9 @@ body.admin-redesign #panel-tablestatus {
   --pending-bg:#fff0d7; --pending-text:#9a5911; --pending-dot:#d99b28;
   --dining-bg:#f7e3e5; --dining-text:#922630; --dining-dot:#be3842;
   --danger:#b3261e; --danger-dark:#8e1d18;
-  margin:0; padding:22px; border:1px solid var(--thongyoi-line); border-radius:18px; box-shadow:0 8px 24px rgba(69,40,34,.07);
+  margin:0; padding:22px; border:1px solid var(--brand-line); border-radius:18px; box-shadow:0 8px 24px rgba(69,40,34,.07);
 }
-body.admin-redesign #panel-tablestatus .ts-summary-row { display:grid; grid-template-columns:repeat(3,1fr); margin:0 0 14px; padding:4px; border-radius:20px; border-bottom:4px solid var(--thongyoi-gold); background:linear-gradient(135deg,var(--thongyoi-red-dark),var(--thongyoi-red)); box-shadow:0 6px 20px rgba(69,40,34,.12); }
+body.admin-redesign #panel-tablestatus .ts-summary-row { display:grid; grid-template-columns:repeat(3,1fr); margin:0 0 14px; padding:4px; border-radius:20px; border-bottom:4px solid var(--brand-accent); background:linear-gradient(135deg,var(--brand-primary-dark),var(--brand-primary)); box-shadow:0 6px 20px rgba(69,40,34,.12); }
 body.admin-redesign #panel-tablestatus .summary-item { align-items:center; min-width:0; padding:10px 6px; border:0; border-right:1px solid rgba(255,255,255,.22); border-radius:0; background:none; text-align:center; }
 body.admin-redesign #panel-tablestatus .summary-item:last-child { border-right:0; }
 body.admin-redesign #panel-tablestatus .summary-item .num,
@@ -98,38 +99,38 @@ body.admin-redesign #panel-tablestatus .summary-item.empty .num,
 body.admin-redesign #panel-tablestatus .summary-item.pending .num { color:#ffe08c; font-size:26px; }
 body.admin-redesign #panel-tablestatus .summary-item .lbl { color:#ffe3e3; font-size:12px; }
 body.admin-redesign #panel-tablestatus .filters { padding-top:8px; }
-body.admin-redesign #panel-tablestatus .chip.active { background:var(--thongyoi-red); border-color:var(--thongyoi-red); }
+body.admin-redesign #panel-tablestatus .chip.active { background:var(--brand-primary); border-color:var(--brand-primary); }
 body.admin-redesign #panel-tablestatus .grid { grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
-body.admin-redesign #panel-tablestatus .table-card { display:flex; flex-direction:column; align-items:center; gap:4px; width:100%; min-height:210px; padding:12px 10px 14px; border:2px solid var(--thongyoi-line); border-radius:22px; background:#fff; color:inherit; font:inherit; text-align:center; }
+body.admin-redesign #panel-tablestatus .table-card { display:flex; flex-direction:column; align-items:center; gap:4px; width:100%; min-height:210px; padding:12px 10px 14px; border:2px solid var(--brand-line); border-radius:22px; background:#fff; color:inherit; font:inherit; text-align:center; }
 body.admin-redesign #panel-tablestatus .table-card:focus-visible { outline:4px solid rgba(212,162,58,.7); outline-offset:2px; }
 body.admin-redesign #panel-tablestatus .table-card::before,
 body.admin-redesign #panel-tablestatus .table-card::after { display:none; }
 body.admin-redesign #panel-tablestatus .tsv { width:104px; height:104px; flex:none; }
 body.admin-redesign #panel-tablestatus .tsv .ch { fill:#e8d6a6; }
-body.admin-redesign #panel-tablestatus .tsv .tp { fill:#fff7e3; stroke:var(--thongyoi-gold); stroke-width:3; }
+body.admin-redesign #panel-tablestatus .tsv .tp { fill:#fff7e3; stroke:var(--brand-accent); stroke-width:3; }
 body.admin-redesign #panel-tablestatus .tsv .ti { fill:none; stroke:#efdca8; stroke-width:2; }
-body.admin-redesign #panel-tablestatus .tsv .tx { font-weight:800; fill:var(--thongyoi-red-dark); font-family:inherit; }
-body.admin-redesign #panel-tablestatus .t-preview { min-height:20px; color:var(--thongyoi-muted); font-size:13px; line-height:1.4; overflow-wrap:anywhere; }
+body.admin-redesign #panel-tablestatus .tsv .tx { font-weight:800; fill:var(--brand-primary-dark); font-family:inherit; }
+body.admin-redesign #panel-tablestatus .t-preview { min-height:20px; color:var(--brand-muted); font-size:13px; line-height:1.4; overflow-wrap:anywhere; }
 body.admin-redesign #panel-tablestatus .table-card .t-meta { width:100%; margin-top:auto; align-items:baseline; }
-body.admin-redesign #panel-tablestatus .table-card .t-meta .amt { color:var(--thongyoi-gold); font-size:20px; }
-body.admin-redesign #panel-tablestatus .table-card.pending { border-color:var(--thongyoi-red); background:linear-gradient(180deg,#fff4f2,#fddfdc); }
-body.admin-redesign #panel-tablestatus .table-card.pending .tsv .ch { fill:var(--thongyoi-gold); }
-body.admin-redesign #panel-tablestatus .table-card.pending .tsv .tp { fill:var(--thongyoi-red); stroke:var(--thongyoi-red-dark); }
+body.admin-redesign #panel-tablestatus .table-card .t-meta .amt { color:var(--brand-accent); font-size:20px; }
+body.admin-redesign #panel-tablestatus .table-card.pending { border-color:var(--brand-primary); background:linear-gradient(180deg,#fff4f2,#fddfdc); }
+body.admin-redesign #panel-tablestatus .table-card.pending .tsv .ch { fill:var(--brand-accent); }
+body.admin-redesign #panel-tablestatus .table-card.pending .tsv .tp { fill:var(--brand-primary); stroke:var(--brand-primary-dark); }
 body.admin-redesign #panel-tablestatus .table-card.pending .tsv .ti { stroke:rgba(255,255,255,.4); }
 body.admin-redesign #panel-tablestatus .table-card.pending .tsv .tx { fill:#fff; }
-body.admin-redesign #panel-tablestatus .table-card.pending .t-meta .amt { color:var(--thongyoi-red); }
-body.admin-redesign #panel-tablestatus .panel-head { background:linear-gradient(120deg,var(--thongyoi-red-dark),var(--thongyoi-red)); border-bottom:3px solid var(--thongyoi-gold); }
+body.admin-redesign #panel-tablestatus .table-card.pending .t-meta .amt { color:var(--brand-primary); }
+body.admin-redesign #panel-tablestatus .panel-head { background:linear-gradient(120deg,var(--brand-primary-dark),var(--brand-primary)); border-bottom:3px solid var(--brand-accent); }
 
 body.admin-redesign #panel-billhistory .bh-toolbar,
 body.admin-redesign #panel-billhistory .bh-summary,
-body.admin-redesign #panel-billhistory .bh-card { border-color:var(--thongyoi-line); }
-body.admin-redesign #panel-receipt { --rc-teal:var(--thongyoi-red); --rc-teal-dark:var(--thongyoi-red-dark); --rc-border:var(--thongyoi-line); --rc-soft:var(--thongyoi-muted); }
+body.admin-redesign #panel-billhistory .bh-card { border-color:var(--brand-line); }
+body.admin-redesign #panel-receipt { --rc-teal:var(--brand-primary); --rc-teal-dark:var(--brand-primary-dark); --rc-border:var(--brand-line); --rc-soft:var(--brand-muted); }
 body.admin-redesign #panel-receipt .rc-card,
 body.admin-redesign #panel-receipt .rc-preview { border-radius:16px; box-shadow:0 6px 20px rgba(69,40,34,.06); }
-body.admin-redesign #panel-receipt .rc-subtabs { border:1px solid var(--thongyoi-line); background:#fffaf6; }
-body.admin-redesign #panel-receipt .rc-subtabs button.active { color:var(--thongyoi-red); }
+body.admin-redesign #panel-receipt .rc-subtabs { border:1px solid var(--brand-line); background:#fffaf6; }
+body.admin-redesign #panel-receipt .rc-subtabs button.active { color:var(--brand-primary); }
 body.admin-redesign #panel-receipt .rc-paper-wrap { background:linear-gradient(145deg,#f1e7df,#fff9f2); }
-body.admin-redesign #panel-receipt .rc-paper { border-top:4px solid var(--thongyoi-gold); }
+body.admin-redesign #panel-receipt .rc-paper { border-top:4px solid var(--brand-accent); }
 
 @media (max-width: 900px) {
   body.admin-redesign .topbar { padding-inline:18px; }
@@ -153,9 +154,9 @@ body.admin-redesign #panel-receipt .rc-paper { border-top:4px solid var(--thongy
 
 /* ===== Admin shell: header + floating tab bar (prototype v2) ===== */
 body.admin-redesign { background:#f6f2ef; }
-body.admin-redesign .topbar { position:relative; min-height:0; padding:14px max(20px, calc((100vw - 1180px) / 2)) 56px; align-items:center; background:linear-gradient(135deg,#7c1519,#c93338); box-shadow:none; border-bottom:4px solid var(--thongyoi-gold); }
+body.admin-redesign .topbar { position:relative; min-height:0; padding:14px max(20px, calc((100vw - 1180px) / 2)) 56px; align-items:center; background:linear-gradient(135deg,#7c1519,#c93338); box-shadow:none; border-bottom:4px solid var(--brand-accent); }
 body.admin-redesign .topbar h1 { gap:14px; font:700 20px/1.2 'Sarabun','Noto Sans Thai',sans-serif; }
-body.admin-redesign .brand-mark { width:46px; height:46px; border:0; border-radius:14px; background:var(--thongyoi-gold); color:#7c1519; font:800 22px/1 'Sarabun','Noto Sans Thai',sans-serif; box-shadow:none; }
+body.admin-redesign .brand-mark { width:46px; height:46px; border:0; border-radius:14px; background:var(--brand-accent); color:#7c1519; font:800 22px/1 'Sarabun','Noto Sans Thai',sans-serif; box-shadow:none; }
 body.admin-redesign .topbar h1 > span:last-child::after { content:"จัดการร้านและระบบสั่งอาหาร"; display:block; margin-top:2px; font-size:12px; font-weight:400; opacity:.85; }
 body.admin-redesign .topbar h1 small { font-size:inherit; font-weight:700; opacity:1; }
 body.admin-redesign .topbar a { padding:0; border:0; border-radius:0; color:#ffe3a0 !important; font-size:14px !important; }
@@ -163,8 +164,8 @@ body.admin-redesign .topbar a:hover { background:none; text-decoration:underline
 body.admin-redesign .tabs { position:relative; z-index:20; width:calc(100% - 32px); max-width:1148px; margin:-34px auto 0; padding:6px; gap:4px; border:0; border-radius:18px; background:#fff; box-shadow:0 2px 12px rgba(90,25,25,.09); overflow-x:auto; scrollbar-width:none; }
 body.admin-redesign .tabs::-webkit-scrollbar { display:none; }
 body.admin-redesign .tabs button { flex:1 0 auto; display:flex; align-items:center; justify-content:center; gap:8px; min-height:50px; padding:12px 14px; border:0; border-radius:13px; background:none; color:#8a7d7a; font:600 16px 'Sarabun','Noto Sans Thai',sans-serif; white-space:nowrap; }
-body.admin-redesign .tabs button:hover { background:#fbf2ee; color:var(--thongyoi-red); }
-body.admin-redesign .tabs button.active { background:var(--thongyoi-red); color:#fff; box-shadow:inset 0 -3px 0 var(--thongyoi-gold); }
+body.admin-redesign .tabs button:hover { background:#fbf2ee; color:var(--brand-primary); }
+body.admin-redesign .tabs button.active { background:var(--brand-primary); color:#fff; box-shadow:inset 0 -3px 0 var(--brand-accent); }
 body.admin-redesign .tabs button[data-tab="tablestatus"]::before { content:"🪑"; }
 body.admin-redesign .tabs button[data-tab="menu"]::before { content:"🍜"; }
 body.admin-redesign .tabs button[data-tab="qr"]::before { content:"🔳"; }

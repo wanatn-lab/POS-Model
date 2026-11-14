@@ -1,24 +1,22 @@
-# POS Model
+# POS Model (แม่แบบระบบสั่งอาหารและ POS สำหรับร้านอาหาร)
 
-Backup template of the Cloudflare restaurant ordering system, captured from
-`jinko-qr` commit `94a2fdb` after the Thongyoi admin redesign.
+แม่แบบระบบสั่งอาหารผ่าน QR และ POS บน Cloudflare Workers + Durable Objects (SQLite)
+ชื่อร้าน เบอร์โทร โลโก้ เมนู และเวลาเปิด-ปิด ตั้งในหน้าแอดมินหลัง deploy ไม่ได้ฝังในโค้ด
 
-## Included
+## มีอะไรบ้าง
 
-- Customer ordering page and admin dashboard
-- Table, menu, receipt, kitchen, printer, and bill-history features
-- Cloudflare Worker and Durable Object source
-- Automated tests and deployment documentation
+- หน้าสั่งอาหารของลูกค้า และหน้าแอดมิน
+- โต๊ะ เมนู ใบเสร็จ จอครัว เครื่องพิมพ์ ลิ้นชักเก็บเงิน และประวัติบิล
+- Cloudflare Worker + Durable Object
+- เทสต์อัตโนมัติ (`npm test`) และเอกสาร deploy
 
-## Before using this for another restaurant
+## เริ่มสำหรับร้านใหม่
 
-1. Do not deploy with the existing `wrangler.jsonc` values. Replace the Worker
-   names and `account_id` with values for the new restaurant.
-2. Configure a separate staging Worker and Durable Object before production.
-3. Set secrets only with `wrangler secret put`; never put passwords, tokens, or
-   `.dev.vars` files in Git.
-4. Update the saved shop settings from the admin page after deployment.
-5. Run tests and verify staging before any production deployment.
+1. อ่าน `NEW-SHOP-SETUP.md` และทำตามรายการตรวจสอบ
+2. คัดลอก `wrangler.template.jsonc` เป็น `wrangler.jsonc` แล้วแทนค่า `<...>` (ห้ามใช้ค่าของร้านอื่น)
+3. ตั้ง secret ด้วย `wrangler secret put` เท่านั้น ห้ามใส่รหัส/token ใน Git หรือไฟล์ `.dev.vars`
+4. ทดสอบบน staging ก่อน deploy จริง
+5. ก่อนส่งโค้ดให้ร้านใหม่ รัน `node scripts/check-new-shop.mjs --all` ต้องไม่พบข้อมูลร้านเดิม
+6. เปลี่ยนสีแบรนด์ได้ที่ตัวแปร `--brand-*` ใน `public/admin-theme.css`
 
-This repository intentionally excludes local dependencies, Wrangler state, and
-secret files.
+ที่เก็บนี้ตั้งใจไม่รวม dependency ในเครื่อง สถานะของ Wrangler และไฟล์ secret

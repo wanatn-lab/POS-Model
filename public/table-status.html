@@ -490,7 +490,7 @@
 <div class="receipt-print" id="receiptPrint">
   <div class="r-head">
     <h2 id="receiptShopName">ร้านของฉัน</h2>
-    <p>085-529-8799</p>
+    <p id="receiptPhone"></p>
   </div>
   <div class="r-dash"></div>
   <div class="r-info">
@@ -1001,7 +1001,10 @@ async function applyShopBranding(){
   try{
     const res = await fetch('/api/settings');
     if(!res.ok) return;
-    const shop = String((await res.json()).shopName || '').trim();
+    const settings = await res.json();
+    const phone = String((settings.receipt && settings.receipt.shopPhone) || '').trim();
+    document.getElementById('receiptPhone').textContent = phone;
+    const shop = String(settings.shopName || '').trim();
     if(!shop) return;
     document.title = 'สถานะโต๊ะ — ' + shop;
     document.getElementById('brandName').textContent = shop;

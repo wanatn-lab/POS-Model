@@ -600,7 +600,7 @@
       <div class="cloudinary-head">
         <div>
           <h3>อัปโหลดรูปเมนู</h3>
-          <p>รูปจะถูกบีบอัดในเบราว์เซอร์ก่อน แล้วอัปโหลดตรงไปยัง Cloudinary โฟลเดอร์ <code id="cloudinaryFolderLabel">thongyoi_menu</code></p>
+          <p>รูปจะถูกบีบอัดในเบราว์เซอร์ก่อน แล้วอัปโหลดตรงไปยัง Cloudinary โฟลเดอร์ <code id="cloudinaryFolderLabel">shop_menu</code></p>
         </div>
         <span class="cloudinary-badge" id="cloudinaryConfigBadge">ยังไม่ได้ตั้งค่า</span>
       </div>
@@ -611,7 +611,7 @@
         </div>
         <div>
           <label for="cloudinaryUploadPreset">Unsigned Upload Preset</label>
-          <input id="cloudinaryUploadPreset" type="text" autocomplete="off" spellcheck="false" placeholder="เช่น thongyoi_menu_unsigned">
+          <input id="cloudinaryUploadPreset" type="text" autocomplete="off" spellcheck="false" placeholder="เช่น myshop_menu_unsigned">
         </div>
       </div>
       <div class="item-actions" style="align-items:center">
@@ -824,7 +824,7 @@
 <div class="receipt-print" id="ts-receiptPrint">
   <div class="r-head">
     <h2 id="ts-receiptShopName">ร้านของฉัน</h2>
-    <p>085-529-8799</p>
+    <p id="ts-receiptPhone"></p>
   </div>
   <div class="r-dash"></div>
   <div class="r-info">
@@ -1016,7 +1016,7 @@ let adminMenuCategoryFilter = null; // null = every category
 const adminMenuEditing = new Set(); // menu items whose card is expanded for editing (view-only state)
 let PRINTER_STATUS = { updatedAt: null, printers: [] };
 const PRINTER_STATUS_STALE_MS = 3 * 60 * 1000; // heartbeat is 60s; allow missed reports
-const CLOUDINARY_MENU_FOLDER = 'thongyoi_menu';
+const CLOUDINARY_MENU_FOLDER = 'shop_menu'; // ค่าเริ่มต้นกลาง ถ้าไม่ได้ตั้งโฟลเดอร์ในหน้าตั้งค่า Cloudinary
 
 // ---------- tabs ----------
 // Keep the current Admin tab in the URL without turning this into separate
@@ -1054,8 +1054,7 @@ function escAttr(s) {
 // once; an API secret must never be placed in this client-side application.
 function cloudinaryFolder(savedFolder) {
   const folder = String(savedFolder || '').trim();
-  // `menujk_up` belongs to the previous restaurant and must not be reused.
-  return !folder || folder === 'menujk_up' ? CLOUDINARY_MENU_FOLDER : folder;
+  return folder || CLOUDINARY_MENU_FOLDER;
 }
 function cloudinaryConfig() {
   const config = SETTINGS.cloudinary || {};
@@ -1802,8 +1801,10 @@ function genQr() {
 
 // ---------- ตั้งค่าทั่วไป + เครื่องพิมพ์ ----------
 // ชื่อร้านบนหัวหน้าจอ/แท็บ/ใบเสร็จมาจากการตั้งค่า ไม่ได้ฝังในโค้ด
-function applyShopBranding(name){
-  const shop = String(name || '').trim();
+function applyShopBranding(settings){
+  const phone = String((settings && settings.receipt && settings.receipt.shopPhone) || '').trim();
+  const rp = document.getElementById('ts-receiptPhone'); if(rp) rp.textContent = phone;
+  const shop = String((settings && settings.shopName) || '').trim();
   if(!shop) return;
   document.title = shop + ' · แอดมิน';
   const brand = document.getElementById('brandName'); if(brand) brand.textContent = shop;
@@ -1817,7 +1818,7 @@ async function loadSettings() {
   document.getElementById('paperWidthMm').value = String(SETTINGS.paperWidthMm || 80);
   document.getElementById('shopName').value = SETTINGS.shopName || '';
   document.getElementById('shopNameEn').value = SETTINGS.shopNameEn || '';
-  applyShopBranding(SETTINGS.shopName);
+  applyShopBranding(SETTINGS);
   document.getElementById('showPrices').checked = SETTINGS.showPrices === true;
   refreshCloudinaryUi();
   PRINTERS = Array.isArray(SETTINGS.printers) ? SETTINGS.printers : [];
